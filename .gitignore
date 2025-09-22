@@ -1,2 +1,5 @@
 .backups/
 .operations.log
+.editor
+package.json
+tsconfig.json
