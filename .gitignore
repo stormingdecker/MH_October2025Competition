@@ -3,3 +3,16 @@
 .editor
 package.json
 tsconfig.json
+types/horizon_core.d.ts
+types/horizon_navmesh.d.ts
+types/horizon_avatar_ai_agent.d.ts
+types/horizon_core.d.ts
+types/horizon_npc.d.ts
+types/CreateClasses.d.ts
+types/horizon_analytics.d.ts
+types/horizon_camera.d.ts
+types/horizon_performance.d.ts
+types/horizon_ui.d.ts
+types/HorizonGlobal.d.ts
+types/HorizonI18nUtils.d.ts
+types/HorizonUIUtils.d.ts
