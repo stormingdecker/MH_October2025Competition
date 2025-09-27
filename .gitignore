@@ -16,3 +16,4 @@ types/horizon_ui.d.ts
 types/HorizonGlobal.d.ts
 types/HorizonI18nUtils.d.ts
 types/HorizonUIUtils.d.ts
+.vscode/settings.json

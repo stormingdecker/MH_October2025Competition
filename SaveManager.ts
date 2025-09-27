@@ -1,19 +1,23 @@
-import { Component, Player, PropTypes } from "horizon/core";
+import { Component, Player, PlayerDeviceType, PropTypes } from "horizon/core";
 import { InventoryManager } from "InventoryManager";
 import { FilterType, PlayerManager, PlayerMgrEvents } from "PlayerManager";
+import { PlayerPlotManager } from "PlayerPlotManager";
 import { StatsManager } from "StatsManager";
+import { sysEvents } from "sysEvents";
 import { debugLog, ManagerType } from "sysHelper";
-import { PlayerInventory, PlayerStats } from "sysTypes";
+import { PlayerInventory, PlayerPlot, PlayerStats } from "sysTypes";
 import { getMgrClass } from "sysUtils";
 
 //region PPV Keys
-export const game_ppv_group_name = "LaunchPad";
+export const game_ppv_group_name = "Oct25";
 export const player_stats_ppv_name = "PlayerStats";
 export const player_inventory_ppv_name = "PlayerInventory";
+export const player_plot_ppv_name = "PlayerPlotData";
 export const SAVE_DATA_KEY = `${game_ppv_group_name}:${player_stats_ppv_name}`;
 export const SAVE_INVENTORY_KEY = `${game_ppv_group_name}:${player_inventory_ppv_name}`;
+export const SAVE_PLOT_KEY = `${game_ppv_group_name}:${player_plot_ppv_name}`;
 
-class SaveManager extends Component<typeof SaveManager> {
+export class SaveManager extends Component<typeof SaveManager> {
   static propsDefinition = {
     enabled: { type: PropTypes.Boolean, default: true },
     showDebugs: { type: PropTypes.Boolean, default: false },
@@ -24,6 +28,7 @@ class SaveManager extends Component<typeof SaveManager> {
   private activePlayerList: Set<Player> = new Set();
   private statsMgr: StatsManager | undefined = undefined;
   private inventoryMgr: InventoryManager | undefined = undefined;
+  private plotMgr: PlayerPlotManager | undefined = undefined;
   private playerMgr: PlayerManager | undefined = undefined;
 
   //region preStart
@@ -37,6 +42,11 @@ class SaveManager extends Component<typeof SaveManager> {
     this.connectNetworkEvent(this.entity, PlayerMgrEvents.PlayerLeft, (data) => {
       this.onPlayerLeft(data.player);
     });
+
+    this.connectNetworkEvent(this.entity, sysEvents.SavePlayerData, (data) => {
+      console.log(`Save Player Data Event Received from ${data.player.name.get()}`);
+      this.savePlayerData(data.player);
+    });
   }
 
   //region start
@@ -45,6 +55,7 @@ class SaveManager extends Component<typeof SaveManager> {
 
     this.statsMgr = getMgrClass<StatsManager>(this, ManagerType.StatsManager, StatsManager);
     this.inventoryMgr = getMgrClass<InventoryManager>(this, ManagerType.InventoryManager, InventoryManager);
+    this.plotMgr = getMgrClass<PlayerPlotManager>(this, ManagerType.PlayerPlotManager, PlayerPlotManager);
 
     //Subscribe to PlayerManager.PlayerEnter/Exit events
     this.playerMgr = getMgrClass<PlayerManager>(this, ManagerType.PlayerManager, PlayerManager);
@@ -82,6 +93,16 @@ class SaveManager extends Component<typeof SaveManager> {
       debugLog(this.props.showDebugs, `No inventory found for ${player.name.get()}. Setting to default.`);
       this.inventoryMgr!.resetPlayerInventory(player);
     }
+
+    const playerPlotData = this.world.persistentStorage.getPlayerVariable<any>(player, SAVE_PLOT_KEY);
+    if (playerPlotData && Object.keys(playerPlotData).length > 0) {
+      debugLog(this.props.showDebugs, `Loaded plot data for ${player.name.get()}: ${JSON.stringify(playerPlotData)}`);
+      this.plotMgr!.playerPlotLoaded(player, playerPlotData);
+    } else {
+      debugLog(this.props.showDebugs, `No plot data found for ${player.name.get()}. Setting to default.`);
+      this.plotMgr!.resetPlayerPlot(player);
+    }
+
   }
 
   //region player Left
@@ -98,13 +119,17 @@ class SaveManager extends Component<typeof SaveManager> {
   public savePlayerData(player: Player) {
     const playerStats = this.statsMgr?.getPlayerStats(player);
     const playerInventory = this.inventoryMgr?.getPlayerInventory(player);
-    if (!playerStats || !playerInventory) {
+    const playerPlotData = this.plotMgr?.getPlayerPlot(player);
+    if (!playerStats || !playerInventory || !playerPlotData) {
       console.error(`Missing player data for ${player.name.get()}. Skipping save.`);
       return;
     }
 
     this.world.persistentStorage.setPlayerVariable(player, SAVE_DATA_KEY, playerStats);
     this.world.persistentStorage.setPlayerVariable(player, SAVE_INVENTORY_KEY, playerInventory);
+    this.world.persistentStorage.setPlayerVariable(player, SAVE_PLOT_KEY, playerPlotData);
   }
+
+
 }
 Component.register(SaveManager);

@@ -22,6 +22,7 @@ export class StatsManager extends Component<typeof StatsManager> {
   static propsDefinition = {
     enabled: { type: PropTypes.Boolean, default: true },
     showDebugs: { type: PropTypes.Boolean, default: false },
+    enableLeaderboards: { type: PropTypes.Boolean, default: true },
   };
 
   private playerStatsMap: Map<Player, PlayerStats> = new Map();
@@ -207,6 +208,7 @@ export class StatsManager extends Component<typeof StatsManager> {
   }
 
   setWorldLeaderboard(LeaderboardName: string, player: Player, score: number ) {
+    if (!this.props.enableLeaderboards) return;
     console.log(`Setting leaderboard ${LeaderboardName} for ${player.name.get()} to ${score}`);
     //check if leaderboard exists
     this.world.leaderboards.setScoreForPlayer(LeaderboardName, player, score, true);

@@ -1,7 +1,7 @@
 // Copyright (c) Dave Mills (uRocketLife). Released under the MIT License.
 
 //Domain specific utilities for your system (e.g. getEntityListByTag, getPlayerData, getLocalizedText, etc.)
-// import { AvatarAIAgent } from "horizon/avatar_ai_agent";
+
 import {
   Asset,
   AudioGizmo,
@@ -12,6 +12,7 @@ import {
   Vec3,
   World,
 } from "horizon/core";
+import { Npc } from "horizon/npc";
 import { ImageSource } from "horizon/ui";
 
 //region Avatar AI Agent
@@ -24,8 +25,8 @@ export function getPlayerType(player: Player, world: World): PlayerType {
     return "departed";
   } else if (player.isInBuildMode.get()) {
     return "builder";
-  // } else if (AvatarAIAgent.getGizmoFromPlayer(player) !== undefined) {
-  //   return "npc";
+  } else if (player.id > 100000) {
+    return "npc";
   } else {
     return "human";
   }
@@ -118,7 +119,7 @@ export enum ManagerType {
   InventoryManager = "InventoryManager",
   AudioManager = "AudioManager",
   VFXManager = "VFXManager",
-  RingSpawner = "RingSpawner",
+  PlayerPlotManager = "PlotManager",
 }
 
 /**

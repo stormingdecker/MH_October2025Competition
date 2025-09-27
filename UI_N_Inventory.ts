@@ -1,10 +1,131 @@
-import { Asset, AudioGizmo, CodeBlockEvents, Component, Entity, LocalEvent, MeshEntity, Player, PlayerDeviceType, PlayerVisibilityMode, PropTypes, TextureAsset } from "horizon/core";
+import { ImageAsset } from "Assets";
+import { AudioGizmo, CodeBlockEvents, Component, Entity, LocalEvent, MeshEntity, Player, PlayerDeviceType, PlayerVisibilityMode, PropTypes } from "horizon/core";
 import { Binding, DynamicList, Image, ImageSource, Pressable, ScrollView, Text, TextStyle, UIComponent, UINode, View, ViewProps, ViewStyle } from "horizon/ui";
-//import { colorBackpack, colorBlaster, colorHelmet, colorJets, defaultColorBackpack, defaultColorBlaster, defaultColorHelmet, defaultColorJets, PlayerStats } from "PlayerManagerWearables";
 
-type artefactPPV = {
-  foundItemIds: string[];
-};
+enum ImageAssetID {
+  None,
+  Fruit_Apple,
+  Fruit_Avocado,
+  Fruit_Banana,
+  Fruit_Cherry,
+  Fruit_Grapes,
+  Fruit_Kiwi,
+  Fruit_Lemon,
+  Fruit_Lime,
+  Fruit_Orange,
+  Fruit_Pear,
+  Fruit_Pineapple,
+  Fruit_Strawberry,
+  Fruit_Watermelon,
+  Vegetable_Beet,
+  Vegetable_Broccoli,
+  Vegetable_Carrot,
+  Vegetable_Corn,
+  Vegetable_Eggplant,
+  Vegetable_GreenOnions,
+  Vegetable_Lettuce,
+  Vegetable_Onion,
+  Vegetable_Pepper,
+  Vegetable_Pumpkin,
+  Vegetable_Tomato,
+  Vegetable_Turnip,
+  Flower_PinkTulip,
+  Flower_RedTulip,
+  Flower_YellowTulip,
+  Flower_PinkPansy,
+  Flower_BluePansy,
+  Flower_OrangeLily,
+  Flower_VioletLily,
+  Flower_PinkLily,
+  Flower_YellowLily,
+  Tool_WateringCan,
+  Tool_Checkbox,
+  Tool_Lock,
+  Tool_Helmet,
+  Tool_HelmetNoColor,
+  Tool_BackpackOpen,
+  Tool_BackpackClosed,
+  Tool_Blaster,
+  Tool_Jets,
+  Tool_Backpack,
+}
+
+export class ImageAssets {
+  private imageAssets: ImageAsset[] = [];
+  private static instance: ImageAssets;
+
+  constructor() {
+    ImageAssets.instance = this;
+
+    this.registerImageAsset(ImageAssetID.Fruit_Apple, new ImageAsset("835545625712692", 256, 256));
+    this.registerImageAsset(ImageAssetID.Fruit_Avocado, new ImageAsset("1479439376508959", 256, 256));
+    this.registerImageAsset(ImageAssetID.Fruit_Banana, new ImageAsset("577896115411067", 256, 256));
+    this.registerImageAsset(ImageAssetID.Fruit_Cherry, new ImageAsset("1589301905384987", 256, 256));
+    this.registerImageAsset(ImageAssetID.Fruit_Grapes, new ImageAsset("1100810155118587", 256, 256));
+    this.registerImageAsset(ImageAssetID.Fruit_Kiwi, new ImageAsset("1465972811270110", 256, 256));
+    this.registerImageAsset(ImageAssetID.Fruit_Lemon, new ImageAsset("2280253882413709", 256, 256));
+    this.registerImageAsset(ImageAssetID.Fruit_Lime, new ImageAsset("800720849172649", 256, 256));
+    this.registerImageAsset(ImageAssetID.Fruit_Orange, new ImageAsset("1184357770383320", 256, 256));
+    this.registerImageAsset(ImageAssetID.Fruit_Pear, new ImageAsset("1344371760416276", 256, 256));
+    this.registerImageAsset(ImageAssetID.Fruit_Pineapple, new ImageAsset("3696494660654379", 256, 256));
+    this.registerImageAsset(ImageAssetID.Fruit_Strawberry, new ImageAsset("792438027051687", 256, 256));
+    this.registerImageAsset(ImageAssetID.Fruit_Watermelon, new ImageAsset("1756060821781319", 256, 256));
+    this.registerImageAsset(ImageAssetID.Vegetable_Beet, new ImageAsset("1114986907487009", 256, 256));
+    this.registerImageAsset(ImageAssetID.Vegetable_Broccoli, new ImageAsset("1197810532167707", 256, 256));
+    this.registerImageAsset(ImageAssetID.Vegetable_Carrot, new ImageAsset("1144737214283660", 256, 256));
+    this.registerImageAsset(ImageAssetID.Vegetable_Corn, new ImageAsset("678119851401408", 256, 256));
+    this.registerImageAsset(ImageAssetID.Vegetable_Eggplant, new ImageAsset("1966324657489538", 256, 256));
+    this.registerImageAsset(ImageAssetID.Vegetable_GreenOnions, new ImageAsset("1150349027061955", 256, 256));
+    this.registerImageAsset(ImageAssetID.Vegetable_Lettuce, new ImageAsset("1145631264113786", 256, 256));
+    this.registerImageAsset(ImageAssetID.Vegetable_Onion, new ImageAsset("1193445159266995", 256, 256));
+    this.registerImageAsset(ImageAssetID.Vegetable_Pepper, new ImageAsset("24148151548218412", 256, 256));
+    this.registerImageAsset(ImageAssetID.Vegetable_Pumpkin, new ImageAsset("2229132397511893", 256, 256));
+    this.registerImageAsset(ImageAssetID.Vegetable_Tomato, new ImageAsset("1213875753793692", 256, 256));
+    this.registerImageAsset(ImageAssetID.Vegetable_Turnip, new ImageAsset("1584342175864493", 256, 256));
+
+    this.registerImageAsset(ImageAssetID.Flower_PinkTulip, new ImageAsset("1113972000743060"));
+    this.registerImageAsset(ImageAssetID.Flower_RedTulip, new ImageAsset("3920307171542653"));
+    this.registerImageAsset(ImageAssetID.Flower_YellowTulip, new ImageAsset("2131894053899408"));
+    this.registerImageAsset(ImageAssetID.Flower_PinkPansy, new ImageAsset("1167073981748676"));
+    this.registerImageAsset(ImageAssetID.Flower_BluePansy, new ImageAsset("684631844094778"));
+    this.registerImageAsset(ImageAssetID.Flower_OrangeLily, new ImageAsset("677073901491269"));
+    this.registerImageAsset(ImageAssetID.Flower_VioletLily, new ImageAsset("629572849997901"));
+    this.registerImageAsset(ImageAssetID.Flower_PinkLily, new ImageAsset("1194689875643087"));
+    this.registerImageAsset(ImageAssetID.Flower_YellowLily, new ImageAsset("634475509493187"));
+    this.registerImageAsset(ImageAssetID.Tool_WateringCan, new ImageAsset("1767501717138360"));
+    this.registerImageAsset(ImageAssetID.Tool_Checkbox, new ImageAsset("2763243910526090"));
+    this.registerImageAsset(ImageAssetID.Tool_Lock, new ImageAsset("1371528367322210"));
+    this.registerImageAsset(ImageAssetID.Tool_Helmet, new ImageAsset("9597156110385711"));
+    this.registerImageAsset(ImageAssetID.Tool_HelmetNoColor, new ImageAsset("1404946297624214"));
+    this.registerImageAsset(ImageAssetID.Tool_BackpackOpen, new ImageAsset("4139010233004706", 512, 512));
+    this.registerImageAsset(ImageAssetID.Tool_BackpackClosed, new ImageAsset("1743046609720643", 512, 512));
+    this.registerImageAsset(ImageAssetID.Tool_Blaster, new ImageAsset("24145829305027120"));
+    this.registerImageAsset(ImageAssetID.Tool_Jets, new ImageAsset("1941506576648090"));
+    this.registerImageAsset(ImageAssetID.Tool_Backpack, new ImageAsset("1206871497780136"));
+  }
+
+  protected registerImageAsset(imageAssetID: ImageAssetID, imageAsset: ImageAsset) {
+    this.imageAssets[imageAssetID] = imageAsset;
+  }
+
+  public prefetchAllImageAssets() {
+    for (const imageAsset of this.imageAssets) {
+      // Implement later
+    }
+  }
+
+  public static getImageAsset(imageAssetID: ImageAssetID) {
+    return ImageAssets.instance.imageAssets[imageAssetID];
+  }
+}
+
+const COLOR_BACKGROUND_ACTIVE = "rgba(124, 76, 42, 1)";
+const COLOR_BACKGROUND_INACTIVE = "rgba(82, 54, 34, 1)";
+const COLOR_TEXT = "white";
+const ITEM_WIDTH = 512;
+const ITEM_HEIGHT = 192;
+
+let imageAssets = new ImageAssets();
 
 type flowersPPV = {
   foundItemIds: string[];
@@ -13,7 +134,7 @@ type flowersPPV = {
 export interface InventoryData {
   name: string;
   category: string;
-  assetTextureId: string;
+  imageAssetID: ImageAssetID;
   assetId?: string | null;
   description?: string;
   button?: boolean;
@@ -22,19 +143,17 @@ export interface InventoryData {
 }
 
 type ItemGroup = {
-  name: string;
-  assetTextureId: string;
   items: InventoryData[];
 };
 
 interface LayoutGroup {
   name: string;
-  iconTextureId: string;
+  imageAsset: ImageAsset;
 }
 
 export const NULL_ITEM: InventoryData = {
   assetId: "null",
-  assetTextureId: "null",
+  imageAssetID: ImageAssetID.None,
   category: "null",
   description: "null",
   name: "null",
@@ -43,595 +162,30 @@ export const NULL_ITEM: InventoryData = {
 };
 
 export const ItemEvents = {
-  ItemFound: new LocalEvent<{ player: Player; assetTextureId: string }>("ItemFound"),
+  ItemFound: new LocalEvent<{ player: Player; imageAssetID: ImageAssetID }>("ItemFound"),
   SetItem: new LocalEvent<{ item: InventoryData }>("SetItem"),
-  //EquipItem: new LocalEvent<{ player: Player, item: InventoryData }>("EquipItem")
-  EquipArtifact: new LocalEvent<{ player: Player; item: InventoryData }>("EquipArtifact"),
-};
-
-export const itemGroup1: ItemGroup = {
-  name: "flowers",
-  assetTextureId: "1113972000743060",
-  items: [
-    {
-      name: "Pink", // Use the string representation of the BigInt for display
-      category: "Tulip",
-      description: "Pink Tulip Description",
-      assetTextureId: "1113972000743060",
-    },
-    {
-      name: "Red",
-      category: "Tulip",
-      description: "Description of Art N 2",
-      assetTextureId: "3920307171542653",
-    },
-    {
-      name: "Yellow",
-      category: "Tulip",
-      description: "Description of Art N 2",
-      assetTextureId: "2131894053899408",
-    },
-    {
-      name: "Pink",
-      category: "Pansy",
-      description: "Description of Art N 2",
-      assetTextureId: "1167073981748676",
-    },
-    {
-      name: "Blue",
-      category: "Pansy",
-      description: "Description of Art N 2",
-      assetTextureId: "684631844094778",
-    },
-    {
-      name: "Orange",
-      category: "Lily",
-      description: "Description of Orange Lily",
-      assetTextureId: "677073901491269",
-    },
-    {
-      name: "Violet",
-      category: "Viola",
-      description: "Description of Blue Pansy",
-      assetTextureId: "629572849997901",
-    },
-    {
-      name: "Pink", // Use the string representation of the BigInt for display
-      category: "Lily",
-      description: "Pink lily Description",
-      assetTextureId: "1194689875643087",
-    },
-    {
-      name: "Yellow",
-      category: "Lily",
-      description: "Description of Art N 2",
-      assetTextureId: "634475509493187",
-    },
-    {
-      name: "Yellow",
-      category: "Tulip",
-      description: "Description of Art N 2",
-      assetTextureId: "2131894053899408",
-    },
-    {
-      name: "Pink",
-      category: "Pansy",
-      description: "Description of Art N 2",
-      assetTextureId: "1167073981748676",
-    },
-    {
-      name: "Blue",
-      category: "Pansy",
-      description: "Description of Art N 2",
-      assetTextureId: "684631844094778",
-    },
-  ],
-};
-
-// export const itemGroup1: ItemGroup = {
-//   name: "Artifacts",
-//   assetTextureId: "9560809057305701",
-//   items: [
-//     {
-//       name: "Gravlens", // Use the string representation of the BigInt for display
-//       category: "Artifacts",
-//       description: "Bends light to reveal hidden paths.",
-//       assetTextureId: "9560809057305701",
-//       assetId: "1255599585904606",
-//       button: true,
-//       buttonText: 'test',
-//     },
-//     {
-//       name: "Phigem",
-//       category: "Artifacts",
-//       description: "Shifts between dimensions when touched.",
-//       assetTextureId: "2038001273377989",
-//       assetId: "2136484810147825",
-//       button: false,
-//       buttonText: null,
-//     },
-//     {
-//       name: "Voidgem",
-//       category: "Artifacts",
-//       description: "Emits a low hum that warps gravity.",
-//       assetTextureId: "1014621473930002",
-//       assetId: "1794476827947008",
-//       button: false,
-//       buttonText: null,
-//     },
-//     {
-//       name: "Sunbit",
-//       category: "Artifacts",
-//       description: "Holds residual energy from a dying star.",
-//       assetTextureId: "998482589045579",
-//       assetId: "664438906214228",
-//       button: false,
-//       buttonText: null,
-//     },
-//     {
-//       name: "Chrono",
-//       category: "Artifacts",
-//       description: "Ticks faintly—slows time around it.",
-//       assetTextureId: "538107398983342",
-//       assetId: "978962204055440",
-//       button: false,
-//       buttonText: null,
-//     },
-
-//     {
-//       name: "Energon",
-//       category: "Artifacts",
-//       description: "A crystal that pulses with energy.",
-//       assetTextureId: "1284626176688663",
-//       assetId: "1412830979857523",
-//       button: false,
-//       buttonText: null,
-//     },
-//     {
-//       name: "Spirits",
-//       category: "Artifacts",
-//       description: "A swirling mass of ethereal energy.",
-//       assetTextureId: "1270107244620257",
-//       assetId: "1412830979857523",
-//       button: false,
-//       buttonText: null,
-//     },
-//     {
-//       name: "Spirits",
-//       category: "Artifacts",
-//       description: "A swirling mass of ethereal energy.",
-//       assetTextureId: "1270107244620257",
-//       assetId: "1412830979857523",
-//       button: false,
-//       buttonText: null,
-//     },
-//     // {
-//     //   name: "Test",
-//     //   category: "Artifacts",
-//     //   description: "A swirling mass of ethereal energy.",
-//     //   assetTextureId: "673521251942601",
-//     //   assetId: "1412830969857523",
-//     //   button: false,
-//     //   buttonText: null,
-//     // },
-
-//   ]
-// }
-
-export const itemGroup2: ItemGroup = {
-  name: "tab2",
-  assetTextureId: "1404946297624214",
-  items: [
-    {
-      name: "Helmet", // Use the string representation of the BigInt for display
-      category: "Helmet",
-      description: "",
-      assetTextureId: "1404946297624214",
-      assetId: null,
-      button: true,
-      buttonText: "Default",
-      color: null,
-    },
-    {
-      name: "Red", // Use the string representation of the BigInt for display
-      category: "Helmet",
-      description: "Red Helmet",
-      assetTextureId: "1404946297624214",
-      assetId: null,
-      button: true,
-      buttonText: "Red",
-      color: "#ff0000",
-    },
-    {
-      name: "Blue",
-      category: "Helmet",
-      description: "Blue Helmet",
-      assetTextureId: "1404946297624214",
-      assetId: null,
-      button: true,
-      buttonText: "Blue",
-      color: "#0000ff",
-    },
-    {
-      name: "Yellow",
-      category: "Helmet",
-      description: "Yellow Helmet",
-      assetTextureId: "1404946297624214",
-      assetId: null,
-      button: false,
-      buttonText: "Yellow",
-      color: "#ffff00",
-    },
-    // {
-    //   name: "Orange", // Use the string representation of the BigInt for display
-    //   category: "Helmet",
-    //   description: "Orange Helmet",
-    //   assetTextureId: "1404946297624214",
-    //   assetId: null,
-    //   button: true,
-    //   buttonText: 'Orange',
-    //   color: '#ff4c05',
-    // },
-    {
-      name: "Lime",
-      category: "Helmet",
-      description: "Lime Helmet",
-      assetTextureId: "1404946297624214",
-      assetId: null,
-      button: false,
-      buttonText: "Lime",
-      color: "#5eff00",
-    },
-    // {
-    //   name: "Magenta",
-    //   category: "Helmet",
-    //   description: "Magenta Helmet",
-    //   assetTextureId: "1404946297624214",
-    //   assetId: null,
-    //   button: false,
-    //   buttonText: 'Magenta',
-    //   color: '#fa0089',
-    // },
-    {
-      name: "Purple",
-      category: "Helmet",
-      description: "Purple Helmet",
-      assetTextureId: "1404946297624214",
-      assetId: null,
-      button: true,
-      buttonText: "Purple",
-      color: "#800080",
-    },
-    {
-      name: "Turquoise",
-      category: "Helmet",
-      description: "Turquoise Helmet",
-      assetTextureId: "1404946297624214",
-      assetId: null,
-      button: true,
-      buttonText: "Turquoise",
-      color: "#04ffd5",
-    },
-
-    {
-      name: "Black",
-      category: "Helmet",
-      description: "Black Helmet",
-      assetTextureId: "1404946297624214",
-      assetId: null,
-      button: true,
-      buttonText: "Black",
-      color: "#000000",
-    },
-
-    // ---- Backpack items ---
-    {
-      name: "Default", // Use the string representation of the BigInt for display
-      category: "Backpack",
-      description: "Red Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: false,
-      buttonText: "Default",
-      color: null,
-    },
-
-    {
-      name: "Red", // Use the string representation of the BigInt for display
-      category: "Backpack",
-      description: "Red Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: false,
-      buttonText: "Red",
-      color: "#ff0000",
-    },
-    {
-      name: "Blue",
-      category: "Backpack",
-      description: "Blue Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Blue",
-      color: "#0000ff",
-    },
-    {
-      name: "Purple",
-      category: "Backpack",
-      description: "Purple Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Purple",
-      color: "#800080",
-    },
-    {
-      name: "Yellow", // Use the string representation of the BigInt for display
-      category: "Backpack",
-      description: "Yellow Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Yellow",
-      color: "#fffb00",
-    },
-    {
-      name: "Turquoise",
-      category: "Backpack",
-      description: "Turquoise Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Turquoise",
-      color: "#04ffd5",
-    },
-    {
-      name: "Green",
-      category: "Backpack",
-      description: "Green Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Green",
-      color: "#05fa19",
-    },
-    {
-      name: "Black",
-      category: "Backpack",
-      description: "Black Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Black",
-      color: "#000000",
-    },
-
-    // ---- Jets items ---
-
-    {
-      name: "Default",
-      category: "Jets",
-      description: "",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Default",
-      color: null,
-    },
-    {
-      name: "Blue",
-      category: "Jets",
-      description: "Blue Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Blue",
-      color: "#0000ff",
-    },
-    {
-      name: "Red",
-      category: "Jets",
-      description: "Red Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Red",
-      color: "#ff0000",
-    },
-    {
-      name: "Purple",
-      category: "Jets",
-      description: "Purple Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Purple",
-      color: "#800080",
-    },
-    {
-      name: "Yellow", // Use the string representation of the BigInt for display
-      category: "Jets",
-      description: "Yellow Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Yellow",
-      color: "#fffb00",
-    },
-    {
-      name: "Turquoise",
-      category: "Jets",
-      description: "Turquoise Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Turquoise",
-      color: "#04ffd5",
-    },
-    {
-      name: "Green",
-      category: "Jets",
-      description: "Green Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Green",
-      color: "#05fa19",
-    },
-    {
-      name: "Black",
-      category: "Jets",
-      description: "Black Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Black",
-      color: "#000000",
-    },
-
-    // ---- Blaster items ---
-
-    // {
-    //   name: "Default", // Use the string representation of the BigInt for display
-    //   category: "Blaster",
-    //   description: "",
-    //   assetTextureId: "1206871497780136",
-    //   assetId: null,
-    //   button: true,
-    //   buttonText: 'Default',
-    //   color: null,
-    // },
-    // {
-    //   name: "Blue",
-    //   category: "Blaster",
-    //   description: "Blue Backpack",
-    //   assetTextureId: "1206871497780136",
-    //   assetId: null,
-    //   button: true,
-    //   buttonText: 'Blue',
-    //   color: '#0000ff',
-    // },
-    // {
-    //   name: "Red",
-    //   category: "Blaster",
-    //   description: "Red Backpack",
-    //   assetTextureId: "1206871497780136",
-    //   assetId: null,
-    //   button: true,
-    //   buttonText: 'Red',
-    //   color: '#ff0000',
-    // },
-    // {
-    //   name: "Purple",
-    //   category: "Blaster",
-    //   description: "Purple Backpack",
-    //   assetTextureId: "1206871497780136",
-    //   assetId: null,
-    //   button: true,
-    //   buttonText: 'Purple',
-    //   color: '#800080',
-    // },
-  ],
-};
-
-export const itemGroup3: ItemGroup = {
-  name: "tab3",
-  assetTextureId: "1424737355353818",
-  items: [
-    {
-      name: "Red", // Use the string representation of the BigInt for display
-      category: "Backpack",
-      description: "Red Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: false,
-      buttonText: "Yellow",
-      color: "#ff0000",
-    },
-    {
-      name: "Blue",
-      category: "Backpack",
-      description: "Blue Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Blue",
-      color: "#0000ff",
-    },
-    {
-      name: "Purple",
-      category: "Backpack",
-      description: "Purple Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Purple",
-      color: "#800080",
-    },
-    {
-      name: "Yellow", // Use the string representation of the BigInt for display
-      category: "Backpack",
-      description: "Yellow Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Yellow",
-      color: "#fffb00",
-    },
-    {
-      name: "Turquoise",
-      category: "Backpack",
-      description: "Turquoise Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Turquoise",
-      color: "#04ffd5",
-    },
-    {
-      name: "Green",
-      category: "Backpack",
-      description: "Green Backpack",
-      assetTextureId: "1206871497780136",
-      assetId: null,
-      button: true,
-      buttonText: "Green",
-      color: "#05fa19",
-    },
-    // {
-    //   name: "Silver",
-    //   category: "Backpack",
-    //   description: "Silver Backpack",
-    //   assetTextureId: "1206871497780136",
-    //   assetId: null,
-    //   button: true,
-    //   buttonText: 'Silver',
-    //   color: null,
-    // },
-  ],
 };
 
 export const layoutGroups: LayoutGroup[] = [
   {
     name: "tab1",
-    iconTextureId: "1113972000743060",
+    imageAsset: ImageAssets.getImageAsset(ImageAssetID.Flower_PinkTulip),
   },
   {
     name: "tab2",
-    iconTextureId: "1767501717138360",
+    imageAsset: ImageAssets.getImageAsset(ImageAssetID.Tool_WateringCan),
   },
   // {
   //   name: "tab3",
-  //   iconTextureId: "1206871497780136"
+  //   iconTextureId: InventoryAssets.imageBackpack,
   // }
 ];
 
-const categoryImageMap: Record<string, string> = {
-  Helmet: "9597156110385711",
-  Backpack: "3020150408165456",
-  Blaster: "24145829305027120", // replace with actual texture ID
-  Jets: "1941506576648090", // replace with actual texture ID
+const categoryImageMap: Record<string, ImageAsset> = {
+  Helmet: ImageAssets.getImageAsset(ImageAssetID.Tool_Helmet),
+  Backpack: ImageAssets.getImageAsset(ImageAssetID.Tool_BackpackOpen),
+  Blaster: ImageAssets.getImageAsset(ImageAssetID.Tool_Blaster),
+  Jets: ImageAssets.getImageAsset(ImageAssetID.Tool_Jets),
 };
 
 const styles = {
@@ -669,8 +223,6 @@ const styles = {
     marginTop: 10,
   } as ViewStyle,
 };
-
-const COLOR_CHANGE_COST = 10;
 
 ////////
 //
@@ -774,8 +326,6 @@ class Inventory extends UIComponent<typeof Inventory> {
     buttonClickSound: { type: PropTypes.Entity }, // Add this
   };
 
-  // protected panelHeight = 400;
-  // protected panelWidth = 400;
   // create bindings for inventory items
   private currentSelectedItem: Binding<InventoryData> = new Binding(NULL_ITEM);
   private selectedLayoutGroup: Binding<number> = new Binding(0);
@@ -806,18 +356,18 @@ class Inventory extends UIComponent<typeof Inventory> {
     }
   }
   private getCategoryImage(category: string): ImageSource | null {
-    const textureId = categoryImageMap[category];
-    return textureId ? ImageSource.fromTextureAsset(new TextureAsset(BigInt(textureId))) : null;
+    const categoryImage = categoryImageMap[category];
+    return categoryImage ? categoryImage.getImageSource() : null;
   }
 
   private getItemImageSource(item: InventoryData, context: "grid" | "tab2" | "tab3"): ImageSource | null {
     if (context === "grid") {
-      return item.assetTextureId && item.assetTextureId !== "null" ? ImageSource.fromTextureAsset(new TextureAsset(BigInt(item.assetTextureId))) : null;
+      return ImageAssets.getImageAsset(item.imageAssetID).getImageSource();
     }
 
     if (context === "tab2" || context === "tab3") {
       const categoryTexture = categoryImageMap[item.category];
-      return categoryTexture ? ImageSource.fromTextureAsset(new TextureAsset(BigInt(categoryTexture))) : null;
+      return categoryTexture ? categoryTexture.getImageSource() : null;
     }
 
     return null;
@@ -845,19 +395,11 @@ class Inventory extends UIComponent<typeof Inventory> {
 
     this.groupBindings.set(itemGroups);
 
-    // Load equipped werables  from persistent storage
+    // Load equipped wearables  from persistent storage
     const players = this.world.getPlayers();
-    // for (const player of players) {
-    //   const stats = this.world.persistentStorage.getPlayerVariable<PlayerStats>(player, "PUBLIC_ASSETS:PlayerStats");
-    //   const helmetColor = stats?.helmetColor ?? "";
-    //   const backpackColor = stats?.backpackColor ?? "";
-    //   const blasterColor = stats?.blasterColor ?? "";
-    //   const jetsColor = stats?.jetsColor ?? "";
-    //   this.equippedHelmetColor.set(helmetColor, [player]);
-    //   this.equippedBackpackColor.set(backpackColor, [player]);
-    //   this.equippedBlasterColor.set(blasterColor, [player]);
-    //   this.equippedJetsColor.set(jetsColor, [player]);
-    // }
+    for (const player of players) {
+      //   const stats = this.world.persistentStorage.getPlayerVariable<PlayerStats>(player, "PUBLIC_ASSETS:PlayerStats");
+    }
 
     for (const group of itemGroups) {
       for (const item of group.items) {
@@ -885,12 +427,12 @@ class Inventory extends UIComponent<typeof Inventory> {
         this.foundItems[i][j] = new Binding(false);
       }
     }
-    this.connectLocalBroadcastEvent(ItemEvents.ItemFound, ({ player, assetTextureId }) => {
+    this.connectLocalBroadcastEvent(ItemEvents.ItemFound, ({ player, imageAssetID }) => {
       for (let i = 0; i < itemGroups.length; i++) {
         for (let j = 0; j < itemGroups[i].items.length; j++) {
           const item = itemGroups[i].items[j];
           // console.log(`${item.assetTextureId}`);
-          if (item.assetTextureId === assetTextureId) {
+          if (item.imageAssetID === imageAssetID) {
             this.foundItems[i][j].set(true, [player]);
           }
         }
@@ -921,9 +463,9 @@ class Inventory extends UIComponent<typeof Inventory> {
                 Image({
                   source: this.backpackBinding.derive((isOpen) => {
                     if (isOpen) {
-                      return ImageSource.fromTextureAsset(new TextureAsset(BigInt("1463220161524161"))); //Close
+                      return ImageAssets.getImageAsset(ImageAssetID.Tool_BackpackOpen).getImageSource();
                     } else {
-                      return ImageSource.fromTextureAsset(new TextureAsset(BigInt("3020150408165456"))); //Open
+                      return ImageAssets.getImageAsset(ImageAssetID.Tool_BackpackClosed).getImageSource();
                     }
                   }),
                   style: {
@@ -1016,7 +558,7 @@ class Inventory extends UIComponent<typeof Inventory> {
 
       for (let j = 0; j < group.items.length; j++) {
         const item = group.items[j];
-        const isFound = foundIds.includes(item.assetTextureId);
+        const isFound = foundIds.includes(ImageAssets.getImageAsset(item.imageAssetID).assetID);
         this.foundItems[index][j].set(isFound, [player]);
       }
 
@@ -1087,15 +629,12 @@ class Inventory extends UIComponent<typeof Inventory> {
               // const stats = this.world.persistentStorage.getPlayerVariable<PlayerStats>(player, 'TemplateGame:PlayerStats');
               // const color = stats?.helmetColor ?? "";
               // this.equippedHelmetColor.set(color, [player]);
-
-
               // const stats = this.world.persistentStorage.getPlayerVariable<PlayerStats>(player, "PUBLIC_ASSETS:PlayerStats") ?? {
               //   helmetColor: "",
               //   backpackColor: "",
               //   blasterColor: "",
               //   jetsColor: "",
               // };
-
               // this.equippedHelmetColor.set(stats.helmetColor ?? "", [player]);
               // this.equippedBackpackColor.set(stats.backpackColor ?? "", [player]);
               // this.equippedBlasterColor.set(stats.blasterColor ?? "", [player]);
@@ -1121,7 +660,7 @@ class Inventory extends UIComponent<typeof Inventory> {
 
           children: [
             Image({
-              source: ImageSource.fromTextureAsset(new TextureAsset(BigInt(layoutGroups[i].iconTextureId))),
+              source: layoutGroups[i].imageAsset.getImageSource(),
               style: {
                 height: "80%",
                 width: "80%",
@@ -1132,7 +671,7 @@ class Inventory extends UIComponent<typeof Inventory> {
           style: {
             width: "100%",
             height: "20%",
-            backgroundColor: this.selectedLayoutGroup.derive((value) => (value === i ? "silver" : "grey")),
+            backgroundColor: this.selectedLayoutGroup.derive((value) => (value === i ? COLOR_BACKGROUND_ACTIVE : COLOR_BACKGROUND_INACTIVE)),
             justifyContent: "center",
             alignItems: "center",
             borderTopLeftRadius: 20,
@@ -1226,7 +765,7 @@ class Inventory extends UIComponent<typeof Inventory> {
         Text({
           text: `${category}`,
           style: {
-            color: "black",
+            color: COLOR_TEXT,
             fontWeight: "600",
             fontSize: 18,
             textAlignVertical: "center",
@@ -1246,7 +785,7 @@ class Inventory extends UIComponent<typeof Inventory> {
       style: {
         maxWidth: "30%",
         height: "100%",
-        backgroundColor: this.selectedItemCategory.derive((value) => (value === category ? "silver" : "grey")),
+        backgroundColor: this.selectedItemCategory.derive((value) => (value === category ? COLOR_BACKGROUND_ACTIVE : COLOR_BACKGROUND_INACTIVE)),
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         flexDirection: "row",
@@ -1271,7 +810,7 @@ class Inventory extends UIComponent<typeof Inventory> {
                     for (let i = 0; i < group.items.length; i++) {
                       //items.push(this.gridItem(group.items[i], index ?? 0, i));
                       if (index === 0) {
-                        items.push(this.gridItem(group.items[i], index ?? 0, i)); // Artefacts
+                        items.push(this.gridItem(group.items[i], index ?? 0, i)); // Artifacts
                       } else if (index === 1) {
                         items.push(this.tab2ListItem(group.items[i], index ?? 0, i)); // Wearables
                       } else if (index === 2) {
@@ -1285,8 +824,8 @@ class Inventory extends UIComponent<typeof Inventory> {
                           View({
                             children: items,
                             style: {
-                              width: "100%", //make sure with and hight the same value to maintain square shape
-                              height: "50%",
+                              width: ITEM_WIDTH,
+                              height: ITEM_HEIGHT,
                               //height: '200%',
                               //backgroundColor: 'purple',
                               flexDirection: "row",
@@ -1322,7 +861,7 @@ class Inventory extends UIComponent<typeof Inventory> {
           style: {
             width: "100%",
             height: "80%", // If need to change it also make sure to change the top container
-            backgroundColor: "silver",
+            backgroundColor: COLOR_BACKGROUND_ACTIVE,
             //opacity: 0.8,
             //borderColor: 'black',
             //borderWidth: 5,
@@ -1373,7 +912,7 @@ class Inventory extends UIComponent<typeof Inventory> {
                 }),
                 Image({
                   // Checkbox indicating if the item has been found
-                  source: ImageSource.fromTextureAsset(new TextureAsset(BigInt("2763243910526090"))),
+                  source: ImageAssets.getImageAsset(ImageAssetID.Tool_Checkbox).getImageSource(),
                   style: {
                     display: this.foundItems[group][index].derive((value) => (value ? "flex" : "none")),
                     width: "25%",
@@ -1391,7 +930,7 @@ class Inventory extends UIComponent<typeof Inventory> {
                 }),
                 Image({
                   // Display a lock if the item has not been found
-                  source: ImageSource.fromTextureAsset(new TextureAsset(BigInt("1371528367322210"))),
+                  source: ImageAssets.getImageAsset(ImageAssetID.Tool_Lock).getImageSource(),
                   style: {
                     display: this.foundItems[group][index].derive((value) => (value ? "none" : "flex")),
                     aspectRatio: 1,
@@ -1437,7 +976,7 @@ class Inventory extends UIComponent<typeof Inventory> {
             borderTopRightRadius: 20,
             borderBottomLeftRadius: 20,
             borderBottomRightRadius: 20,
-            borderColor: this.currentSelectedItem.derive((value) => (value.assetTextureId === item.assetTextureId ? "grey" : "silver")),
+            borderColor: this.currentSelectedItem.derive((value) => (value.imageAssetID === item.imageAssetID ? COLOR_BACKGROUND_ACTIVE : COLOR_BACKGROUND_INACTIVE)),
             borderWidth: 3,
             alignContent: "center",
           },
@@ -1490,7 +1029,7 @@ class Inventory extends UIComponent<typeof Inventory> {
             View({
               children: [
                 // Image({
-                //   // source: ImageSource.fromTextureAsset(new TextureAsset(BigInt("1404946297624214"))),
+                //   // source: InventoryAssets.imageHelmetNoColor.getImageSource(),
                 //   source: this.getItemImageSource(item, "tab2"), // or "tab2"
                 //   style: {
                 //     width: 80,
@@ -1649,7 +1188,7 @@ class Inventory extends UIComponent<typeof Inventory> {
             View({
               children: [
                 Image({
-                  source: item.color ? ImageSource.fromTextureAsset(new TextureAsset(BigInt(item.assetTextureId))) : ImageSource.fromTextureAsset(new TextureAsset(BigInt("1404946297624214"))),
+                  source: item.color ? ImageAssets.getImageAsset(item.imageAssetID).getImageSource() : ImageAssets.getImageAsset(ImageAssetID.Tool_HelmetNoColor).getImageSource(),
                   style: {
                     width: 80,
                     aspectRatio: 1,
@@ -1867,12 +1406,12 @@ class Inventory extends UIComponent<typeof Inventory> {
                   source: this.currentSelectedItem.derive((item) => {
                     if (!item || item === NULL_ITEM || item.name === "null") return null;
 
-                    if (item.assetTextureId && item.assetTextureId !== "null") {
-                      return ImageSource.fromTextureAsset(new TextureAsset(BigInt(item.assetTextureId)));
+                    if (item.imageAssetID !== ImageAssetID.None) {
+                      return ImageAssets.getImageAsset(item.imageAssetID).getImageSource();
                     }
 
                     const fallbackId = categoryImageMap[item.category];
-                    return fallbackId ? ImageSource.fromTextureAsset(new TextureAsset(BigInt(fallbackId))) : null;
+                    return fallbackId ? fallbackId.getImageSource() : null;
                   }),
                   style: {
                     width: "100%",
@@ -1886,7 +1425,7 @@ class Inventory extends UIComponent<typeof Inventory> {
                 UINode.if(
                   this.currentSelectedItem.derive((item) => item === NULL_ITEM || item.name === "null"),
                   Image({
-                    source: this.selectedItemCategory.derive((category) => (categoryImageMap[category] ? ImageSource.fromTextureAsset(new TextureAsset(BigInt(categoryImageMap[category]))) : null)),
+                    source: this.selectedItemCategory.derive((category) => (categoryImageMap[category] ? categoryImageMap[category].getImageSource() : null)),
                     style: {
                       position: "absolute",
                       width: "100%",
@@ -1922,7 +1461,7 @@ class Inventory extends UIComponent<typeof Inventory> {
                 textAlign: "center",
                 width: "70%",
                 height: "10%",
-                color: "black",
+                color: COLOR_TEXT,
                 //backgroundColor: "grey",
                 borderTopLeftRadius: 20,
                 borderTopRightRadius: 20,
@@ -1947,7 +1486,7 @@ class Inventory extends UIComponent<typeof Inventory> {
                 textAlign: "center",
                 width: "70%",
                 height: "30%",
-                color: "black",
+                color: COLOR_TEXT,
                 //backgroundColor: "grey",
                 borderTopLeftRadius: 20,
                 borderTopRightRadius: 20,
@@ -1960,7 +1499,7 @@ class Inventory extends UIComponent<typeof Inventory> {
             // display: 'none', // TODO add binding here to show/hide the selected item
             width: "90%",
             height: "89%",
-            backgroundColor: "silver",
+            backgroundColor: COLOR_BACKGROUND_ACTIVE,
             // borderColor: 'black',
             // borderWidth: 5,
             justifyContent: "center",
@@ -1983,7 +1522,7 @@ class Inventory extends UIComponent<typeof Inventory> {
     });
   }
 
-  start() { }
+  start() {}
 }
 UIComponent.register(Inventory);
 
@@ -2150,7 +1689,7 @@ class ItemComponent extends Component<typeof ItemComponent> {
     // Projectile: { type: PropTypes.Entity },
   };
 
-  private assetTextureId: string = "";
+  private imageAssetID: ImageAssetID = ImageAssetID.None;
   private visualEntities: Entity[] = [];
 
   override preStart() {
@@ -2172,10 +1711,10 @@ class ItemComponent extends Component<typeof ItemComponent> {
       this.visualEntities.push(this.props.imageVisual3);
     }
     this.connectLocalEvent(this.entity, ItemEvents.SetItem, (data) => {
-      this.assetTextureId = data.item.assetTextureId;
+      this.imageAssetID = data.item.imageAssetID;
       this.visualEntities.forEach((entity) => {
         const meshEntity = entity.as(MeshEntity);
-        meshEntity.setTexture(new Asset(BigInt(this.assetTextureId)));
+        meshEntity.setTexture(ImageAssets.getImageAsset(this.imageAssetID!).getTextureAsset());
       });
     });
     // this.connectCodeBlockEvent(
@@ -2189,10 +1728,106 @@ class ItemComponent extends Component<typeof ItemComponent> {
     //   }
     // );
     this.connectCodeBlockEvent(this.props.trigger, CodeBlockEvents.OnPlayerEnterTrigger, (player) => {
-      this.sendLocalBroadcastEvent(ItemEvents.ItemFound, { player, assetTextureId: this.assetTextureId });
+      this.sendLocalBroadcastEvent(ItemEvents.ItemFound, { player, imageAssetID: this.imageAssetID });
     });
   }
 
-  override start() { }
+  override start() {}
 }
 UIComponent.register(ItemComponent);
+
+// ITEM GROUPS BELOW
+
+export const itemGroup1: ItemGroup = {
+  //name: "flowers",
+  //assetTextureId: InventoryAssets.imagePinkTulip,
+  items: [
+    /*
+    { name: "Pink", category: "Tulip", description: "Pink Tulip Description", imageAssetID: ImageAssetID.Flower_PinkTulip },
+    { name: "Red", category: "Tulip", description: "Description of Art N 2", imageAssetID: ImageAssetID.Flower_RedTulip },
+    { name: "Yellow", category: "Tulip", description: "Description of Art N 2", imageAssetID: ImageAssetID.Flower_YellowTulip },
+    { name: "Pink", category: "Pansy", description: "Description of Art N 2", imageAssetID: ImageAssetID.Flower_PinkPansy },
+    { name: "Blue", category: "Pansy", description: "Description of Art N 2", imageAssetID: ImageAssetID.Flower_BluePansy },
+    { name: "Orange", category: "Lily", description: "Description of Orange Lily", imageAssetID: ImageAssetID.Flower_OrangeLily },
+    { name: "Violet", category: "Lily", description: "Description of Violet Lily", imageAssetID: ImageAssetID.Flower_VioletLily },
+    { name: "Pink", category: "Lily", description: "Pink lily Description", imageAssetID: ImageAssetID.Flower_PinkLily },
+    { name: "Yellow", category: "Lily", description: "Description of Art N 2", imageAssetID: ImageAssetID.Flower_YellowLily },
+    { name: "Yellow", category: "Tulip", description: "Description of Art N 2", imageAssetID: ImageAssetID.Flower_YellowTulip },
+    { name: "Pink", category: "Pansy", description: "Description of Art N 2", imageAssetID: ImageAssetID.Flower_PinkPansy },
+    { name: "Blue", category: "Pansy", description: "Description of Art N 2", imageAssetID: ImageAssetID.Flower_BluePansy },
+    { name: "Apple", category: "Fruit", description: "A juicy red apple", imageAssetID: ImageAssetID.Fruit_Apple },
+    { name: "Avocado", category: "Fruit", description: "A ripe avocado", imageAssetID: ImageAssetID.Fruit_Avocado },
+    { name: "Banana", category: "Fruit", description: "A bunch of bananas", imageAssetID: ImageAssetID.Fruit_Banana },
+    { name: "Cherry", category: "Fruit", description: "A pair of cherries", imageAssetID: ImageAssetID.Fruit_Cherry },
+    { name: "Grapes", category: "Fruit", description: "A cluster of grapes", imageAssetID: ImageAssetID.Fruit_Grapes },
+    { name: "Kiwi", category: "Fruit", description: "A sliced kiwi fruit", imageAssetID: ImageAssetID.Fruit_Kiwi },
+    { name: "Lemon", category: "Fruit", description: "A fresh lemon", imageAssetID: ImageAssetID.Fruit_Lemon },
+    { name: "Lime", category: "Fruit", description: "A zesty lime", imageAssetID: ImageAssetID.Fruit_Lime },
+*/
+    { name: "Orange", category: "Fruit", description: "A sweet orange", imageAssetID: ImageAssetID.Fruit_Orange },
+    { name: "Pear", category: "Fruit", description: "A ripe pear", imageAssetID: ImageAssetID.Fruit_Pear },
+    { name: "Pineapple", category: "Fruit", description: "A tropical pineapple", imageAssetID: ImageAssetID.Fruit_Pineapple },
+    { name: "Strawberry", category: "Fruit", description: "A fresh strawberry", imageAssetID: ImageAssetID.Fruit_Strawberry },
+    { name: "Watermelon", category: "Fruit", description: "A slice of watermelon", imageAssetID: ImageAssetID.Fruit_Watermelon },
+    { name: "Beet", category: "Vegetable", description: "A fresh beet", imageAssetID: ImageAssetID.Vegetable_Beet },
+    { name: "Broccoli", category: "Vegetable", description: "A head of broccoli", imageAssetID: ImageAssetID.Vegetable_Broccoli },
+    { name: "Carrot", category: "Vegetable", description: "A crunchy carrot", imageAssetID: ImageAssetID.Vegetable_Carrot },
+    { name: "Corn", category: "Vegetable", description: "An ear of corn", imageAssetID: ImageAssetID.Vegetable_Corn },
+    { name: "Eggplant", category: "Vegetable", description: "A purple eggplant", imageAssetID: ImageAssetID.Vegetable_Eggplant },
+    { name: "Green Onions", category: "Vegetable", description: "A bunch of green onions", imageAssetID: ImageAssetID.Vegetable_GreenOnions },
+    { name: "Lettuce", category: "Vegetable", description: "A head of lettuce", imageAssetID: ImageAssetID.Vegetable_Lettuce },
+    { name: "Onion", category: "Vegetable", description: "A fresh onion", imageAssetID: ImageAssetID.Vegetable_Onion },
+    { name: "Pepper", category: "Vegetable", description: "A bell pepper", imageAssetID: ImageAssetID.Vegetable_Pepper },
+    { name: "Pumpkin", category: "Vegetable", description: "A round pumpkin", imageAssetID: ImageAssetID.Vegetable_Pumpkin },
+    { name: "Tomato", category: "Vegetable", description: "A ripe tomato", imageAssetID: ImageAssetID.Vegetable_Tomato },
+    { name: "Turnip", category: "Vegetable", description: "A fresh turnip", imageAssetID: ImageAssetID.Vegetable_Turnip },
+  ],
+};
+
+export const itemGroup2: ItemGroup = {
+  //name: "tab2",
+  //assetTextureId: InventoryAssets.imageHelmetNoColor,
+  items: [
+    { name: "Helmet", category: "Helmet", description: "", imageAssetID: ImageAssetID.Tool_HelmetNoColor, button: true, buttonText: "Default", color: null },
+    { name: "Red", category: "Helmet", description: "Red Helmet", imageAssetID: ImageAssetID.Tool_HelmetNoColor, button: true, buttonText: "Red", color: "#ff0000" },
+    { name: "Blue", category: "Helmet", description: "Blue Helmet", imageAssetID: ImageAssetID.Tool_HelmetNoColor, button: true, buttonText: "Blue", color: "#0000ff" },
+    { name: "Yellow", category: "Helmet", description: "Yellow Helmet", imageAssetID: ImageAssetID.Tool_HelmetNoColor, button: false, buttonText: "Yellow", color: "#ffff00" },
+    { name: "Lime", category: "Helmet", description: "Lime Helmet", imageAssetID: ImageAssetID.Tool_HelmetNoColor, button: false, buttonText: "Lime", color: "#5eff00" },
+    { name: "Purple", category: "Helmet", description: "Purple Helmet", imageAssetID: ImageAssetID.Tool_HelmetNoColor, button: true, buttonText: "Purple", color: "#800080" },
+    { name: "Turquoise", category: "Helmet", description: "Turquoise Helmet", imageAssetID: ImageAssetID.Tool_HelmetNoColor, button: true, buttonText: "Turquoise", color: "#04ffd5" },
+    { name: "Black", category: "Helmet", description: "Black Helmet", imageAssetID: ImageAssetID.Tool_HelmetNoColor, button: true, buttonText: "Black", color: "#000000" },
+    /*
+    // ---- Backpack items ---
+    { name: "Default", category: "Backpack", description: "Red Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: false, buttonText: "Default", color: null },
+    { name: "Red", category: "Backpack", description: "Red Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: false, buttonText: "Red", color: "#ff0000" },
+    { name: "Blue", category: "Backpack", description: "Blue Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Blue", color: "#0000ff" },
+    { name: "Purple", category: "Backpack", description: "Purple Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Purple", color: "#800080" },
+    { name: "Yellow", category: "Backpack", description: "Yellow Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Yellow", color: "#fffb00" },
+    { name: "Turquoise", category: "Backpack", description: "Turquoise Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Turquoise", color: "#04ffd5" },
+    { name: "Green", category: "Backpack", description: "Green Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Green", color: "#05fa19" },
+    { name: "Black", category: "Backpack", description: "Black Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Black", color: "#000000" },
+    // ---- Jets items ---
+    { name: "Default", category: "Jets", description: "", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Default", color: null },
+    { name: "Blue", category: "Jets", description: "Blue Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Blue", color: "#0000ff" },
+    { name: "Red", category: "Jets", description: "Red Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Red", color: "#ff0000" },
+    { name: "Purple", category: "Jets", description: "Purple Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Purple", color: "#800080" },
+    { name: "Yellow", category: "Jets", description: "Yellow Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Yellow", color: "#fffb00" },
+    { name: "Turquoise", category: "Jets", description: "Turquoise Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Turquoise", color: "#04ffd5" },
+    { name: "Green", category: "Jets", description: "Green Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Green", color: "#05fa19" },
+    { name: "Black", category: "Jets", description: "Black Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Black", color: "#000000" },
+*/
+  ],
+};
+
+export const itemGroup3: ItemGroup = {
+  //name: "tab3",
+  //assetTextureId: "1424737355353818",
+  items: [
+    { name: "Red", category: "Backpack", description: "Red Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: false, buttonText: "Yellow", color: "#ff0000" },
+    { name: "Blue", category: "Backpack", description: "Blue Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Blue", color: "#0000ff" },
+    { name: "Purple", category: "Backpack", description: "Purple Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Purple", color: "#800080" },
+    { name: "Yellow", category: "Backpack", description: "Yellow Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Yellow", color: "#fffb00" },
+    { name: "Turquoise", category: "Backpack", description: "Turquoise Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Turquoise", color: "#04ffd5" },
+    { name: "Green", category: "Backpack", description: "Green Backpack", imageAssetID: ImageAssetID.Tool_Backpack, button: true, buttonText: "Green", color: "#05fa19" },
+  ],
+};

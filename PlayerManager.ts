@@ -124,6 +124,7 @@ Component.register(PlayerManager);
 //region Player Properties
 type PlayerProperties = {
   name: string;
+  playerId: number;
   index: number;
   type: "human" | "npc" | "server" | "builder" | "departed";
   inBuildMode: boolean;
@@ -146,6 +147,7 @@ type PlayerSubscriber = {
 function buildPlayerProperties(player: Player, world: World): PlayerProperties {
   return {
     name: player.name.get(),
+    playerId: player.id,
     index: player.index.get(),
     type: getPlayerType(player, world),
     inBuildMode: player.isInBuildMode.get(),
