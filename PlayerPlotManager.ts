@@ -44,7 +44,7 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     });
 
     this.connectNetworkEvent(this.entity, spawnPlayerPlot, (data) => {
-      console.log(`Spawn Player Plot Event Received from ${data.player.name.get()}`);
+      console.log(`Spawn Player Plot for ${data.player.name.get()} on plot base ${data.plotBaseID}`);
       if (this.player_IdToEntityMap.has(data.player)) {
         console.warn(`Player ${data.player.name.get()} already has a plot spawned. Skipping spawn.`);
         return;
@@ -67,34 +67,7 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
 
     this.connectNetworkEvent(this.entity, savePlayerPlot, (data) => {
       console.log(`Save Player Plot Event Received from ${data.player.name.get()}`);
-      // this.savePlayerPlot(data.player);
-      // for each building we need to save its current transform
-      const plotData = this.getPlayerPlot(data.player);
-      const buildings = plotData.buildings;
-      buildings.forEach((building) => {
-        const idMap = this.player_IdToEntityMap.get(data.player);
-        if (!idMap) {
-          console.warn(`No entity map found for player ${data.player.name.get()}`);
-          return;
-        }
-        const entity = idMap.get(building.instanceId);
-        if (entity) {
-          const pos = entity.position.get().sub(this.props.playerPlotBase1!.position.get());
-          const quatRot = entity.rotation.get().mul(this.props.playerPlotBase1!.rotation.get().inverse());
-          const rot = quatRot.toEuler(EulerOrder.XYZ);
-          building.transform.position = { x: pos.x, y: pos.y, z: pos.z };
-          building.transform.rotationEuler = { x: rot.x, y: rot.y, z: rot.z };
-          console.log(`Updated building ${building.instanceId} transform in plot data.`);
-        } else {
-          console.warn(`Entity with ID ${building.instanceId} not found in world.`);
-        }
-      });
-      this.playerPlotMap.set(data.player, { ...plotData, buildings });
-      console.log(`Player ${data.player.name.get()}'s plot data saved.`);
-      // const saveManager = getMgrClass<SaveManager>(this, ManagerType.SaveManager, SaveManager);
-      // saveManager?.savePlayerData(data.player);
-      const saveManager = getEntityListByTag(ManagerType.SaveManager, this.world)[0];
-      this.sendNetworkEvent(saveManager!, sysEvents.SavePlayerData, { player: data.player });
+      this.savePlayerPlot(data.player);
     });
   }
 
@@ -208,6 +181,39 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
         idMap.set(curInstanceId, entity);
       }
     }
+  }
+
+  //region save player plot
+  savePlayerPlot(player: Player) {
+      // this.savePlayerPlot(data.player);
+      // for each building we need to save its current transform
+      const plotData = this.getPlayerPlot(player);
+      const buildings = plotData.buildings;
+      buildings.forEach((building) => {
+        const idMap = this.player_IdToEntityMap.get(player);
+        if (!idMap) {
+          console.warn(`No entity map found for player ${player.name.get()}`);
+          return;
+        }
+        const entity = idMap.get(building.instanceId);
+        if (entity) {
+          const plotBase = this.player_PlotBaseMap.get(player);
+          const pos = entity.position.get().sub(plotBase!.position.get());
+          const quatRot = entity.rotation.get().mul(plotBase!.rotation.get().inverse());
+          const rot = quatRot.toEuler(EulerOrder.XYZ);
+          building.transform.position = { x: pos.x, y: pos.y, z: pos.z };
+          building.transform.rotationEuler = { x: rot.x, y: rot.y, z: rot.z };
+          console.log(`Updated building ${building.instanceId} transform in plot data.`);
+        } else {
+          console.warn(`Entity with ID ${building.instanceId} not found in world.`);
+        }
+      });
+      this.playerPlotMap.set(player, { ...plotData, buildings });
+      console.log(`Player ${player.name.get()}'s plot data saved.`);
+      // const saveManager = getMgrClass<SaveManager>(this, ManagerType.SaveManager, SaveManager);
+      // saveManager?.savePlayerData(data.player);
+      const saveManager = getEntityListByTag(ManagerType.SaveManager, this.world)[0];
+      this.sendNetworkEvent(saveManager!, sysEvents.SavePlayerData, { player: player });
   }
 
   findBuildingById(plot: PlayerPlot, id: string): BuildingComponent | undefined {

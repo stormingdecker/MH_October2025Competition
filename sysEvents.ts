@@ -49,8 +49,8 @@ export const sysEvents = {
 
   //region Asset String Array
   OnAssetStringArray_Request: new NetworkEvent<{ requester: Entity }>("OnAssetStringArray_Request"),
-  OnAssetStringArray_Response: new NetworkEvent<{ type: string; assetIDArray: string[] }>(
+  OnAssetStringArray_Response: new NetworkEvent<{ type: string; assetIDArray: string[]; textureIDArray: string[] }>(
     "OnAssetStringArray_Response"
   ),
-
+//
 };

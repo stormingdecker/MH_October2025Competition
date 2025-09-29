@@ -81,6 +81,7 @@ class PlotAssetRegistry extends Component<typeof PlotAssetRegistry> {
     this.sendNetworkEvent(data.requester, sysEvents.OnAssetStringArray_Response, {
       type: this.props.assetType,
       assetIDArray: this.spawnableAssetIDArray,
+      textureIDArray: this.spawnableTextureIDArray,
     });
   }
 

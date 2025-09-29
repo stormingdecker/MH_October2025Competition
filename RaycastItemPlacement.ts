@@ -108,7 +108,7 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
     this.playerOwner = this.entity.owner.get();
 
     this.connectNetworkEvent(this.entity, simpleButtonEvent, (data) => {
-      //still need a local check
+      // still need a local check
       // if (!this.inFocusMode) {
       //   console.log("Entering Focused Interaction Mode");
       //   this.entity.owner.get().enterFocusedInteractionMode();

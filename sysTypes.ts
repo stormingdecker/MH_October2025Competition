@@ -1,3 +1,5 @@
+import { DEFAULT_BUILDING_LAYOUT } from "sysDefaultLayouts";
+
 //region INVENTORY
 export type PlayerInventory = {
   items: { [key in InventoryType]: number }; // item name to quantity mapping
@@ -97,7 +99,7 @@ export type PlayerPlot = {
 };
 
 export const DEFAULT_PLOT_LAYOUT: PlayerPlot = Object.freeze({
-  buildings: [],
+  buildings: DEFAULT_BUILDING_LAYOUT,
   gardens: [],
   animals: [],
   workers: [],
@@ -220,3 +222,5 @@ export type Animal = {
   ageStage?: "juvenile" | "adult" | "elder";
   lastUpdated: number; // epoch ms for sim tick
 };
+
+

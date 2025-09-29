@@ -12,17 +12,18 @@ import {
   UINode,
   View,
 } from "horizon/ui";
+import { spawnNewAssetEvent } from "PlayerPlotManager";
 import { sysEvents } from "sysEvents";
 import {
   assertAllNullablePropsSet,
   buildManagerRegistry,
   convertAssetToImageSource,
+  getEntityListByTag,
   ManagerRegistry,
   ManagerType,
 } from "sysHelper";
 import { formatLargeNumber } from "sysUtils";
 import { OnTextureAssetResponse } from "TextureRegistry_Base";
-
 
 class UI_SimpleScrollView extends UIComponent<typeof UI_SimpleScrollView> {
   static propsDefinition = {
@@ -34,7 +35,9 @@ class UI_SimpleScrollView extends UIComponent<typeof UI_SimpleScrollView> {
 
   private managerRegistry: ManagerRegistry = new Map();
 
+  private assetArray: Asset[] = [];
   private textureArray: Asset[] = [];
+
   private bnd_imgBindings: Binding<ImageSource>[] = []; // Array to hold image bindings for each Minimon
   private bnd_text: Binding<string>[] = []; // Array to hold text bindings for each Minimon
   private costArray: number[] = []; // Array to hold cost values for each Minimon
@@ -69,11 +72,11 @@ class UI_SimpleScrollView extends UIComponent<typeof UI_SimpleScrollView> {
       style: {
         backgroundColor: "rgba(0, 0, 0, 0.5)",
         borderRadius: 10,
-
+        justifyContent: "space-evenly",
         right: "17%",
-        top: "14%",
-        height: 500,
-        width: 300,
+        top: "5%",
+        height: 480,
+        width: 100,
 
         position: "absolute",
         // layoutOrigin: [0.5, 0.45],
@@ -89,20 +92,27 @@ class UI_SimpleScrollView extends UIComponent<typeof UI_SimpleScrollView> {
 
     this.managerRegistry = buildManagerRegistry(this.world);
 
-    //TEXTURE ASSET ARRAY RESPONSE
-    this.connectNetworkEvent(this.entity, OnTextureAssetResponse, (data) => {
-      this.HandleTextureAssetResponse(data);
-    });
+    // //TEXTURE ASSET ARRAY RESPONSE
+    // this.connectNetworkEvent(this.entity, OnTextureAssetResponse, (data) => {
+    //   this.HandleTextureAssetResponse(data);
+    // });
 
     // this.connectNetworkEvent(this.entity, sysEvents.ShowHideUI, (data) => {
     //   this.showUI(data.show);
     // });
+
+    this.connectNetworkEvent(this.entity, sysEvents.OnAssetStringArray_Response, (data) => {
+      this.HandleTextureAssetResponse(data.assetIDArray, data.textureIDArray);
+    });
   }
   //endregion PreStart
 
+  private plotManager: Entity | null = null;
   //region Start
   start() {
     if (!this.props.enabled) return;
+
+    this.plotManager = getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0] || null;
   }
   //endregion Start
 
@@ -113,14 +123,21 @@ class UI_SimpleScrollView extends UIComponent<typeof UI_SimpleScrollView> {
   //endregion Show/Hide UI
 
   //region Handle Texture Asset Response
-  private HandleTextureAssetResponse(data: { textureAssetIDArray: string[] }): void {
+  private HandleTextureAssetResponse(assetIDArray: string[], textureIDArray: string[]): void {
     try {
-      data.textureAssetIDArray.forEach((textureID, index) => {
+      assetIDArray.forEach((textureID, index) => {
+        if (textureID) {
+          const asset = new Asset(BigInt(textureID));
+          this.assetArray.push(asset);
+        }
+      });
+      textureIDArray.forEach((textureID, index) => {
         if (textureID) {
           const asset = new Asset(BigInt(textureID));
           this.textureArray.push(asset);
         }
       });
+
       addImageNodes(
         this,
         this.textureArray,
@@ -142,17 +159,20 @@ class UI_SimpleScrollView extends UIComponent<typeof UI_SimpleScrollView> {
   //endregion Handle Texture Asset Response
 
   //region Dynamic List Button Pressed
-  private onDynamicListButtonPressed(index: number, asset: Asset, player: Player): void {
-    this.pendingPurchase = { index, asset };
+  private onDynamicListButtonPressed(index: number, textureAsset: Asset, player: Player): void {
+    this.pendingPurchase = { index, asset: textureAsset };
     console.log(`ButtonPressed: index=${index}`);
     // this.sendNetworkEvent(this.purchaseManager!, sysEvents.PlayerDataRequest, {
     //   requester: this.entity,
     // });
+    const assetId = this.assetArray[index].id;
+    this.sendNetworkEvent(this.plotManager!, spawnNewAssetEvent, {
+      player: player!,
+      assetId: assetId.toString(),
+    });
     playAudio(this, AudioLabel.button, [player], this.entity.position.get());
   }
   //endregion Dynamic List Button Pressed
-
-
 }
 UIComponent.register(UI_SimpleScrollView);
 
@@ -165,12 +185,12 @@ export function addImageNodes(
   bnd_text: Binding<string>[],
   costArray: number[],
   props: { placeHolderImg: Asset; lockImg: Asset },
-  onDynamicListButtonPressed: (index: number, asset: Asset, player: Player) => void
+  onDynamicListButtonPressed: (index: number, textureAsset: Asset, player: Player) => void
 ): void {
-  textureArray.forEach((asset, index) => {
-    if (index === 0) return;
+  textureArray.forEach((textureAsset, index) => {
+   
 
-    let imgSource = convertAssetToImageSource(asset);
+    let imgSource = convertAssetToImageSource(textureAsset);
 
     const imgBinding = new Binding<ImageSource>(imgSource);
     bnd_imgBindings[index] = imgBinding;
@@ -189,10 +209,10 @@ export function addImageNodes(
               View({
                 children: [
                   Image({
-                    source: ImageSource.fromTextureAsset(props.placeHolderImg!),
+                    source: imgBinding.derive((src) => src),
                     style: {
                       aspectRatio: 1,
-                      height: "50%",
+                      height: "80%",
                     },
                   }),
                   Text({
@@ -200,13 +220,13 @@ export function addImageNodes(
                     style: {
                       fontFamily: "Kallisto",
                       color: "white",
-                      fontSize: 24,
+                      fontSize: 20,
                       marginLeft: 10,
                     },
                   }),
                 ],
                 style: {
-                  flexDirection: "row",
+                  flexDirection: "column",
                   alignItems: "center",
                   padding: 5,
                 },
@@ -217,10 +237,9 @@ export function addImageNodes(
               component.async.setTimeout(() => {
                 scaleBinding.set(1, [player]);
               }, 100);
-              onDynamicListButtonPressed(index, asset, player);
+              onDynamicListButtonPressed(index, textureAsset, player);
             },
-            onRelease: (player) => {
-            },
+            onRelease: (player) => {},
             style: {
               justifyContent: "center",
               flexDirection: "row",
@@ -229,27 +248,27 @@ export function addImageNodes(
               borderRadius: 10,
               borderColor: "rgba(0, 255, 13, 0.5)",
               borderWidth: 2,
-              width: 130,
+              width: 90,
               height: 90,
               transform: [{ scale: scaleBinding }],
             },
           }),
-          Image({
-            source: imgBinding.derive((src) => src),
-            style: {
-              width: 100,
-              height: 100,
-            },
-          }),
+          // Image({
+          //   source: imgBinding.derive((src) => src),
+          //   style: {
+          //     width: 100,
+          //     height: 100,
+          //   },
+          // }),
         ],
         style: {
           justifyContent: "space-between",
           flexDirection: "row",
           alignItems: "center",
           backgroundColor: "rgba(241, 241, 241, 0.5)",
-          margin: 10,
+          // margin: 5,
           borderRadius: 10,
-          padding: 10,
+          // padding: 5,
           borderColor: "rgba(0, 255, 13, 0.5)",
           borderWidth: 2,
         },
