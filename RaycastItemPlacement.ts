@@ -14,9 +14,6 @@ import {
   Player,
   PlayerDeviceType,
   PlayerInput,
-  PlayerInputAction,
-  ButtonIcon,
-  ButtonPlacement,
   FocusedInteractionTapOptions,
   FocusedInteractionTrailOptions,
   DefaultFocusedInteractionTapOptions,
@@ -26,19 +23,14 @@ import {
   CodeBlockEvents,
 } from "horizon/core";
 import { buildModeEvent } from "MoveableBase";
-import { savePlayerPlot } from "PlayerPlotManager";
+import { sysEvents } from "sysEvents";
 import { getEntityListByTag, getPlayerType, ManagerType } from "sysHelper";
-import { Tween } from "Tween";
-import { TweenAnimation } from "TweenAnimation";
-import { TweenClock } from "TweenClock";
-import { EasingFunctionGroup, EasingName } from "TweenEasing";
 import { animateScaleEvent } from "TweenHandler";
-import { ITween, ITweenClock } from "TweenInterfaces";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 import { playVFX, VFXLabel } from "VFXManager";
 
 export const damageEvent = new NetworkEvent<{ player: Player; damage: number }>("damageEvent");
-
+export const tryDeleteSelectedItemEvent = new NetworkEvent<{ player: Player }>("tryDeleteSelectedItemEvent");
 /**
  *
  */
@@ -51,7 +43,7 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
     selectionRaycast: { type: PropTypes.Entity },
     //after selected we use the plane raycast to determine placement
     planeRaycast: { type: PropTypes.Entity },
-    heightOffset: { type: PropTypes.Number, default: 0 },
+    camOffsetRoot: { type: PropTypes.Entity },
     camAttachTarget: { type: PropTypes.Entity },
   };
 
@@ -79,12 +71,11 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
   private selectionRaycastGizmo: RaycastGizmo | null = null;
   private planeRaycastGizmo: RaycastGizmo | null = null;
 
-  private moveableItem: Entity | null = null;
+  private selectedItem: Entity | null = null;
   private moveableOffset: Vec3 = Vec3.zero;
+  private heightOffset: number = 0;
 
   private tweenHandler: Entity | null = null;
-
-
 
   //region preStart()
   preStart(): void {
@@ -144,74 +135,81 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
       this.onInputEnded({ interactionInfo: [firstInteraction] });
     });
 
-    //region custom input
-    //custom input subscription
-    this.swapInput = PlayerControls.connectLocalInput(PlayerInputAction.RightTertiary, ButtonIcon.Swap, this, {
-      preferredButtonPlacement: ButtonPlacement.Default,
-    });
-    this.swapInput.registerCallback((action, pressed) => {
+    //region build mode event
+    this.connectNetworkBroadcastEvent(sysEvents.buildMenuEvent, (data) => {
+      console.log("Build mode event received");
+      if (data.player !== this.playerOwner) return;
+
       if (this.playerOwner?.deviceType.get() === PlayerDeviceType.VR) {
         console.error("VR not supported for camera switching");
         return;
       }
 
-      if (pressed) {
-        if (!this.isBuildMode) {
-          //Enter build mode
-          this.sendNetworkBroadcastEvent(buildModeEvent, {
-            player: this.playerOwner!,
-            inBuildMode: true,
-          });
-          
-          console.log("Switching to First Person View");
-          // LocalCamera.setCameraModeFirstPerson(this.transitionOptions);
-          LocalCamera.setCameraModeAttach(this.props.camAttachTarget!, {});
-          this.playerOwner?.enterFocusedInteractionMode();
-          this.inFocusMode = true;
-          playAudio(this, AudioLabel.open);
-        } else {
-          //End build mode
-          //save placements
-          this.sendNetworkBroadcastEvent(buildModeEvent, {
-            player: this.playerOwner!,
-            inBuildMode: false,
-          });
-          const plotManager = getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0] || null;
-          this.sendNetworkEvent(plotManager!, savePlayerPlot, { player: this.playerOwner! });
+      if (!this.isBuildMode) {
+        //Enter build mode
+        this.sendNetworkBroadcastEvent(buildModeEvent, {
+          player: this.playerOwner!,
+          inBuildMode: true,
+        });
 
-          console.log("Switching to Third Person View");
-          LocalCamera.setCameraModeThirdPerson(this.transitionOptions);
+        const playerOffset = this.playerOwner!.position.get().add(new Vec3(-3, 0, 3));
+        this.props.camOffsetRoot!.position.set(playerOffset);
+        console.log("Switching to First Person View");
+        // LocalCamera.setCameraModeFirstPerson(this.transitionOptions);
+        LocalCamera.setCameraModeAttach(this.props.camAttachTarget!, {});
+        this.playerOwner?.enterFocusedInteractionMode();
+        this.inFocusMode = true;
+        playAudio(this, AudioLabel.open);
+      } else {
+        //End build mode
+        //save placements
+        this.sendNetworkBroadcastEvent(buildModeEvent, {
+          player: this.playerOwner!,
+          inBuildMode: false,
+        });
+        const plotManager = getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0] || null;
+        this.sendNetworkEvent(plotManager!, sysEvents.savePlayerPlot, { player: this.playerOwner! });
+
+        console.log("Switching to Third Person View");
+        LocalCamera.setCameraModeThirdPerson(this.transitionOptions);
+        this.async.setTimeout(() => {
           this.playerOwner?.exitFocusedInteractionMode();
           this.inFocusMode = false;
           playAudio(this, AudioLabel.close);
-        }
-        this.isBuildMode = !this.isBuildMode;
+        }, 250);
       }
+      this.isBuildMode = !this.isBuildMode;
     });
 
-    this.rotateInput = PlayerControls.connectLocalInput(
-      PlayerInputAction.RightSecondary,
-      ButtonIcon.MouseScroll,
-      this,
-      {
-        preferredButtonPlacement: ButtonPlacement.Default,
-      }
-    );
-    this.rotateInput.registerCallback((action, pressed) => {
-      console.log("Rotate input", action, pressed);
+    this.connectNetworkBroadcastEvent(sysEvents.buildRotateEvent, (data) => {
+      if (data.player !== this.playerOwner) return;
+
       if (this.playerOwner?.deviceType.get() === PlayerDeviceType.VR) {
         console.error("VR not supported for camera switching");
         return;
       }
 
-      if (pressed && this.moveableItem) {
-        let currentRotation = this.moveableItem.rotation.get();
+      if (this.selectedItem) {
+        let currentRotation = this.selectedItem.rotation.get();
         const addRotation = Quaternion.fromEuler(new Vec3(0, 90, 0));
         const newRotation = Quaternion.mul(currentRotation, addRotation);
-        this.moveableItem.rotation.set(newRotation);
+        this.selectedItem.rotation.set(newRotation);
         playAudio(this, AudioLabel.button);
       }
     });
+
+    this.connectNetworkBroadcastEvent(tryDeleteSelectedItemEvent, (data) => {
+      if (data.player !== this.playerOwner) return;
+
+      if (this.playerOwner?.deviceType.get() === PlayerDeviceType.VR) {
+        console.error("VR not supported for camera switching");
+        return;
+      }
+
+      this.tryDeleteSelectedItem();
+      // playAudio(this, AudioLabel.trash);
+    });
+
   }
 
   //region start()
@@ -250,19 +248,20 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
         this.sendNetworkEvent(hitEntity, damageEvent, { player: this.playerOwner, damage: 10 });
         playAudio(this, AudioLabel.impact);
         playVFX(this, VFXLabel.sparkles, [], hitPoint!, Quaternion.zero);
-        this.moveableItem = null;
+        this.selectedItem = null;
       } else if (tags.includes("moveable")) {
         debugLog(this.props.showDebugs, `Hit moveable slot: ${hitEntity.name.get()}`);
-        this.moveableItem = hitEntity;
+        this.selectedItem = hitEntity;
+        this.heightOffset = hitEntity.position.get().y;
         // this.sendNetworkEvent(this.moveableItem, placeableOffsetRequest, { requester: this.entity });
         const downScale = 0.9;
-        this.moveableItem.scale.set(new Vec3(downScale, downScale, downScale));
+        this.selectedItem.scale.set(new Vec3(downScale, downScale, downScale));
       } else {
         debugLog(this.props.showDebugs, "Clearing selected item");
-        this.moveableItem = null;
+        this.selectedItem = null;
       }
     } else {
-      this.moveableItem = null;
+      this.selectedItem = null;
     }
   }
 
@@ -281,16 +280,16 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
 
   private onInputMoved(data: { interactionInfo: InteractionInfo[] }) {
     const touchInfo = data.interactionInfo[0];
-    if (this.moveableItem) {
+    if (this.selectedItem) {
       const hitPoint = this.raycastHitPoint(this.planeRaycastGizmo!, touchInfo);
       if (hitPoint) {
         let hitPointRounded = new Vec3(
           this.snapToWhole(hitPoint.x),
-          this.props.heightOffset,
+          this.heightOffset,
           this.snapToWhole(hitPoint.z)
         );
         if (this.prevHitPointRounded && !hitPointRounded.equals(this.prevHitPointRounded)) {
-          this.moveableItem.position.set(hitPointRounded.add(this.moveableOffset));
+          this.selectedItem.position.set(hitPointRounded.add(this.moveableOffset));
         }
 
         this.prevHitPointRounded = hitPointRounded;
@@ -308,9 +307,9 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
     } else {
       //return the object
     }
-    if (this.moveableItem) {
-      this.moveableItem.position.set(this.moveableItem.position.get());
-      this.sendNetworkEvent(this.tweenHandler!, animateScaleEvent, { targetEntity: this.moveableItem! });
+    if (this.selectedItem) {
+      this.selectedItem.position.set(this.selectedItem.position.get());
+      this.sendNetworkEvent(this.tweenHandler!, animateScaleEvent, { targetEntity: this.selectedItem! });
     }
   }
 
@@ -324,6 +323,15 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
   private raycastHitPoint(ray: RaycastGizmo, interactionInfo: InteractionInfo): Vec3 | null {
     const hit = ray.raycast(interactionInfo.worldRayOrigin, interactionInfo.worldRayDirection);
     return hit && hit.targetType === RaycastTargetType.Entity ? hit.hitPoint : null;
+  }
+
+  tryDeleteSelectedItem(): void {
+    if (this.selectedItem) {
+      const itemToDelete = this.selectedItem;
+      this.selectedItem = null;
+      const plotManager = getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0] || null;
+      this.sendNetworkEvent(plotManager!, sysEvents.deleteSelectedItemEvent, { player: this.playerOwner!, selected: itemToDelete, alsoSave: true });
+    }
   }
 }
 

@@ -92,28 +92,30 @@ export const DEFAULT_STATS: PlayerStats = Object.freeze({
 
 export type PlayerPlot = {
   // Focused on spatial/placed things
-  buildings: BuildingComponent[]; // walls, tables, chairs, etc.
-  gardens: Garden[]; // one or many garden areas
-  animals: Animal[]; // roaming/placed animals
-  workers: Worker[]; // worker roster in this plot
+  buildings: PlacedEntityBase[]; // walls, tables, chairs, etc.
 };
 
 export const DEFAULT_PLOT_LAYOUT: PlayerPlot = Object.freeze({
-  buildings: DEFAULT_BUILDING_LAYOUT,
-  gardens: [],
-  animals: [],
-  workers: [],
+  buildings: [
+    { iID: "jtow90", aID36: "ihtt0k19bs", tform: [0, 0, 0, 0, 0, 0, 1, 1, 1] },
+    { iID: "-hqy8bu", aID36: "ak4bcful5p", tform: [-2, 0, 3, 180, 0, -180, 1, 1, 1] },
+    { iID: "cz2705", aID36: "et2c8nx5ep", tform: [0, 0, 3, 180, 0, -180, 1, 1, 1] },
+    { iID: "pfbp7z", aID36: "bzt01qwe5w", tform: [-1, 0, 3, 0, 0, 0, 1, 1, 1] },
+    { iID: "-gsx0c0", aID36: "bzt01qwe5w", tform: [1, 0, 3, 0, 0, 0, 1, 1, 1] },
+    { iID: "-us3xg", aID36: "bzt01qwe5w", tform: [-3, 0, 3, 0, 0, 0, 1, 1, 1] },
+    { iID: "9032f3", aID36: "bzt01qwe5w", tform: [2, 0, 3, 0, 0, 0, 1, 1, 1] },
+    { iID: "68yagq", aID36: "xe8iqukxo0", tform: [-2, 0, -1, 0, 0, 0, 1, 1, 1] },
+    { iID: "knrm3e", aID36: "7g6wd6b45t", tform: [-2, 0, 0, 180, 0, -180, 1, 1, 1] },
+    { iID: "nw9011", aID36: "7g6wd6b45t", tform: [-2, 0, -2, 0, 0, 0, 1, 1, 1] },
+  ],
+  // buildings: [],
 });
 
 // ================================
 // Defaults / Factories / Utilities
 // ================================
 
-export const DEFAULT_TRANSFORM: TransformLike = {
-  position: { x: 0, y: 0, z: 0 },
-  rotationEuler: { x: 0, y: 0, z: 0 },
-  scale: { x: 1, y: 1, z: 1 },
-};
+export const DEFAULT_TRANSFORM: TransformLike = [0, 0, 0, 0, 0, 0, 1, 1, 1];
 
 // ================================
 // region Player Plot Save Schema
@@ -122,15 +124,11 @@ export const DEFAULT_TRANSFORM: TransformLike = {
 export type PlotType = string;
 
 // Lightweight, serializer-friendly math types
-export type Vec3Like = { x: number; y: number; z: number };
-export type EulerLike = { x: number; y: number; z: number };
-export type QuaternionLike = { x: number; y: number; z: number; w: number };
+export type Vec3Like = [number, number, number];
+export type EulerLike = [number, number, number];
+export type QuaternionLike = [number, number, number, number];
 
-export type TransformLike = {
-  position: Vec3Like;
-  rotationEuler: EulerLike; // use degrees if that's your engine's norm
-  scale?: Vec3Like; // optional; default {1,1,1}
-};
+export type TransformLike = [number, number, number, number, number, number, number, number, number]; // position + euler + scale
 
 // Common identifiers
 export type InstanceId = string; // unique per placed entity (e.g., "chair_0001")
@@ -152,17 +150,12 @@ export enum BuildingType {
 }
 
 export type PlacedEntityBase = {
-  instanceId: InstanceId;
-  assetId: AssetId; // prefab/asset id
-  transform: TransformLike;
-  tags?: string[]; // for quick queries/filtering
-  enabled?: boolean; // defaults true
+  iID: InstanceId; // unique per placed entity
+  aID36: AssetId; // prefab/asset id stored as base36 string
+  tform: TransformLike; // position + rotation (euler) + scale [px,px,px, rotX,rotY,rotZ, scaleX,scaleY,scaleZ]
 };
 
-export type BuildingComponent = PlacedEntityBase & {
-  buildingType: string; //See BuildingType enum
-  cost: number;
-};
+export type BuildingComponent = PlacedEntityBase & {};
 
 // ----------------------
 // region Workers
@@ -222,5 +215,3 @@ export type Animal = {
   ageStage?: "juvenile" | "adult" | "elder";
   lastUpdated: number; // epoch ms for sim tick
 };
-
-

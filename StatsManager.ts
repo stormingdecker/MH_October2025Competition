@@ -96,7 +96,7 @@ export class StatsManager extends Component<typeof StatsManager> {
             this.deathAndRespawn(player);
           }
 
-          console.log(`Player ${player.name.get()} health updated to ${playerStats.type.health}`);
+          debugLog(this.props.showDebugs, `Player ${player.name.get()} health updated to ${playerStats.type.health}`);
           // this.oneHud?.setHealth(player, playerStats.type.health);
           break;
         case StatType.deaths:

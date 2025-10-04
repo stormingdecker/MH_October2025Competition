@@ -14,6 +14,8 @@ export enum VFXLabel {
   sparkles,
   smoke,
   fire,
+  nibble,
+  caught,
 }
 
 class VFXManager extends Component<typeof VFXManager> {
@@ -25,6 +27,8 @@ class VFXManager extends Component<typeof VFXManager> {
     sparkles: { type: PropTypes.Entity },
     smoke: { type: PropTypes.Entity },
     fire: { type: PropTypes.Entity },
+    nibble: { type: PropTypes.Entity },
+    caught: { type: PropTypes.Entity },
   };
 
   preStart(): void {
@@ -62,7 +66,7 @@ class VFXManager extends Component<typeof VFXManager> {
         vfx.play();
       }
     } else {
-      console.error(`VFX asset for label ${data.vfxLabel} not found.`);
+      console.error(`VFX asset for label ${[data.vfxLabel]} not found.`);
     }
   }
 
@@ -73,6 +77,8 @@ class VFXManager extends Component<typeof VFXManager> {
       [VFXLabel.sparkles]: this.props.sparkles,
       [VFXLabel.smoke]: this.props.smoke,
       [VFXLabel.fire]: this.props.fire,
+      [VFXLabel.nibble]: this.props.nibble,
+      [VFXLabel.caught]: this.props.caught,
     };
     return vfxMap[label] || null;
   }

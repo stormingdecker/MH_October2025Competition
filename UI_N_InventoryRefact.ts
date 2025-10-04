@@ -359,8 +359,10 @@ export class Manager extends Component<typeof Manager> {
 }
 Component.register(Manager);
 
+//region class Inventory
 class Inventory extends UIComponent<typeof Inventory> {
   static propsDefinition = {
+    enabled: { type: PropTypes.Boolean, default: true },
     tabSwitchSound: { type: PropTypes.Entity },
     buttonClickSound: { type: PropTypes.Entity },
   };
@@ -412,6 +414,8 @@ class Inventory extends UIComponent<typeof Inventory> {
   private otherPlayers: Player[] = [];
 
   preStart() {
+    if (!this.props.enabled) return;
+
     this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnPlayerEnterWorld, (player) => {
       if (player.deviceType.get() !== PlayerDeviceType.VR) {
         this.mobilePlayers.push(player);
@@ -424,6 +428,8 @@ class Inventory extends UIComponent<typeof Inventory> {
   }
 
   initializeUI() {
+    if (!this.props.enabled) this.entity.visible.set(false);
+
     const itemGroups = [itemGroup1, itemGroup2, itemGroup3];
 
     // Build expanded (chunked) data: ≤24 items per sub-tab
@@ -1211,7 +1217,9 @@ class Inventory extends UIComponent<typeof Inventory> {
     });
   }
 
-  start() { }
+  start() {
+    if (!this.props.enabled) return;
+   }
 }
 UIComponent.register(Inventory);
 
@@ -1272,29 +1280,28 @@ export const itemGroup1: ItemGroup = {
     // { name: "Avocado", category: "Fruit", description: "A ripe avocado", imageAssetID: ImageAssetID.Fruit_Avocado },
     // { name: "Banana", category: "Fruit", description: "A bunch of bananas", imageAssetID: ImageAssetID.Fruit_Banana },
     // { name: "Cherry", category: "Fruit", description: "A pair of cherries", imageAssetID: ImageAssetID.Fruit_Cherry },
-
-    { name: "Grapes", category: "Fruit", description: "A cluster of grapes", imageAssetID: ImageAssetID.Fruit_Grapes },
+    { name: "Strawberry", category: "Fruit", description: "A fresh strawberry", imageAssetID: ImageAssetID.Fruit_Strawberry },
     { name: "Kiwi", category: "Fruit", description: "A sliced kiwi fruit", imageAssetID: ImageAssetID.Fruit_Kiwi },
     { name: "Lemon", category: "Fruit", description: "A fresh lemon", imageAssetID: ImageAssetID.Fruit_Lemon },
-    { name: "Lime", category: "Fruit", description: "A zesty lime", imageAssetID: ImageAssetID.Fruit_Lime },
     { name: "Orange", category: "Fruit", description: "A sweet orange", imageAssetID: ImageAssetID.Fruit_Orange },
     { name: "Pear", category: "Fruit", description: "A ripe pear", imageAssetID: ImageAssetID.Fruit_Pear },
     { name: "Pineapple", category: "Fruit", description: "A tropical pineapple", imageAssetID: ImageAssetID.Fruit_Pineapple },
-    { name: "Strawberry", category: "Fruit", description: "A fresh strawberry", imageAssetID: ImageAssetID.Fruit_Strawberry },
+    { name: "Grapes", category: "Fruit", description: "A cluster of grapes", imageAssetID: ImageAssetID.Fruit_Grapes },
     { name: "Watermelon", category: "Fruit", description: "A slice of watermelon", imageAssetID: ImageAssetID.Fruit_Watermelon },
+    { name: "Lime", category: "Fruit", description: "A zesty lime", imageAssetID: ImageAssetID.Fruit_Lime },
 
-    { name: "Beet", category: "Vegetable", description: "A fresh beet", imageAssetID: ImageAssetID.Vegetable_Beet },
-    { name: "Broccoli", category: "Vegetable", description: "A head of broccoli", imageAssetID: ImageAssetID.Vegetable_Broccoli },
-    { name: "Carrot", category: "Vegetable", description: "A crunchy carrot", imageAssetID: ImageAssetID.Vegetable_Carrot },
-    { name: "Corn", category: "Vegetable", description: "An ear of corn", imageAssetID: ImageAssetID.Vegetable_Corn },
-    { name: "Eggplant", category: "Vegetable", description: "A purple eggplant", imageAssetID: ImageAssetID.Vegetable_Eggplant },
-    { name: "Green Onions", category: "Vegetable", description: "A bunch of green onions", imageAssetID: ImageAssetID.Vegetable_GreenOnions },
-    { name: "Lettuce", category: "Vegetable", description: "A head of lettuce", imageAssetID: ImageAssetID.Vegetable_Lettuce },
-    { name: "Onion", category: "Vegetable", description: "A fresh onion", imageAssetID: ImageAssetID.Vegetable_Onion },
-    { name: "Pepper", category: "Vegetable", description: "A bell pepper", imageAssetID: ImageAssetID.Vegetable_Pepper },
     { name: "Pumpkin", category: "Vegetable", description: "A round pumpkin", imageAssetID: ImageAssetID.Vegetable_Pumpkin },
     { name: "Tomato", category: "Vegetable", description: "A ripe tomato", imageAssetID: ImageAssetID.Vegetable_Tomato },
-    { name: "Turnip", category: "Vegetable", description: "A fresh turnip", imageAssetID: ImageAssetID.Vegetable_Turnip },
+    // { name: "Beet", category: "Vegetable", description: "A fresh beet", imageAssetID: ImageAssetID.Vegetable_Beet },
+    // { name: "Broccoli", category: "Vegetable", description: "A head of broccoli", imageAssetID: ImageAssetID.Vegetable_Broccoli },
+    // { name: "Carrot", category: "Vegetable", description: "A crunchy carrot", imageAssetID: ImageAssetID.Vegetable_Carrot },
+    // { name: "Corn", category: "Vegetable", description: "An ear of corn", imageAssetID: ImageAssetID.Vegetable_Corn },
+    // { name: "Eggplant", category: "Vegetable", description: "A purple eggplant", imageAssetID: ImageAssetID.Vegetable_Eggplant },
+    // { name: "Green Onions", category: "Vegetable", description: "A bunch of green onions", imageAssetID: ImageAssetID.Vegetable_GreenOnions },
+    // { name: "Lettuce", category: "Vegetable", description: "A head of lettuce", imageAssetID: ImageAssetID.Vegetable_Lettuce },
+    // { name: "Onion", category: "Vegetable", description: "A fresh onion", imageAssetID: ImageAssetID.Vegetable_Onion },
+    // { name: "Pepper", category: "Vegetable", description: "A bell pepper", imageAssetID: ImageAssetID.Vegetable_Pepper },
+    // { name: "Turnip", category: "Vegetable", description: "A fresh turnip", imageAssetID: ImageAssetID.Vegetable_Turnip },
   ],
 };
 

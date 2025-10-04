@@ -12,7 +12,7 @@ import {
   UINode,
   View,
 } from "horizon/ui";
-import { spawnNewAssetEvent } from "PlayerPlotManager";
+
 import { sysEvents } from "sysEvents";
 import {
   assertAllNullablePropsSet,
@@ -166,7 +166,7 @@ class UI_SimpleScrollView extends UIComponent<typeof UI_SimpleScrollView> {
     //   requester: this.entity,
     // });
     const assetId = this.assetArray[index].id;
-    this.sendNetworkEvent(this.plotManager!, spawnNewAssetEvent, {
+    this.sendNetworkEvent(this.plotManager!, sysEvents.spawnNewAssetEvent, {
       player: player!,
       assetId: assetId.toString(),
     });

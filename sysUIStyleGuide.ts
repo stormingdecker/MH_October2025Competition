@@ -1,6 +1,6 @@
 // Copyright (c) Dave Mills (uRocketLife). Released under the MIT License.
 
-import { Asset, Color, Component, Player } from "horizon/core";
+import { Asset, Color, Component, Player, TextureAsset, Vec3 } from "horizon/core";
 import { AnimatedBinding, Binding, Image, ImageSource, Pressable, Text, View } from "horizon/ui";
 
 export const DefaultBlankImgAssetID = "2223510544837679"; // blank image asset
@@ -426,4 +426,236 @@ export const confirmButton = (
       },
     }),
   ];
+};
+
+export const FONT_MAIN = "Roboto"; //Kallisto, Anton, Bangers, Optimistic, Oswald, Roboto, Roboto-Mono
+
+//  Text({ text: "Anton", style: { fontFamily: "Anton" } }),
+//     Text({ text: "Bangers", style: { fontFamily: "Bangers" } }),
+//     Text({ text: "Kallisto", style: { fontFamily: "Kallisto" } }),
+//     Text({ text: "Optimistic", style: { fontFamily: "Optimistic" } }),
+//     Text({ text: "Oswald", style: { fontFamily: "Oswald" } }),
+//     Text({ text: "Roboto", style: { fontFamily: "Roboto" } }),
+//     Text({ text: "Roboto-Mono", style: { fontFamily: "Roboto-Mono", } }),
+
+//region Asset Conversion
+export function convertAssetToImageSource(asset: Asset): ImageSource {
+  const textureAsset = asset?.as(TextureAsset);
+  if (!textureAsset) {
+    throw new Error(`convertAssetToImageSource: Provided asset (id: ${asset?.id}) is not a TextureAsset`);
+  }
+  return ImageSource.fromTextureAsset(textureAsset);
+}
+//endregion Asset Conversion
+
+export function convertAssetIDToImageSource(assetID: string): ImageSource {
+  if (!assetID || assetID === "0") {
+    assetID = DefaultBlankImgAssetID; //set to blank image
+  }
+  const asset = new Asset(BigInt(assetID));
+  const textureAsset = asset?.as(TextureAsset);
+  if (!textureAsset) {
+    throw new Error(`convertAssetIDToImageSource: Provided assetID (${assetID}) is not a valid TextureAsset`);
+  }
+  return ImageSource.fromTextureAsset(textureAsset);
+}
+//endregion Asset Conversion
+
+//region btn w/ text
+export const button = (bndHeaderText: Binding<string>, bndFontSize: Binding<number>, bndBtnScale: Binding<number>) => {
+  return [
+    Text({
+      text: bndHeaderText,
+      style: {
+        fontFamily: FONT_MAIN,
+        width: "100%",
+        height: "100%",
+        alignSelf: "center",
+        backgroundColor: "rgba(197, 197, 197, 1)",
+        borderRadius: 20,
+        color: "rgba(2, 2, 2, 1)",
+        fontSize: bndFontSize,
+        textAlign: "center",
+        textAlignVertical: "center",
+        transform: [{ scale: bndBtnScale }],
+        borderColor: "rgba(109, 109, 109, 1)",
+        borderWidth: 3,
+      },
+    }),
+  ];
+};
+
+//region btn w/ img
+export const buttonImg = (
+  component: Component,
+  instanceId: string,
+  img: ImageSource,
+  onButtonPressed: (instanceID: string, player: Player) => void
+) => {
+  const scaleBinding = new Binding<number>(1);
+  return Pressable({
+    children: [
+      View({
+        children: [
+          Image({
+            source: img,
+            style: {
+              width: "100%",
+              height: "100%",
+            },
+          }),
+        ],
+        style: {
+          alignItems: "center",
+          padding: 5,
+        },
+      }),
+    ],
+    onPress: (player) => {
+      scaleBinding.set(0.9, [player]);
+      component.async.setTimeout(() => {
+        scaleBinding.set(1, [player]);
+      }, 100);
+      onButtonPressed(instanceId, player);
+    },
+    onRelease: (player) => {},
+    style: {
+      backgroundColor: "rgba(0, 255, 60, 0.73)",
+      width: 75,
+      height: 75,
+      alignSelf: "center",
+      justifyContent: "center",
+      borderRadius: 5,
+      transform: [{ scale: scaleBinding }],
+      margin: 5,
+    },
+  });
+};
+
+//region btn w/ img & text
+export const buttonImgWithText = (
+  component: Component,
+  instanceId: string,
+  img: ImageSource,
+  text: string,
+  textOffset: Vec3,
+  onButtonPressed: (instanceID: string, player: Player) => void
+) => {
+  const scaleBinding = new Binding<number>(1);
+  return Pressable({
+    children: [
+      View({
+        children: [
+          Image({
+            source: img,
+            style: {
+              width: "100%",
+              height: "100%",
+            },
+          }),
+          Text({
+            text: text,
+            style: {
+              fontFamily: FONT_MAIN,
+              fontWeight: "bold",
+              color: "rgba(11, 81, 15, 1)",
+              fontSize: 15,
+              layoutOrigin: [0.5, 0.5],
+              // left: `${textOffset.x}%`,
+              // top: `${100 - textOffset.y}%`,
+              left: `${textOffset.x}%`,
+              top: `${100 - textOffset.y}%`,
+              position: "absolute",
+              width: `${textOffset.z}%`,
+              textAlign: "center",
+              textAlignVertical: "center",
+              backgroundColor: "rgba(167, 158, 131, 1)",
+              // padding: 5,
+              borderRadius: 5,
+              height: "30%",
+            },
+          }),
+        ],
+        style: {
+          // backgroundColor: "rgba(251, 0, 0, 0.87)",
+          alignItems: "center",
+        },
+      }),
+    ],
+    onPress: (player) => {
+      scaleBinding.set(0.9, [player]);
+      component.async.setTimeout(() => {
+        scaleBinding.set(1, [player]);
+      }, 100);
+      onButtonPressed(instanceId, player);
+    },
+    onRelease: (player) => {},
+    style: {
+      // backgroundColor: "rgba(0, 255, 60, 0.73)",
+      // width: "100%",
+      // height: "100%",
+      width: 70,
+      height: 70,
+      // alignSelf: "center",
+      justifyContent: "center",
+      borderRadius: 5,
+      margin: 10,
+      transform: [{ scale: scaleBinding }],
+    },
+  });
+};
+
+//region menu button
+export const menuButton = (
+  component: Component,
+  instanceID: string,
+  text: string,
+  onButtonPressed: (instanceID: string, player: Player) => void
+) => {
+  const scaleBinding = new Binding<number>(1);
+
+  return Pressable({
+    children: [
+      View({
+        children: [
+          Text({
+            text: text,
+            style: {
+              // width: "100%",
+              // height: "100%",
+              color: "white",
+              fontFamily: "Kallisto",
+              fontSize: 22,
+              // textAlignVertical: "center",
+              textAlign: "center",
+            },
+          }),
+        ],
+        style: {
+          width: "100%",
+          height: "100%",
+          backgroundColor: "rgba(0, 118, 39, 1)",
+          borderRadius: 20,
+          // alignItems: "center", //by default applies to horizontal axis
+          justifyContent: "center", //by default applies to vertical axis
+        },
+      }),
+    ],
+    //region onPress
+    onPress: (player) => {
+      scaleBinding.set(0.9, [player]);
+      component.async.setTimeout(() => {
+        scaleBinding.set(1, [player]);
+      }, 100);
+      onButtonPressed(instanceID, player);
+    },
+    style: {
+      width: "100%",
+      height: "100%",
+      // apply button scaling changes
+      transform: [{ scale: scaleBinding }],
+      // backgroundColor: "rgba(252, 0, 0, 0.5)",
+      bottom: "-20%",
+    },
+  });
 };

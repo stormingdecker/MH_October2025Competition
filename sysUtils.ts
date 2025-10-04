@@ -1,5 +1,5 @@
 //General purpose utilities (e.g. vector math, clampinng, interpolation, sorting)
-import { Color, Component, Entity, Quaternion, TextGizmo, Vec3 } from 'horizon/core';
+import { Color, Component, Entity, Quaternion, TextGizmo, Vec3 } from "horizon/core";
 
 export function SetTextGizmoText(textGizmo: Entity | undefined, newText: string) {
   textGizmo?.as(TextGizmo)?.text.set(newText);
@@ -31,13 +31,7 @@ export function dotProductVec3(a: Vec3, b: Vec3): number {
   return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-export function interpolate(
-  inValue: number,
-  inMin: number,
-  inMax: number,
-  outMin: number,
-  outMax: number
-): number {
+export function interpolate(inValue: number, inMin: number, inMax: number, outMin: number, outMax: number): number {
   return ((inValue - inMin) / (inMax - inMin)) * (outMax - outMin) + outMin;
 }
 
@@ -83,34 +77,57 @@ export function getMgrClass<T extends Component>(
   }
   const component = mgr.getComponents<T>(componentClass)[0];
   if (!component) {
-    console.error(
-      `Component of type "${componentClass.name}" not found in manager "${mgrTypeTag}"`
-    );
+    console.error(`Component of type "${componentClass.name}" not found in manager "${mgrTypeTag}"`);
     return undefined;
   }
   return component;
 }
 
 //region string to color
- /**
-   * Parses a string in the format "r,g,b" or "r,g,b,a" into a Color object.
-   * Example: "1,0.5,0.2" or "0.1,0.2,0.3,1"
-   */
-  export function stringToColor(str: string): Color {
-    const parts = str.split(",").map(Number);
-    if (parts.length === 3) {
-      return new Color(parts[0], parts[1], parts[2]);
-    } else if (parts.length === 4) {
-      console.warn("Alpha value ignored in Color conversion");
-      return new Color(parts[0], parts[1], parts[2]);
-    } else {
-      throw new Error("Invalid color string format. Expected 'r,g,b' or 'r,g,b,a'");
-    }
+/**
+ * Parses a string in the format "r,g,b" or "r,g,b,a" into a Color object.
+ * Example: "1,0.5,0.2" or "0.1,0.2,0.3,1"
+ */
+export function stringToColor(str: string): Color {
+  const parts = str.split(",").map(Number);
+  if (parts.length === 3) {
+    return new Color(parts[0], parts[1], parts[2]);
+  } else if (parts.length === 4) {
+    console.warn("Alpha value ignored in Color conversion");
+    return new Color(parts[0], parts[1], parts[2]);
+  } else {
+    throw new Error("Invalid color string format. Expected 'r,g,b' or 'r,g,b,a'");
   }
+}
 
-  export function generateUUID(): string{
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
-  }
+export function generateUUID(): string {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0,
+      v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+export function generateSafeID(): string {
+  const epoch = 1700000000000;
+  const timePart = (Date.now() - epoch) & ((1 << 28) - 1); // 28 bits time
+  const randPart = Math.floor(Math.random() * (1 << 25)); // 25 bits random
+  const id = (timePart << 25) | randPart;
+
+  // Convert to base36 alphanumeric
+  return id.toString(36);
+}
+
+// to base-36 (letters+numbers)
+export function toBase36Safe(idStr: string): string {
+  const n = Number(idStr);
+  if (!Number.isSafeInteger(n)) throw new Error("Not a JS safe integer");
+  return n.toString(36); // e.g., "2b1h8sh3r01"
+}
+
+// back to decimal string
+export function fromBase36Safe(b36: string): string {
+  const n = parseInt(b36, 36);
+  if (!Number.isSafeInteger(n)) throw new Error("Not a JS safe integer");
+  return n.toString(10);
+}

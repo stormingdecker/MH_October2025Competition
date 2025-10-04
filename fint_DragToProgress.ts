@@ -1,14 +1,25 @@
-import { CodeBlockEvents, Component, Entity, InteractionInfo, Player, PlayerDeviceType, Quaternion, Vec3 } from 'horizon/core';
-import { sysEvents } from 'sysEvents';
+import {
+  CodeBlockEvents,
+  Component,
+  Entity,
+  InteractionInfo,
+  Player,
+  PlayerDeviceType,
+  PropTypes,
+  Quaternion,
+  Vec3,
+} from "horizon/core";
+import { sysEvents } from "sysEvents";
 
-class fint_DragToProgress extends Component<typeof fint_DragToProgress>{
- static propsDefinition = {};
+class fint_DragToProgress extends Component<typeof fint_DragToProgress> {
+  static propsDefinition = {
+    progressBar: { type: PropTypes.Entity, default: null },
+  };
 
   private inFocusMode = false;
   private activePlayer!: Player;
   private prevScreenPos: Vec3 | null = null;
   private dragDistance = 0;
-
 
   preStart() {
     this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnPlayerEnterTrigger, (player: Player) => {
@@ -58,42 +69,57 @@ class fint_DragToProgress extends Component<typeof fint_DragToProgress>{
         rotation: Quaternion.fromEuler(new Vec3(0, 0, 0)),
       });
     }
+
+    this.counter = 0;
+    this.sendProgressEvent(0);
   }
 
   OnPlayerExitTrigger(player: Player) {
+    this.sendProgressEvent(0);
+
     this.activePlayer = this.world.getServerPlayer();
   }
-
 
   onFintInputStarted(interactionInfo: InteractionInfo): void {
     this.prevScreenPos = null;
   }
 
+  counter = -1;
   onFintInputMoved(interactionInfo: InteractionInfo): void {
     if (!this.inFocusMode) return;
     const pos = new Vec3(interactionInfo.screenPosition.x, interactionInfo.screenPosition.y, 0);
     if (this.prevScreenPos) {
       this.dragDistance += pos.sub(this.prevScreenPos).magnitude();
       console.log(`Drag Distance: ${this.dragDistance}`);
-      if (this.dragDistance >= 5) {
+      if (this.dragDistance*2 >= 10) {
         console.log("Drag Distance Threshold Reached, Exiting Focus Mode");
         this.sendNetworkBroadcastEvent(sysEvents.ForceExitFocusMode, { player: this.activePlayer });
         this.inFocusMode = false;
       }
     }
     this.prevScreenPos = pos;
+    
+    const progress = Math.round((this.dragDistance*2 / 10) * 10);
+    console.log(`Progress: ${progress}`);
+    if(progress !== this.counter)
+      this.sendProgressEvent(progress);
+    this.counter = progress;
   }
 
-  onFintInputEnded(interactionInfo: InteractionInfo): void {
-  }
+  onFintInputEnded(interactionInfo: InteractionInfo): void {}
 
-
-  
   onPlayerExitedFocusMode(player: Player): void {
     if (this.activePlayer === player) {
       this.inFocusMode = false;
       this.dragDistance = 0;
     }
+  }
+
+  sendProgressEvent(progress: number): void {
+    this.sendNetworkEvent(this.props.progressBar!, sysEvents.updateProgressEvent, {
+      player: this.activePlayer,
+      progress: progress * 10,
+    });
   }
 }
 Component.register(fint_DragToProgress);

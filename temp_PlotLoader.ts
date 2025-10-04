@@ -1,9 +1,13 @@
 import { Asset, CodeBlockEvents, Component, Entity, EulerOrder, Player, PropTypes, Quaternion, Vec3 } from 'horizon/core';
-import { PlayerPlotManager, spawnNewAssetEvent, spawnPlayerPlot } from 'PlayerPlotManager';
+import { PlayerPlotManager,} from 'PlayerPlotManager';
+import { sysEvents } from 'sysEvents';
 import { assertAllNullablePropsSet, getEntityListByTag, ManagerType } from 'sysHelper';
 import { PlayerPlot } from 'sysTypes';
 import { getMgrClass, validate } from 'sysUtils';
+import { BottomMenuType } from 'UI_BottomMenu';
 import { Manager } from 'UI_N_Inventory';
+
+
 
 class temp_PlotLoader extends Component<typeof temp_PlotLoader>{
   static propsDefinition = {
@@ -32,13 +36,14 @@ class temp_PlotLoader extends Component<typeof temp_PlotLoader>{
 
   OnPlayerEnterTrigger(player: Player) {
     const plotManager = getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0];
-    this.sendNetworkEvent(plotManager!, spawnPlayerPlot, { player: player , plotBaseID: this.props.PlotBaseID });
+    this.sendNetworkEvent(plotManager!, sysEvents.spawnPlayerPlot, { player: player , plotBaseID: this.props.PlotBaseID });
 
-   
+    //currently we'll send an event to whomever enters the trigger but in the future we'll filter by player ownership of the plot
+    this.sendNetworkBroadcastEvent(sysEvents.toggleBottomMenuEvent, { player: player, open: true, menuType: BottomMenuType.PlotMenu });
   }
 
   OnPlayerExitTrigger(player: Player){
-
+    this.sendNetworkBroadcastEvent(sysEvents.toggleBottomMenuEvent, { player: player, open: false, menuType: BottomMenuType.PlotMenu });
   }
 
 

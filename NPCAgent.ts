@@ -1,9 +1,20 @@
 import { Asset, AttachableEntity, AttachablePlayerAnchor, AvatarGripPose, AvatarPoseGizmo, Color, Component, Entity, Handedness, Player, PropTypes, Vec3 } from "horizon/core";
 import { Npc, NpcPlayer } from "horizon/npc";
 import { NavMeshController } from "NavMeshController";
+import { debugLog } from "sysHelper";
 
-const NPC_MIN_DISTANCE_TO_PLAYER = 1.5;
-const NPC_MAX_DISTANCE_TO_PLAYER = 8;
+// --- World Greeter NPC State Machine ---
+
+enum NPCMovementSpeedID {
+  Casual,
+  Walk,
+  Run,
+  DebugSuperFast,
+}
+
+const NPCMovementSpeed: number[] = [1, 2, 4.5, 10];
+
+// --- World Greeter NPC State Machine ---
 
 enum NPCAnimationID {
   None,
@@ -12,11 +23,14 @@ enum NPCAnimationID {
 
 const sittingAnimationAsset = new Asset(BigInt("1280729506637777"));
 
+// --- State Machine Base Class ---
+
 abstract class NPCStateMachine {
   protected currentState: number = 0;
   protected parentAgent: NPCAgent | undefined;
+  protected debugLogging = false;
 
-  public abstract onAgentReady(agent: NPCAgent): void;
+  public abstract onAgentReady(agent: NPCAgent, debugLogging: boolean): void;
 
   public async updateState(): Promise<void> {}
 }
@@ -33,11 +47,16 @@ enum NPCStates_WorldGreeter {
   ReturningToStartPosition,
 }
 
+const NPC_MIN_DISTANCE_TO_PLAYER = 1.5;
+const NPC_MAX_DISTANCE_TO_PLAYER = 8;
+
 class NPCStateMachine_WorldGreeter extends NPCStateMachine {
   private alreadyGreetedPlayers: Player[] = [];
   private targetPlayer: Player | undefined;
 
-  public override onAgentReady(agent: NPCAgent) {
+  public override onAgentReady(agent: NPCAgent, debugLogging: boolean) {
+    this.debugLogging = debugLogging;
+    debugLog(this.debugLogging, "StateMachine_WorldGreeter: onAgentReady");
     this.parentAgent = agent;
     this.currentState = NPCStates_WorldGreeter.WaitingForPlayerToApproach;
   }
@@ -55,6 +74,7 @@ class NPCStateMachine_WorldGreeter extends NPCStateMachine {
           }
           const playerDistance = player.position.get().distance(this.parentAgent!.entity.position.get());
           if (playerDistance > NPC_MIN_DISTANCE_TO_PLAYER && playerDistance < NPC_MAX_DISTANCE_TO_PLAYER) {
+            debugLog(this.debugLogging, `StateMachine_WorldGreeter: Player ${player.name.get()} is within greeting distance (${playerDistance.toFixed(2)}m)`);
             this.targetPlayer = player;
             this.currentState = NPCStates_WorldGreeter.TurnTowardsPlayer;
             break;
@@ -63,33 +83,38 @@ class NPCStateMachine_WorldGreeter extends NPCStateMachine {
         break;
       }
       case NPCStates_WorldGreeter.TurnTowardsPlayer: {
+        debugLog(this.debugLogging, `StateMachine_WorldGreeter: Turning towards player`);
         await this.parentAgent!.rotateTowardsPosition(this.targetPlayer!.position.get());
         this.currentState = NPCStates_WorldGreeter.GreetingPlayer;
         break;
       }
       case NPCStates_WorldGreeter.GreetingPlayer: {
+        debugLog(this.debugLogging, `StateMachine_WorldGreeter: Greeting player`);
         const playerName = this.targetPlayer!.name.get();
         await this.parentAgent!.showAIConversation(`Quickly greet player named ${playerName}`, "NPC has noticed player approaching");
         this.currentState = NPCStates_WorldGreeter.MovingToPlayer;
         break;
       }
       case NPCStates_WorldGreeter.MovingToPlayer: {
+        debugLog(this.debugLogging, `StateMachine_WorldGreeter: Moving to player`);
         // Move to a position in front of the player
         const targetPosition = this.targetPlayer!.position.get().add(this.targetPlayer!.forward.get().mul(NPC_MIN_DISTANCE_TO_PLAYER));
-        await this.parentAgent!.moveToPosition(targetPosition);
+        await this.parentAgent!.moveToPosition(targetPosition, NPCMovementSpeedID.Run);
         await this.parentAgent!.rotateTowardsPosition(this.targetPlayer!.position.get());
         this.currentState = NPCStates_WorldGreeter.TellingPlayerAboutWorld;
         break;
       }
       case NPCStates_WorldGreeter.TellingPlayerAboutWorld: {
+        debugLog(this.debugLogging, `StateMachine_WorldGreeter: Telling player about world`);
         await this.parentAgent!.showAIConversation(`Tell that this colorful restaurant tycoon world is going to win the contest`);
         this.currentState = NPCStates_WorldGreeter.ReturningToStartPosition;
         break;
       }
       case NPCStates_WorldGreeter.ReturningToStartPosition: {
+        debugLog(this.debugLogging, `StateMachine_WorldGreeter: Returning to start position`);
         const startPosition = this.parentAgent!.getStartPosition();
         await this.parentAgent!.rotateTowardsPosition(startPosition);
-        await this.parentAgent!.moveToPosition(startPosition);
+        await this.parentAgent!.moveToPosition(startPosition, NPCMovementSpeedID.Run);
         await this.parentAgent!.rotateTowardsPosition(this.targetPlayer!.position.get());
         this.alreadyGreetedPlayers.push(this.targetPlayer!);
         this.targetPlayer = undefined;
@@ -116,8 +141,11 @@ enum NPCStates_Gourmet {
 class NPCStateMachine_Gourmet extends NPCStateMachine {
   private wantedFoodItemIndex = -1;
   private assignedSeat: Entity | undefined;
+  private targetTable: Entity | undefined;
 
-  public override onAgentReady(agent: NPCAgent) {
+  public override onAgentReady(agent: NPCAgent, debugLogging: boolean) {
+    this.debugLogging = debugLogging;
+    debugLog(this.debugLogging, "StateMachine_Gourmet: onAgentReady");
     this.parentAgent = agent;
     this.currentState = NPCStates_Gourmet.DecideOnFoodItem;
   }
@@ -130,7 +158,7 @@ class NPCStateMachine_Gourmet extends NPCStateMachine {
 
       case NPCStates_Gourmet.DecideOnFoodItem: {
         this.wantedFoodItemIndex = Math.floor(Math.random() * PossibleFoodItems.length);
-        console.log(`Gourmet NPC wants to order: ${PossibleFoodItems[this.wantedFoodItemIndex]}`);
+        debugLog(this.debugLogging, `Gourmet NPC wants to order: ${PossibleFoodItems[this.wantedFoodItemIndex]}`);
         const seatEntities = this.parentAgent?.world.getEntitiesWithTags(["ServiceTableSeat"]);
         if (seatEntities !== undefined && seatEntities.length > 0) {
           this.assignedSeat = seatEntities[0].as(AvatarPoseGizmo);
@@ -139,14 +167,20 @@ class NPCStateMachine_Gourmet extends NPCStateMachine {
         break;
       }
       case NPCStates_Gourmet.WalkToSeat: {
+        debugLog(this.debugLogging, `Gourmet NPC walking to seat`);
         await this.parentAgent!.rotateTowardsPosition(this.assignedSeat!.position.get());
-        await this.parentAgent!.moveToPositionUsingNavMesh(this.assignedSeat!.position.get());
-        const seatForwardPosition = this.assignedSeat!.position.get().add(this.assignedSeat!.forward.get());
-        await this.parentAgent!.rotateTowardsPosition(seatForwardPosition);
+        //await this.parentAgent!.moveToPosition(this.assignedSeat!.position.get(), NPCMovementSpeedID.Walk);
+        await this.parentAgent!.moveToPositionUsingNavMesh(this.assignedSeat!.position.get(), NPCMovementSpeedID.Walk);
+        const tableEntities = this.parentAgent?.world.getEntitiesWithTags(["ServiceTable"]);
+        if (tableEntities !== undefined && tableEntities.length > 0) {
+          this.targetTable = tableEntities[0].as(AvatarPoseGizmo);
+          await this.parentAgent!.rotateTowardsPosition(this.targetTable.position.get());
+        }
         this.currentState = NPCStates_Gourmet.Sit;
         break;
       }
       case NPCStates_Gourmet.Sit: {
+        debugLog(this.debugLogging, `Gourmet NPC sitting down`);
         this.parentAgent?.playAvatarAnimation(NPCAnimationID.Sitting);
         await this.parentAgent!.showAIConversation(`I'm ready to order ${PossibleFoodItems[this.wantedFoodItemIndex]}`);
         this.currentState = NPCStates_Gourmet.WaitToBeServed;
@@ -185,6 +219,7 @@ class NPCAgent extends Component<typeof NPCAgent> {
   static propsDefinition = {
     useStateMachineWorldGreeter: { type: PropTypes.Boolean, default: false },
     useStateMachineGourmet: { type: PropTypes.Boolean, default: false },
+    debugLogging: { type: PropTypes.Boolean, default: false },
   };
 
   private npcGizmo: Npc | undefined;
@@ -192,20 +227,27 @@ class NPCAgent extends Component<typeof NPCAgent> {
   private startPosition = Vec3.zero;
   private stateMachine: NPCStateMachine | undefined;
 
-  async preStart() {
+  async start() {
+    this.async.setTimeout(() => {
+      this.initialize();
+    }, 3000);
+  }
+
+  async initialize() {
     this.npcGizmo = this.entity.as(Npc);
     if (this.npcGizmo !== undefined) {
       this.startPosition = this.entity.position.get();
       this.npcPlayer = await this.npcGizmo.tryGetPlayer();
-      if (this.npcPlayer !== undefined) {
-        await this.onReady();
+      if (this.npcPlayer === undefined) {
+        console.error("NPCAgent: Unable to get NpcPlayer from Npc");
+        return;
       }
+      await this.onReady();
     }
   }
 
-  start() {}
-
   public async onReady() {
+    debugLog(this.props.debugLogging, "NPCAgent: onReady");
     if (this.props.useStateMachineWorldGreeter) {
       this.stateMachine = new NPCStateMachine_WorldGreeter();
     } else if (this.props.useStateMachineGourmet) {
@@ -217,7 +259,7 @@ class NPCAgent extends Component<typeof NPCAgent> {
       return;
     }
 
-    this.stateMachine.onAgentReady(this);
+    this.stateMachine.onAgentReady(this, this.props.debugLogging);
 
     let isUpdatingState = false;
     this.async.setInterval(async () => {
@@ -237,11 +279,13 @@ class NPCAgent extends Component<typeof NPCAgent> {
     return this.npcPlayer;
   }
 
-  public async moveToPosition(targetPosition: Vec3) {
-    await this.npcPlayer?.moveToPosition(targetPosition);
+  public async moveToPosition(targetPosition: Vec3, movementSpeedID: NPCMovementSpeedID) {
+    debugLog(this.props.debugLogging, `Moving to position: ${targetPosition}`);
+    await this.npcPlayer?.moveToPosition(targetPosition, { movementSpeed: NPCMovementSpeed[movementSpeedID] });
   }
 
-  public async moveToPositionUsingNavMesh(targetPosition: Vec3) {
+  public async moveToPositionUsingNavMesh(targetPosition: Vec3, movementSpeedID: NPCMovementSpeedID) {
+    debugLog(this.props.debugLogging, `Moving to position using NavMesh: ${targetPosition}`);
     const currentPosition = this.entity.position.get();
     const waypoints = NavMeshController.getWaypointsBetween(currentPosition, targetPosition);
     if (waypoints === undefined || waypoints.length === 0) {
@@ -249,41 +293,64 @@ class NPCAgent extends Component<typeof NPCAgent> {
       return;
     }
 
-    await this.npcPlayer?.moveToPositions(waypoints);
+    await this.npcPlayer?.moveToPositions(waypoints, { movementSpeed: NPCMovementSpeed[movementSpeedID] });
   }
 
   public async rotateTowardsPosition(position: Vec3) {
+    debugLog(this.props.debugLogging, `Rotating towards position: ${position}`);
     const lookDirection = position.sub(this.entity.position.get()).normalize();
-    await this.npcPlayer?.rotateTo(lookDirection, { rotationSpeed: 360 });
+    return this.npcPlayer?.rotateTo(lookDirection /*, { rotationSpeed: 360 }*/);
+  }
+
+  public stopMovement() {
+    debugLog(this.props.debugLogging, `Stopping movement`);
+    this.npcPlayer?.stopMovement();
+  }
+
+  public lookAtPosition(position: Vec3) {
+    debugLog(this.props.debugLogging, `Looking at position: ${position}`);
+    this.npcPlayer?.setLookAtTarget(position);
+  }
+
+  public clearLookAt() {
+    debugLog(this.props.debugLogging, `Clearing look at target`);
+    this.npcPlayer?.clearLookAtTarget();
   }
 
   public async grabEntity(entity: Entity) {
+    debugLog(this.props.debugLogging, `Grabbing entity: ${entity.name.get()}`);
     await this.npcPlayer?.grab(Handedness.Right, entity);
   }
 
   public dropEntity() {
+    debugLog(this.props.debugLogging, `Dropping entity`);
     this.npcPlayer?.drop(Handedness.Right);
   }
 
   public attachEntityToAnchor(entity: Entity, anchor: AttachablePlayerAnchor) {
+    debugLog(this.props.debugLogging, `Attaching entity: ${entity.name.get()} to anchor: ${AttachablePlayerAnchor[anchor]}`);
     const attachable = entity.as(AttachableEntity);
     attachable.attachToPlayer(this.npcPlayer!, anchor);
   }
 
   public detachEntity(entity: Entity) {
+    debugLog(this.props.debugLogging, `Detaching entity: ${entity.name.get()}`);
     const attachable = entity.as(AttachableEntity);
     attachable.detach();
   }
 
   public setAvatarPose(pose: AvatarGripPose) {
+    debugLog(this.props.debugLogging, `Setting avatar pose: ${AvatarGripPose[pose]}`);
     this.npcPlayer?.setAvatarGripPoseOverride(pose);
   }
 
   public clearAvatarPose() {
+    debugLog(this.props.debugLogging, `Clearing avatar pose`);
     this.npcPlayer?.clearAvatarGripPoseOverride();
   }
 
   public async showAIConversation(instruction: string, eventPerception?: string, dynamicContextKey?: string, dynamicContextValue?: string) {
+    debugLog(this.props.debugLogging, `Showing AI conversation: ${instruction}`);
     if (eventPerception !== undefined) {
       await this.npcGizmo?.conversation.addEventPerception(eventPerception);
     }
@@ -294,6 +361,7 @@ class NPCAgent extends Component<typeof NPCAgent> {
   }
 
   public showPopupConversation(player: Player, conversationLine: string) {
+    debugLog(this.props.debugLogging, `Showing popup conversation to player ${player.name.get()}: ${conversationLine}`);
     this.world.ui.showPopupForPlayer(player, conversationLine, 6, {
       fontSize: 2,
       fontColor: new Color(255, 255, 255),
@@ -303,6 +371,7 @@ class NPCAgent extends Component<typeof NPCAgent> {
   }
 
   public playAvatarAnimation(animationID: NPCAnimationID) {
+    debugLog(this.props.debugLogging, `Playing avatar animation: ${NPCAnimationID[animationID]}`);
     switch (animationID) {
       case NPCAnimationID.None:
         this.npcPlayer?.stopAvatarAnimation();

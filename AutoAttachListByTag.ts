@@ -18,6 +18,7 @@ import {
   getEntityListByTag,
   ManagerType,
 } from "sysHelper";
+import { Pool } from "sysObjectPoolUtil";
 import { getMgrClass } from "sysUtils";
 
 export const AttachEvent = new NetworkEvent<{ player: Player }>("AttachEvent");
@@ -71,6 +72,7 @@ class AutoAttachListByTag extends Component<typeof AutoAttachListByTag> {
   private objectsToAttachList: Entity[] = [];
   private playerList: Player[] = [];
   private playerAnchor: AttachablePlayerAnchor = AttachablePlayerAnchor.Head;
+  private attachablePool: Pool<Entity> = new Pool<Entity>();
 
   override preStart() {
     if (!this.props.enabled) return;
@@ -138,22 +140,45 @@ class AutoAttachListByTag extends Component<typeof AutoAttachListByTag> {
   onListEvent(data: { list: Entity[]; listId: number }) {
     debugLog(
       this.props.showDebugs,
-      `Received list event on ${this.entity.name.get()}`
+      `Received list event on ${this.entity.name.get()} for tag ${this.props.tag} with ${data.list.length} items.`
     );
     this.objectsToAttachList = data.list;
     if (this.objectsToAttachList === undefined) {
       console.error("Object list is undefined");
     }
+    this.objectsToAttachList.forEach((obj) => {
+      this.attachablePool.addToPool(obj);
+      //maybe hide item
+      this.deactivateObject(obj);
+    });
   }
+
+    deactivateObject(obj: Entity): void {
+    debugLog(this.props.showDebugs,"Deactivating object and returning to pool");
+    this.activateObject(obj, false);
+  }
+
+    activateObject(obj: Entity, activate: boolean = true): void {
+    // if (!activate) {
+    //   obj.position.set(HIDDEN_POSITION);
+    //   obj.rotation.set(ASSET_ROTATION);
+    // }
+    obj.visible.set(activate);
+    // const physicalEntity = obj.as(PhysicalEntity);
+    // physicalEntity.gravityEnabled.set(activate);
+    // physicalEntity.collidable.set(activate);
+    // physicalEntity.zeroVelocity();
+  }
+  //need to add logic for remove from pool and add back to pool
 
   onPlayerJoined(enterPlayer: Player) {
     //filter out multiple calls for the same player
     if (this.playerList.includes(enterPlayer)) {
+      console.log(`Player ${enterPlayer.name.get()} is already assigned attachment ${this.props.tag}.`);
       return;
     }
 
     this.playerList.push(enterPlayer);
-
     this.SetupAttachment(enterPlayer);
   }
 
@@ -198,6 +223,10 @@ class AutoAttachListByTag extends Component<typeof AutoAttachListByTag> {
           });
         }
       }, raceConditionDelay);
+    }
+    else{
+      console.error(`No attachable found for player ${player.name.get()} at index ${index}.`);
+      console.warn(`There are only ${this.objectsToAttachList.length} attachable items in the list.`);
     }
   }
 

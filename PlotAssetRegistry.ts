@@ -7,28 +7,42 @@ import { sysEvents } from "sysEvents";
  */
 class PlotAssetRegistry extends Component<typeof PlotAssetRegistry> {
   static propsDefinition = {
+    enabled: { type: PropTypes.Boolean, default: true },
     optionalRecipient: { type: PropTypes.Entity, default: null },
     assetType: { type: PropTypes.String, default: "" }, //See sysTypes PlotType for options
-    asset01: { type: PropTypes.Asset },
-    assetTexture01: { type: PropTypes.Asset },
-    asset02: { type: PropTypes.Asset },
-    assetTexture02: { type: PropTypes.Asset },
-    asset03: { type: PropTypes.Asset },
-    assetTexture03: { type: PropTypes.Asset },
-    asset04: { type: PropTypes.Asset },
-    assetTexture04: { type: PropTypes.Asset },
-    asset05: { type: PropTypes.Asset },
-    assetTexture05: { type: PropTypes.Asset },
-    asset06: { type: PropTypes.Asset },
-    assetTexture06: { type: PropTypes.Asset },
-    asset07: { type: PropTypes.Asset },
-    assetTexture07: { type: PropTypes.Asset },
-    asset08: { type: PropTypes.Asset },
-    assetTexture08: { type: PropTypes.Asset },
-    asset09: { type: PropTypes.Asset },
-    assetTexture09: { type: PropTypes.Asset },
-    asset10: { type: PropTypes.Asset },
+    assetTexture0: { type: PropTypes.Asset },
+    asset0: { type: PropTypes.Asset },
+    asset0Cost: { type: PropTypes.Number, default: 0 },
+    assetTexture1: { type: PropTypes.Asset },
+    asset1: { type: PropTypes.Asset },
+    asset1Cost: { type: PropTypes.Number, default: 0 },
+    assetTexture2: { type: PropTypes.Asset },
+    asset2: { type: PropTypes.Asset },
+    asset2Cost: { type: PropTypes.Number, default: 0 },
+    assetTexture3: { type: PropTypes.Asset },
+    asset3: { type: PropTypes.Asset },
+    asset3Cost: { type: PropTypes.Number, default: 0 },
+    assetTexture4: { type: PropTypes.Asset },
+    asset4: { type: PropTypes.Asset },
+    asset4Cost: { type: PropTypes.Number, default: 0 },
+    assetTexture5: { type: PropTypes.Asset },
+    asset5: { type: PropTypes.Asset },
+    asset5Cost: { type: PropTypes.Number, default: 0 },
+    assetTexture6: { type: PropTypes.Asset },
+    asset6: { type: PropTypes.Asset },
+    asset6Cost: { type: PropTypes.Number, default: 0 },
+    assetTexture7: { type: PropTypes.Asset },
+    asset7: { type: PropTypes.Asset },
+    asset7Cost: { type: PropTypes.Number, default: 0 },
+    assetTexture8: { type: PropTypes.Asset },
+    asset8: { type: PropTypes.Asset },
+    asset8Cost: { type: PropTypes.Number, default: 0 },
+    assetTexture9: { type: PropTypes.Asset },
+    asset9: { type: PropTypes.Asset },
+    asset9Cost: { type: PropTypes.Number, default: 0 },
     assetTexture10: { type: PropTypes.Asset },
+    asset10: { type: PropTypes.Asset },
+    asset10Cost: { type: PropTypes.Number, default: 0 },
   };
 
   private spawnableAssetArray: Asset[] = [];
@@ -37,12 +51,13 @@ class PlotAssetRegistry extends Component<typeof PlotAssetRegistry> {
   private spawnableTextureIDArray: string[] = [];
 
   preStart() {
+    if(!this.props.enabled) return;
     // Magic to turn the props into an array of assets and filter out undefined/null
-    this.spawnableAssetArray = Array.from({ length: 10 }, (_, i) => (this.props as any)[`asset0${i + 1}`]!).filter(
+    this.spawnableAssetArray = Array.from({ length: 10 }, (_, i) => (this.props as any)[`asset${i + 1}`]!).filter(
       (asset: Asset | undefined) => asset != null
     );
     if (this.spawnableAssetArray.length < 1) {
-      console.error("PlotAssetRegistry: Not enough assets provided. At least 1 is required.");
+      console.error(`PlotAssetRegistry on ${this.entity.name.get()}: Not enough assets provided. At least 1 is required.`);
     }
 
     this.spawnableAssetArray.forEach((asset, index) => {
@@ -67,6 +82,7 @@ class PlotAssetRegistry extends Component<typeof PlotAssetRegistry> {
   }
 
   start() {
+      if(!this.props.enabled) return;
     this.connectNetworkEvent(this.entity, sysEvents.OnAssetStringArray_Request, (data) =>
       this.onAssetArrayByString_Request(data)
     );

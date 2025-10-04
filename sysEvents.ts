@@ -1,4 +1,4 @@
-import { Entity, FocusedInteractionTapOptions, FocusedInteractionTrailOptions, InteractionInfo, NetworkEvent, Player, Quaternion, Vec3 } from "horizon/core";
+import { Asset, Entity, FocusedInteractionTapOptions, FocusedInteractionTrailOptions, InteractionInfo, LocalEvent, NetworkEvent, Player, Quaternion, Vec3 } from "horizon/core";
 import { InventoryType, PlayerInventory, PlayerStats, PlotType, StatType } from "sysTypes";
 
 export const sysEvents = {
@@ -52,5 +52,66 @@ export const sysEvents = {
   OnAssetStringArray_Response: new NetworkEvent<{ type: string; assetIDArray: string[]; textureIDArray: string[] }>(
     "OnAssetStringArray_Response"
   ),
-//
+
+  //region Plot Events
+  spawnPlayerPlot: new NetworkEvent<{ player: Player, plotBaseID: number }>("spawnPlayerPlot"),
+  spawnNewAssetEvent: new NetworkEvent<{ player: Player; assetId: string }>("spawnAssetEvent"),
+  savePlayerPlot: new NetworkEvent<{ player: Player }>("savePlayerPlot"),
+  deleteSelectedItemEvent: new NetworkEvent<{ player: Player; selected: Entity; alsoSave: boolean }>("deleteSelectedItemEvent"),
+  tryDeleteSelectedItemEvent: new NetworkEvent<{ player: Player }>("tryDeleteSelectedItemEvent"),
+
+  //region Menu Events
+  //bottom menu 
+  toggleBottomMenuEvent: new NetworkEvent<{ player: Player; open: boolean; menuType: string }>("toggleBottomMenuEvent"),
+  buildRotateEvent: new NetworkEvent<{ player: Player }>("buildRotateEvent"),
+  buildMenuEvent: new NetworkEvent<{ player: Player }>("buildMenuEvent"),
+  TopMenuEvent: new NetworkEvent<{ player: Player; buttonType?: string; open: boolean }>("menuButtonEvent"),
+
+
+
+    //region Jet Events
+  ProgressEvent: new NetworkEvent<{ player: Player; progressPercent: string }>("ProgressEvent"),
+  BoostEvent: new NetworkEvent<{ player: Player; boostAmount: number; boostDecay: number }>("BoostEvent"),
+
+  // send from ammo box when a player picks it up
+  pickupAmmo: new NetworkEvent<{ ammoType: string, amount: number }>('shardsPickupAmmo'),
+  // send from the gun to the target it hit
+  ammoHit: new NetworkEvent<{ player: Player, damage: number }>('shardsAmmoHit'),
+
+
+  //region fishing events 
+  ListEvent: new NetworkEvent<{ list: Entity[]; listId: number }>(  "ListEvent"),
+
+  AttachEvent: new NetworkEvent<{ playerTarget: Player }>(  "AttachEvent"),
+  DetachEvent: new NetworkEvent("DetachEvent"),
+  NewOwnerEvent: new NetworkEvent<{ newOwner: Player }>(  "NewOwnerEvent"),
+  
+  //fishing data 
+  updateJSONDataSource: new NetworkEvent<{ newDataSource: Entity }>("updateJSONDataSource"),
+  requestForData: new NetworkEvent<{requester: Entity}>("requestForData"),
+  responseWithData: new NetworkEvent<{ responseData: string }>("responseWithData"),
+
+  objectPoolRequest:new LocalEvent<{requesterEntity: Entity, objType: Asset, amount: number}>("objectPoolRequest"),
+  objectPoolResponse: new LocalEvent<{response: Entity[]}>("objectPoolResponse"),
+  returnObjectToPool: new LocalEvent<{obj: Entity}>("returnObjectToPool"),
+
+  setupCollectable: new LocalEvent<{objPoolEntity: Entity}>("setupCollectable"),
+
+  onItemCollected: new LocalEvent<{player: Player, itemType: string, amount: number}>("onItemCollected"),
+  updateCollectableUI: new NetworkEvent<{itemType: string, amount: number}>("updateCollectableUI"),
+
+  tutorialEnabled: new LocalEvent<{tutorialSettings: {timeTillNibble: number, losingDisabled: boolean}}>("tutorialEnabled"),
+
+  diceRoll: new NetworkEvent<{rollResult: number, player: Player}>("diceRoll"),
+
+  //fishing rod events 
+  setFishingState: new LocalEvent<{ state: number }>("SetFishingState"),
+  fishingStateChanged: new LocalEvent<{ state: number }>("FishingStateChanged"),
+  myCastActionEvent: new NetworkEvent<{ active: boolean }>("myCastActionEvent"),
+  myCatchActionEvent: new NetworkEvent<{ active: boolean }>("myCatchActionEvent"),
+  myCastPowerEvent: new NetworkEvent<{ power: number }>("myCastPowerEvent"),
+
+  //minigame events
+  updateProgressEvent: new NetworkEvent<{ player: Player; progress: number }>("updateProgressEvent"),
 };
+

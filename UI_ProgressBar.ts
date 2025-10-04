@@ -1,5 +1,6 @@
 import { Player } from "horizon/core";
 import { Binding, Text, UIComponent, View } from "horizon/ui";
+import { sysEvents } from "sysEvents";
 
 export class ProgressBar extends UIComponent<typeof ProgressBar> {
   // --- UI bindings ---
@@ -75,6 +76,12 @@ export class ProgressBar extends UIComponent<typeof ProgressBar> {
         alignItems: "center",
         alignContent: "center",
       },
+    });
+  }
+
+  preStart(): void {
+    this.connectNetworkEvent(this.entity, sysEvents.updateProgressEvent, (data) => {
+      this.setValue(data.progress, 100); // assuming max is always 100
     });
   }
 

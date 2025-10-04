@@ -5,13 +5,18 @@ import {
   InteractionInfo,
   Player,
   PlayerDeviceType,
+  PropTypes,
   Quaternion,
   Vec3,
 } from "horizon/core";
 import { sysEvents } from "sysEvents";
+import { progressBar } from "sysUIStyleGuide";
+import { getMgrClass } from "sysUtils";
 
 class fint_TapToProgress extends Component<typeof fint_TapToProgress> {
-  static propsDefinition = {};
+  static propsDefinition = {
+    progressBar: { type: PropTypes.Entity, default: null },
+  };
 
   private inFocusMode = false;
   private tapCount = 0;
@@ -62,30 +67,44 @@ class fint_TapToProgress extends Component<typeof fint_TapToProgress> {
         position: new Vec3(0, 1.5, -3),
         rotation: Quaternion.fromEuler(new Vec3(0, 0, 0)),
       });
+
+
+      this.sendProgressEvent(0);
     }
   }
 
   OnPlayerExitTrigger(player: Player) {
     this.activePlayer = this.world.getServerPlayer();
+
   }
 
   onFintInputStarted(interactionInfo: InteractionInfo): void {
     this.tapCount++;
     console.log(`Tap Count: ${this.tapCount}`);
-  }
-  onFintInputMoved(interactionInfo: InteractionInfo): void {
 
+    this.sendProgressEvent(this.tapCount / 10);
   }
+  onFintInputMoved(interactionInfo: InteractionInfo): void {}
   onFintInputEnded(interactionInfo: InteractionInfo): void {
-    if (this.tapCount >= 10){
-      this.sendNetworkBroadcastEvent(sysEvents.ForceExitFocusMode, {player: this.activePlayer});
+    if (this.tapCount >= 10) {
+      this.sendNetworkBroadcastEvent(sysEvents.ForceExitFocusMode, { player: this.activePlayer });
     }
   }
 
   onPlayerExitedFocusMode(player: Player): void {
+    this.sendProgressEvent(0);
+
     if (this.activePlayer === player) {
       this.tapCount = 0;
     }
+
+  }
+
+  sendProgressEvent(progress: number): void {
+    this.sendNetworkEvent(this.props.progressBar!, sysEvents.updateProgressEvent, {
+      player: this.activePlayer,
+      progress: progress * 100,
+    });
   }
 }
 Component.register(fint_TapToProgress);
