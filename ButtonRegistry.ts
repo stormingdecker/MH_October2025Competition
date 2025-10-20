@@ -10,6 +10,13 @@ export const OnButtonResponse = new NetworkEvent<{
   buttonTextArray: string[] 
 }>("OnButtonAssetResponse");
 
+export type ButtonProps ={
+  buttonType: string;
+  btnImgAssetIDArray: string[];
+  btnInstanceIDArray: string[];
+  buttonTextArray: string[];
+}
+
 class ButtonRegistry extends Component<typeof ButtonRegistry> {
   static propsDefinition = {
     showDebugs: { type: PropTypes.Boolean, default: false },

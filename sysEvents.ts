@@ -33,7 +33,7 @@ export const sysEvents = {
   OnSetCameraCollisionEnabled: new NetworkEvent<{enabled: boolean}>("OnSetCameraCollisionEnabled"),
 
   // Focused Interactions events
-  OnStartFocusMode: new NetworkEvent<{requester: Entity}>("OnStartFocusMode"),
+  OnStartFocusMode: new NetworkEvent<{requester: Entity, }>("OnStartFocusMode"),
   OnExitFocusMode: new NetworkEvent<{player: Player}>("OnPlayerExitedExample"),
   ForceExitFocusMode: new NetworkEvent<{player: Player}>("OnForceExitFocusMode"),
   OnPlayerEnteredFocusMode: new NetworkEvent<{player: Player}>("OnPlayerEnteredFocusMode"),
@@ -54,18 +54,23 @@ export const sysEvents = {
   ),
 
   //region Plot Events
-  spawnPlayerPlot: new NetworkEvent<{ player: Player, plotBaseID: number }>("spawnPlayerPlot"),
+  spawnPlayerPlotRequest: new NetworkEvent<{ requester: Entity, player: Player, plotBaseID: number, kitchenEntity: Entity }>("spawnPlayerPlot"),
   spawnNewAssetEvent: new NetworkEvent<{ player: Player; assetId: string }>("spawnAssetEvent"),
+  updatePlayPlotManagers: new NetworkEvent<{ playerManagers: Player[] }>("updatePlayPlotManagers"),
   savePlayerPlot: new NetworkEvent<{ player: Player }>("savePlayerPlot"),
-  deleteSelectedItemEvent: new NetworkEvent<{ player: Player; selected: Entity; alsoSave: boolean }>("deleteSelectedItemEvent"),
   tryDeleteSelectedItemEvent: new NetworkEvent<{ player: Player }>("tryDeleteSelectedItemEvent"),
+  deleteSelectedItemEvent: new NetworkEvent<{ player: Player; selected: Entity; alsoSave: boolean }>("deleteSelectedItemEvent"),
+  assignPlotOwner: new NetworkEvent<{ player?: Player }>("assignPlotOwner"),
+  assignSelectedItem: new NetworkEvent<{ player: Player; selected: Entity | null }>("assignSelectedItem"),
+  toggleBuildingEvent: new NetworkEvent<{ player: Player; enabled: boolean }>("toggleBuildingEvent"),
 
   //region Menu Events
   //bottom menu 
-  toggleBottomMenuEvent: new NetworkEvent<{ player: Player; open: boolean; menuType: string }>("toggleBottomMenuEvent"),
+  updateMenuContext: new NetworkEvent<{ player: Player; menuContext: string[] }>("updateMenuContext"),
+  // toggleBottomMenuEvent: new NetworkEvent<{ player: Player; open: boolean; menuType: string }>("toggleBottomMenuEvent"),
   buildRotateEvent: new NetworkEvent<{ player: Player }>("buildRotateEvent"),
   buildMenuEvent: new NetworkEvent<{ player: Player }>("buildMenuEvent"),
-  TopMenuEvent: new NetworkEvent<{ player: Player; buttonType?: string; open: boolean }>("menuButtonEvent"),
+  // SubMenuEvent: new NetworkEvent<{ player: Player; buttonType?: string; open: boolean }>("subButtonEvent"),
 
 
 
@@ -113,5 +118,17 @@ export const sysEvents = {
 
   //minigame events
   updateProgressEvent: new NetworkEvent<{ player: Player; progress: number }>("updateProgressEvent"),
+
+  //region kitchen
+  SetKitchenManager: new NetworkEvent<{ player: Player; kitchenManager: Entity }>("SetKitchenManager"),
+  StartKitchenEvent: new NetworkEvent<{ player: Player, requester: Entity }>("StartKitchenEvent"),
+  OnCompleteTaskEvent: new NetworkEvent<{ player: Player}>("OnCompleteTaskEvent"),
+  ActivateNewOrder: new NetworkEvent<{ player: Player}>("ActivateNewOrder"),
+  UpdateOrderTicketStatus: new NetworkEvent<{player: Player, triggerEntity: Entity | null}>("UpdateOrderTicketStatus"),
+  // StationActivated: new NetworkEvent<{player: Player, triggerEntity?: Entity}>("StationActivated"),
+
+  setWhoCanTriggerEvent: new NetworkEvent<{whoCanTrigger: Player[] | 'anyone' | []}>("setWhoCanTriggerEvent"),
+
+  dailyRewardClaimed: new NetworkEvent<{player: Player, utc: number}>("dailyRewardClaimed")
 };
 

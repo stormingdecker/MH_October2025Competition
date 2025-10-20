@@ -1,7 +1,11 @@
-import { Asset, AttachableEntity, AttachablePlayerAnchor, AvatarGripPose, AvatarPoseGizmo, Color, Component, Entity, Handedness, Player, PropTypes, Vec3 } from "horizon/core";
+import { Asset, AttachableEntity, AttachablePlayerAnchor, AvatarGripPose, AvatarPoseGizmo, CodeBlockEvents, Color, Component, Entity, Handedness, Player, PropTypes, Vec3 } from "horizon/core";
 import { Npc, NpcPlayer } from "horizon/npc";
+import { KitchenManager, OrderTicket } from "KitchenManager";
 import { NavMeshController } from "NavMeshController";
-import { debugLog } from "sysHelper";
+import { PlayerPlotManager, RestaurantItemTag } from "PlayerPlotManager";
+import { RecipeType } from "RecipeCatalog";
+import { debugLog, ManagerType } from "sysHelper";
+import { getMgrClass } from "sysUtils";
 
 // --- World Greeter NPC State Machine ---
 
@@ -31,6 +35,8 @@ abstract class NPCStateMachine {
   protected debugLogging = false;
 
   public abstract onAgentReady(agent: NPCAgent, debugLogging: boolean): void;
+  public abstract isIdle(): boolean;
+  public abstract activate(targetChair: Entity): void;
 
   public async updateState(): Promise<void> {}
 }
@@ -59,6 +65,16 @@ class NPCStateMachine_WorldGreeter extends NPCStateMachine {
     debugLog(this.debugLogging, "StateMachine_WorldGreeter: onAgentReady");
     this.parentAgent = agent;
     this.currentState = NPCStates_WorldGreeter.WaitingForPlayerToApproach;
+  }
+
+  public isIdle() {
+    //return this.currentState === NPCStates_WorldGreeter.WaitingForPlayerToApproach;
+    // Greeters are never available to the pool
+    return false;
+  }
+
+  public activate(targetChair: Entity) {
+    // Greeters are always active
   }
 
   public override async updateState() {
@@ -129,86 +145,95 @@ class NPCStateMachine_WorldGreeter extends NPCStateMachine {
 
 const PossibleFoodItems = ["Coffee", "Cake", "Vegetables"];
 
-enum NPCStates_Gourmet {
+enum NPCStates_Client {
   Initializing,
-  DecideOnFoodItem,
+  QueuedInPool,
   WalkToSeat,
   Sit,
+  AnnounceFoodItem,
   WaitToBeServed,
-  ReturningToStartPosition,
+  ReturningToPortal,
 }
 
-class NPCStateMachine_Gourmet extends NPCStateMachine {
+class NPCStateMachine_Client extends NPCStateMachine {
   private wantedFoodItemIndex = -1;
-  private assignedSeat: Entity | undefined;
-  private targetTable: Entity | undefined;
+  private assignedChair?: Entity;
 
   public override onAgentReady(agent: NPCAgent, debugLogging: boolean) {
     this.debugLogging = debugLogging;
-    debugLog(this.debugLogging, "StateMachine_Gourmet: onAgentReady");
+    debugLog(this.debugLogging, "StateMachine_Client: onAgentReady");
     this.parentAgent = agent;
-    this.currentState = NPCStates_Gourmet.DecideOnFoodItem;
+    this.currentState = NPCStates_Client.QueuedInPool;
+  }
+
+  public isIdle() {
+    return this.currentState === NPCStates_Client.QueuedInPool;
+  }
+
+  public activate(targetChair: Entity) {
+    this.assignedChair = targetChair;
+    if (this.currentState === NPCStates_Client.QueuedInPool) {
+      this.currentState = NPCStates_Client.WalkToSeat;
+    }
   }
 
   public override async updateState() {
     switch (this.currentState) {
-      case NPCStates_Gourmet.Initializing: {
+      case NPCStates_Client.Initializing: {
         break;
       }
-
-      case NPCStates_Gourmet.DecideOnFoodItem: {
-        this.wantedFoodItemIndex = Math.floor(Math.random() * PossibleFoodItems.length);
-        debugLog(this.debugLogging, `Gourmet NPC wants to order: ${PossibleFoodItems[this.wantedFoodItemIndex]}`);
-        const seatEntities = this.parentAgent?.world.getEntitiesWithTags(["ServiceTableSeat"]);
-        if (seatEntities !== undefined && seatEntities.length > 0) {
-          this.assignedSeat = seatEntities[0].as(AvatarPoseGizmo);
+      case NPCStates_Client.QueuedInPool: {
+        this.parentAgent!.teleportToPosition(new Vec3(0, -1000, 0));
+        break;
+      }
+      case NPCStates_Client.WalkToSeat: {
+        debugLog(this.debugLogging, `Client NPC walking to chair`);
+        this.parentAgent!.teleportToPosition(this.parentAgent!.getSpawnPoint()?.position.get() ?? Vec3.zero);
+        await this.parentAgent!.rotateTowardsPosition(this.assignedChair!.position.get());
+        const isPathPossibleAlongNavMesh = this.parentAgent!.isPathPossibleAlongNavMesh(this.assignedChair!.position.get());
+        if (isPathPossibleAlongNavMesh) {
+          debugLog(this.debugLogging, `Client NPC walking to chair using NavMesh`);
+          await this.parentAgent!.moveToPositionUsingNavMesh(this.assignedChair!.position.get(), NPCMovementSpeedID.Walk);
+        } else {
+          debugLog(this.debugLogging, `Client NPC walking to chair using direct movement`);
+          await this.parentAgent!.moveToPosition(this.assignedChair!.position.get(), NPCMovementSpeedID.Walk);
         }
-        this.currentState = NPCStates_Gourmet.WalkToSeat;
+        this.currentState = NPCStates_Client.Sit;
         break;
       }
-      case NPCStates_Gourmet.WalkToSeat: {
-        debugLog(this.debugLogging, `Gourmet NPC walking to seat`);
-        await this.parentAgent!.rotateTowardsPosition(this.assignedSeat!.position.get());
-        //await this.parentAgent!.moveToPosition(this.assignedSeat!.position.get(), NPCMovementSpeedID.Walk);
-        await this.parentAgent!.moveToPositionUsingNavMesh(this.assignedSeat!.position.get(), NPCMovementSpeedID.Walk);
-        const tableEntities = this.parentAgent?.world.getEntitiesWithTags(["ServiceTable"]);
-        if (tableEntities !== undefined && tableEntities.length > 0) {
-          this.targetTable = tableEntities[0].as(AvatarPoseGizmo);
-          await this.parentAgent!.rotateTowardsPosition(this.targetTable.position.get());
-        }
-        this.currentState = NPCStates_Gourmet.Sit;
-        break;
-      }
-      case NPCStates_Gourmet.Sit: {
-        debugLog(this.debugLogging, `Gourmet NPC sitting down`);
+      case NPCStates_Client.Sit: {
+        debugLog(this.debugLogging, `Client NPC sitting down`);
+        await this.parentAgent!.rotateTowardsPosition(this.assignedChair!.position.get().add(this.assignedChair!.forward.get()));
         this.parentAgent?.playAvatarAnimation(NPCAnimationID.Sitting);
         await this.parentAgent!.showAIConversation(`I'm ready to order ${PossibleFoodItems[this.wantedFoodItemIndex]}`);
-        this.currentState = NPCStates_Gourmet.WaitToBeServed;
+        this.currentState = NPCStates_Client.WaitToBeServed;
         break;
       }
-      /*
-      case NPCStates_Gourmet.WaitToBeServed: {
-        // Move to a position in front of the player
-        const targetPosition = this.targetPlayer!.position.get().add(this.targetPlayer!.forward.get().mul(NPC_MIN_DISTANCE_TO_PLAYER));
-        await this.parentAgent!.moveToPosition(targetPosition);
-        await this.parentAgent!.rotateTowardsPosition(this.targetPlayer!.position.get());
-        this.currentState = NPCStates_Gourmet.WaitToBeServed;
+      case NPCStates_Client.AnnounceFoodItem: {
+        this.wantedFoodItemIndex = Math.floor(Math.random() * PossibleFoodItems.length);
+        debugLog(this.debugLogging, `Client NPC wants to order: ${PossibleFoodItems[this.wantedFoodItemIndex]}`);
+        const seatEntities = this.parentAgent?.world.getEntitiesWithTags(["ServiceTableSeat"]);
+        if (seatEntities !== undefined && seatEntities.length > 0) {
+          this.assignedChair = seatEntities[0].as(AvatarPoseGizmo);
+        }
+        this.currentState = NPCStates_Client.WalkToSeat;
         break;
       }
-      case NPCStates_Gourmet.WaitToBeServed: {
+      case NPCStates_Client.WaitToBeServed: {
         await this.parentAgent!.showAIConversation(`Please wait to be served`);
-        this.currentState = NPCStates_Gourmet.ReturningToStartPosition;
+        this.currentState = NPCStates_Client.ReturningToPortal;
         break;
       }
-      case NPCStates_Gourmet.ReturningToStartPosition: {
-        const startPosition = this.parentAgent!.getStartPosition();
-        await this.parentAgent!.rotateTowardsPosition(startPosition);
-        await this.parentAgent!.moveToPosition(startPosition);
-        this.assignedSeat = undefined;
-        this.currentState = NPCStates_Gourmet.DecideOnFoodItem;
+      case NPCStates_Client.ReturningToPortal: {
+        this.parentAgent?.playAvatarAnimation(NPCAnimationID.None);
+        const spawnPoint = this.parentAgent!.getSpawnPoint()!.position.get();
+        await this.parentAgent!.rotateTowardsPosition(spawnPoint);
+        await this.parentAgent!.moveToPosition(spawnPoint, NPCMovementSpeedID.Walk);
+        this.parentAgent!.getParentPool()?.onAgentReleaseChair(this.parentAgent!);
+        this.assignedChair = undefined;
+        this.currentState = NPCStates_Client.QueuedInPool;
         break;
       }
-*/
     }
   }
 }
@@ -218,14 +243,16 @@ class NPCStateMachine_Gourmet extends NPCStateMachine {
 class NPCAgent extends Component<typeof NPCAgent> {
   static propsDefinition = {
     useStateMachineWorldGreeter: { type: PropTypes.Boolean, default: false },
-    useStateMachineGourmet: { type: PropTypes.Boolean, default: false },
+    useStateMachineClient: { type: PropTypes.Boolean, default: false },
     debugLogging: { type: PropTypes.Boolean, default: false },
   };
 
-  private npcGizmo: Npc | undefined;
-  private npcPlayer: NpcPlayer | undefined;
+  private npcGizmo?: Npc;
+  private npcPlayer?: NpcPlayer;
+  private stateMachine?: NPCStateMachine;
   private startPosition = Vec3.zero;
-  private stateMachine: NPCStateMachine | undefined;
+  private parentPool?: NPCAgentPool;
+  private spawnPoint?: Entity;
 
   async start() {
     this.async.setTimeout(() => {
@@ -236,7 +263,6 @@ class NPCAgent extends Component<typeof NPCAgent> {
   async initialize() {
     this.npcGizmo = this.entity.as(Npc);
     if (this.npcGizmo !== undefined) {
-      this.startPosition = this.entity.position.get();
       this.npcPlayer = await this.npcGizmo.tryGetPlayer();
       if (this.npcPlayer === undefined) {
         console.error("NPCAgent: Unable to get NpcPlayer from Npc");
@@ -248,10 +274,11 @@ class NPCAgent extends Component<typeof NPCAgent> {
 
   public async onReady() {
     debugLog(this.props.debugLogging, "NPCAgent: onReady");
+    this.startPosition = this.entity.position.get();
     if (this.props.useStateMachineWorldGreeter) {
       this.stateMachine = new NPCStateMachine_WorldGreeter();
-    } else if (this.props.useStateMachineGourmet) {
-      this.stateMachine = new NPCStateMachine_Gourmet();
+    } else if (this.props.useStateMachineClient) {
+      this.stateMachine = new NPCStateMachine_Client();
     }
 
     if (this.stateMachine === undefined) {
@@ -271,12 +298,46 @@ class NPCAgent extends Component<typeof NPCAgent> {
     }, 100);
   }
 
+  public isIdle() {
+    if (this.stateMachine !== undefined) {
+      return this.stateMachine.isIdle();
+    }
+    return false;
+  }
+
+  public activate(targetChair: Entity) {
+    if (this.stateMachine !== undefined) {
+      this.stateMachine.activate(targetChair);
+    }
+  }
+
   public getStartPosition() {
     return this.startPosition;
   }
 
+  public setParentPool(agentPool: NPCAgentPool) {
+    this.parentPool = agentPool;
+  }
+
+  public getParentPool() {
+    return this.parentPool;
+  }
+
+  public setSpawnPoint(spawnPoint: Entity) {
+    this.spawnPoint = spawnPoint;
+  }
+
+  public getSpawnPoint() {
+    return this.spawnPoint;
+  }
+
   public getNpcPlayer() {
     return this.npcPlayer;
+  }
+
+  public teleportToPosition(targetPosition: Vec3) {
+    debugLog(this.props.debugLogging, `Teleporting to position: ${targetPosition}`);
+    this.npcPlayer?.position.set(targetPosition);
   }
 
   public async moveToPosition(targetPosition: Vec3, movementSpeedID: NPCMovementSpeedID) {
@@ -284,9 +345,15 @@ class NPCAgent extends Component<typeof NPCAgent> {
     await this.npcPlayer?.moveToPosition(targetPosition, { movementSpeed: NPCMovementSpeed[movementSpeedID] });
   }
 
+  public isPathPossibleAlongNavMesh(targetPosition: Vec3) {
+    const currentPosition = this.npcPlayer!.position.get();
+    const waypoints = NavMeshController.getWaypointsBetween(currentPosition, targetPosition);
+    return waypoints !== undefined && waypoints.length > 0;
+  }
+
   public async moveToPositionUsingNavMesh(targetPosition: Vec3, movementSpeedID: NPCMovementSpeedID) {
     debugLog(this.props.debugLogging, `Moving to position using NavMesh: ${targetPosition}`);
-    const currentPosition = this.entity.position.get();
+    const currentPosition = this.npcPlayer!.position.get();
     const waypoints = NavMeshController.getWaypointsBetween(currentPosition, targetPosition);
     if (waypoints === undefined || waypoints.length === 0) {
       console.error("No waypoints found, cannot move using NavMesh");
@@ -296,10 +363,11 @@ class NPCAgent extends Component<typeof NPCAgent> {
     await this.npcPlayer?.moveToPositions(waypoints, { movementSpeed: NPCMovementSpeed[movementSpeedID] });
   }
 
-  public async rotateTowardsPosition(position: Vec3) {
-    debugLog(this.props.debugLogging, `Rotating towards position: ${position}`);
-    const lookDirection = position.sub(this.entity.position.get()).normalize();
-    return this.npcPlayer?.rotateTo(lookDirection /*, { rotationSpeed: 360 }*/);
+  public async rotateTowardsPosition(targetPosition: Vec3) {
+    const currentPosition = this.npcPlayer!.position.get();
+    debugLog(this.props.debugLogging, `Rotating towards position: ${targetPosition} from ${currentPosition}`);
+    const lookDirection = targetPosition.sub(currentPosition);
+    await this.npcPlayer?.rotateTo(lookDirection, { rotationSpeed: 360 });
   }
 
   public stopMovement() {
@@ -391,3 +459,172 @@ class NPCAgent extends Component<typeof NPCAgent> {
   }
 }
 Component.register(NPCAgent);
+
+// --- NPC Agent Pool ---
+
+interface NPCFoodAssignment {
+  player: Player;
+  chair: Entity;
+  kitchenManager: KitchenManager;
+  recipeType: string;
+  orderTicket: OrderTicket;
+}
+
+class NPCAgentPool extends Component<typeof NPCAgentPool> {
+  static propsDefinition = {
+    spawnRateInSeconds: { type: PropTypes.Number, default: 30 },
+    spawnPoint: { type: PropTypes.Entity },
+    npcAgent1: { type: PropTypes.Entity },
+    npcAgent2: { type: PropTypes.Entity },
+    npcAgent3: { type: PropTypes.Entity },
+    npcAgent4: { type: PropTypes.Entity },
+    debugLogging: { type: PropTypes.Boolean, default: false },
+  };
+
+  private npcAgents: NPCAgent[] = [];
+  private activePlayers: Player[] = [];
+  private availableChairs: Entity[] = [];
+  private assignedChairs: Map<NPCAgent, Entity> = new Map();
+
+  override start() {
+    this.registerAgent(this.props.npcAgent1);
+    this.registerAgent(this.props.npcAgent2);
+    this.registerAgent(this.props.npcAgent3);
+    this.registerAgent(this.props.npcAgent4);
+
+    this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnPlayerEnterWorld, (player) => {
+      this.activePlayers.push(player);
+      this.availableChairs = [];
+    });
+
+    this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnPlayerExitWorld, (player) => {
+      const index = this.activePlayers.indexOf(player);
+      if (index > -1) {
+        this.activePlayers.splice(index, 1);
+        this.availableChairs = [];
+      }
+    });
+
+    this.async.setInterval(() => {
+      if (this.activePlayers.length > 0) {
+        this.spawnAgent();
+      }
+    }, this.props.spawnRateInSeconds * 1000);
+  }
+
+  private spawnAgent() {
+    // Rebuild the available chairs list if it's empty
+    if (this.availableChairs.length === 0) {
+      debugLog(this.props.debugLogging, "Rebuilding available chairs list");
+      this.buildAvailableChairsList();
+      if (this.availableChairs.length === 0) {
+        return;
+      }
+    }
+
+    // If all chairs are assigned, do nothing
+    if (this.assignedChairs.size >= this.availableChairs.length) {
+      debugLog(this.props.debugLogging, "All chairs are assigned");
+      return;
+    }
+
+    // Find a random unassigned agent
+    const availableAgent = this.getAvailableAgent();
+    if (availableAgent === undefined) {
+      debugLog(this.props.debugLogging, "No available agents");
+      return;
+    }
+
+    // Find a random unassigned chair
+    let chair: Entity | undefined;
+    while (true) {
+      const randomIndex = Math.floor(Math.random() * this.availableChairs.length);
+      const potentialChair = this.availableChairs[randomIndex];
+      if (!this.isChairAssigned(potentialChair)) {
+        debugLog(this.props.debugLogging, `Assigning chair: ${potentialChair.name.get()}`);
+        chair = potentialChair;
+        this.assignedChairs.set(availableAgent, chair);
+        chair.collidable.set(false);
+        break;
+      }
+    }
+
+    availableAgent.activate(chair);
+    debugLog(this.props.debugLogging, "Activated NPC agent " + availableAgent.entity.name.get());
+  }
+
+  private isChairAssigned(chair: Entity) {
+    let isAssigned = false;
+    this.assignedChairs.forEach((assignedChair) => {
+      if (assignedChair === chair) {
+        isAssigned = true;
+      }
+    });
+    return isAssigned;
+  }
+
+  private buildAvailableChairsList() {
+    debugLog(this.props.debugLogging, "Building available chairs list");
+    const plotManager = getMgrClass<PlayerPlotManager>(this, ManagerType.PlayerPlotManager, PlayerPlotManager);
+    if (plotManager === undefined) {
+      console.error("NPCAgentPool: PlayerPlotManager not found");
+      return;
+    }
+
+    for (const player of this.activePlayers) {
+      const kitchenManagerEntity = plotManager.getPlayerKitchen(player);
+      if (kitchenManagerEntity === undefined) {
+        debugLog(this.props.debugLogging, `No kitchen entity found for player ${player.name.get()}`);
+        continue;
+      }
+      const kitchenManager = kitchenManagerEntity.getComponents(KitchenManager)[0];
+      if (kitchenManager === undefined) {
+        debugLog(this.props.debugLogging, `No KitchenManager component found for player ${player.name.get()}`);
+        continue;
+      }
+
+      const orderTicket = kitchenManager.generateNewOrder(player, RecipeType.BurgerBasic);
+      const foodAssignment: NPCFoodAssignment = {
+        player: player,
+        chair: null!,
+        kitchenManager: kitchenManager,
+        recipeType: RecipeType.BurgerBasic,
+        orderTicket: orderTicket,
+      };
+      this.availableChairs.push(...(plotManager.getPlayerItemsByTag(player, RestaurantItemTag.chair) ?? []));
+    }
+  }
+
+  private registerAgent(agentEntity?: Entity) {
+    if (agentEntity !== undefined) {
+      const npcAgent = agentEntity.getComponents(NPCAgent)[0];
+      if (npcAgent !== undefined) {
+        this.npcAgents.push(npcAgent);
+        npcAgent.setParentPool(this);
+        if (this.props.spawnPoint !== undefined) {
+          npcAgent.setSpawnPoint(this.props.spawnPoint);
+        }
+      }
+    }
+  }
+
+  private getAvailableAgent() {
+    for (const npcAgent of this.npcAgents) {
+      if (npcAgent.isIdle()) {
+        return npcAgent;
+      }
+    }
+    return undefined;
+  }
+
+  public onAgentReleaseChair(npcAgent: NPCAgent) {
+    const chair = this.assignedChairs.get(npcAgent);
+    if (chair === undefined) {
+      return;
+    }
+    debugLog(this.props.debugLogging, `Releasing chair: ${chair.name.get()}`);
+    chair.collidable.set(true);
+    this.assignedChairs.delete(npcAgent);
+  }
+}
+Component.register(NPCAgentPool);

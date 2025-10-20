@@ -16,8 +16,8 @@ export class NavMeshController extends Component<typeof NavMeshController> {
   private static instance: NavMeshController | undefined;
 
   private areNavMeshesInitialized = false;
-  private navMeshesNavigation: NavMesh[] = [];
-  private navMeshesResources: NavMesh[] = [];
+  private navMeshNavigation?: NavMesh;
+  private navMeshResources?: NavMesh;
 
   private gizmoAreaPoints = {
     minX: 99999999999,
@@ -36,7 +36,9 @@ export class NavMeshController extends Component<typeof NavMeshController> {
   }
 
   async start() {
-    await this.initializeNavMeshes();
+    this.async.setTimeout(async () => {
+      await this.initializeNavMeshes();
+    }, 2000);
   }
 
   public static getWaypointsBetween(startPosition: Vec3, targetPosition: Vec3) {
@@ -46,31 +48,29 @@ export class NavMeshController extends Component<typeof NavMeshController> {
       return;
     }
 
-    if (navMeshController.navMeshesNavigation.length === 0) {
+    if (navMeshController.navMeshNavigation === undefined) {
       console.error("No Navigation NavMeshes available");
       return;
     }
 
-    // For now, use only first navigation NavMesh for pathfinding
-    const navMesh = navMeshController.navMeshesNavigation[0];
-    if (navMesh.getStatus().state !== NavMeshState.Ready) {
+    if (navMeshController.navMeshNavigation.getStatus().state !== NavMeshState.Ready) {
       console.error("Navigation NavMesh is not ready");
       return;
     }
 
-    const nearestStartPosition = navMesh.getNearestPoint(startPosition, NAVIGATION_NEARESTPOINT_RANGE) ?? undefined;
+    const nearestStartPosition = navMeshController.navMeshNavigation.getNearestPoint(startPosition, NAVIGATION_NEARESTPOINT_RANGE) ?? undefined;
     if (nearestStartPosition === undefined) {
       console.error("Could not find nearest start position on NavMesh");
       return;
     }
 
-    const nearestTargetPosition = navMesh.getNearestPoint(targetPosition, NAVIGATION_NEARESTPOINT_RANGE) ?? undefined;
+    const nearestTargetPosition = navMeshController.navMeshNavigation.getNearestPoint(targetPosition, NAVIGATION_NEARESTPOINT_RANGE) ?? undefined;
     if (nearestTargetPosition === undefined) {
       console.error("Could not find nearest target position on NavMesh");
       return;
     }
 
-    const path = navMesh.getPath(nearestStartPosition, nearestTargetPosition) ?? undefined;
+    const path = navMeshController.navMeshNavigation.getPath(nearestStartPosition, nearestTargetPosition) ?? undefined;
     if (path === undefined) {
       console.error("Path is not available");
       return;
@@ -82,29 +82,54 @@ export class NavMeshController extends Component<typeof NavMeshController> {
 
   protected async initializeNavMeshes() {
     const navMeshManager = NavMeshManager.getInstance(this.world);
-    const navMeshes = await navMeshManager.getNavMeshes();
-    if (navMeshes.length === 0) {
-      console.error("No NavMeshes available in the world");
-      return;
-    }
+    debugLog(this.props.debugLogging, "NavMeshController: Initializing NavMeshes");
 
-    for (let i = 0; i < navMeshes.length; i++) {
-      const navMesh = navMeshes[i];
-      if (navMesh.profile.name === NAVMESHPROFILE_NAVIGATION) {
-        debugLog(this.props.debugLogging, "NavMeshController: Adding Navigation NavMesh");
-        this.navMeshesNavigation.push(navMesh);
-      } else if (navMesh.profile.name === NAVMESHPROFILE_RESOURCES) {
-        debugLog(this.props.debugLogging, "NavMeshController: Adding Resources NavMesh");
-        this.navMeshesResources.push(navMesh);
-      }
+    // const navMeshes = await navMeshManager.getNavMeshes();
+    // if (navMeshes.length === 0) {
+    //   console.error("No NavMeshes available in the world");
+    //   return;
+    // }
 
-      await navMesh.rebake().then((success) => {
+    this.navMeshNavigation = (await navMeshManager.getByName(NAVMESHPROFILE_NAVIGATION)) ?? undefined;
+    if (!this.navMeshNavigation) {
+      console.error("No Navigation NavMesh available in the world");
+    } else {
+      await this.navMeshNavigation.rebake().then((success) => {
         if (!success) {
-          console.error("NavMesh rebake failed for profile:", navMesh.profile.name);
+          console.error("Navigation NavMesh rebake failed");
         }
       });
     }
 
+    this.navMeshResources = (await navMeshManager.getByName(NAVMESHPROFILE_RESOURCES)) ?? undefined;
+    if (!this.navMeshResources) {
+      console.error("No Resources NavMesh available in the world");
+    } else {
+      await this.navMeshResources.rebake().then((success) => {
+        if (!success) {
+          console.error("Resources NavMesh rebake failed");
+        }
+      });
+    }
+
+    // for (let i = 0; i < navMeshes.length; i++) {
+    //   const navMesh = navMeshes[i];
+    //   if (navMesh.profile.name === NAVMESHPROFILE_NAVIGATION) {
+    //     debugLog(this.props.debugLogging, "NavMeshController: Adding Navigation NavMesh");
+    //     this.navMeshesNavigation.push(navMesh);
+    //   } else if (navMesh.profile.name === NAVMESHPROFILE_RESOURCES) {
+    //     debugLog(this.props.debugLogging, "NavMeshController: Adding Resources NavMesh");
+    //     this.navMeshesResources.push(navMesh);
+    //   }
+
+    //   await navMesh.rebake().then((success) => {
+    //     if (!success) {
+    //       console.error("NavMesh rebake failed for profile:", navMesh.profile.name);
+    //     }
+    //   });
+    // }
+
+    debugLog(this.props.debugLogging, "NavMeshController: Finished initializing NavMeshes");
     this.areNavMeshesInitialized = true;
   }
 
@@ -151,20 +176,18 @@ export class NavMeshController extends Component<typeof NavMeshController> {
       return;
     }
 
-    if (navMeshController.navMeshesResources.length === 0) {
+    if (navMeshController.navMeshResources === undefined) {
       console.error("No Resource NavMeshes available");
       return;
     }
 
-    // For now, use only first resource NavMesh for random point
-    const navMesh = navMeshController.navMeshesResources[0];
-    if (navMesh.getStatus().state !== NavMeshState.Ready) {
+    if (navMeshController.navMeshResources.getStatus().state !== NavMeshState.Ready) {
       console.error("Resource NavMesh is not ready");
       return;
     }
 
     return new Promise((resolve, reject) => {
-      navMesh
+      navMeshController.navMeshResources
         ?.rebake()
         .then((success) => {
           let requiredPoints = { ...navMeshController.gizmoAreaPoints };
@@ -193,7 +216,7 @@ export class NavMeshController extends Component<typeof NavMeshController> {
           const randomZ = Math.random() * (requiredPoints.maxZ - requiredPoints.minZ) + requiredPoints.minZ;
 
           const randomPoint = new Vec3(randomX, randomY, randomZ);
-          const nearestPoint = navMesh.getNearestPoint(randomPoint, RESOURCE_NEARESTPOINT_RANGE);
+          const nearestPoint = navMeshController.navMeshResources?.getNearestPoint(randomPoint, RESOURCE_NEARESTPOINT_RANGE);
 
           if (nearestPoint) {
             resolve(nearestPoint);

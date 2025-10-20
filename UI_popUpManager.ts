@@ -1,7 +1,11 @@
 import * as hz from "horizon/core";
 import * as ui from "horizon/ui";
 
-export const showPopup = new hz.LocalEvent<{ sender: hz.Entity; player: hz.Player; popupMessage: PopupMessage }>("showPopup");
+export const showPopup = new hz.LocalEvent<{
+  sender: hz.Entity;
+  player: hz.Player;
+  popupMessage: PopupMessage;
+}>("showPopup");
 
 export interface PopupMessage {
   tag: string | null;
@@ -97,9 +101,17 @@ class UI_popUpManager extends ui.UIComponent<typeof UI_popUpManager> {
       }
       this.world.getEntitiesWithTags([popupMessage.tag]).forEach((entity) => {
         const trigger = entity.as(hz.TriggerGizmo)!;
-        this.connectCodeBlockEvent(trigger, hz.CodeBlockEvents.OnPlayerEnterTrigger, (player: hz.Player) => {
-          this.sendLocalBroadcastEvent(showPopup, { sender: this.entity, player, popupMessage: popupMessage });
-        });
+        this.connectCodeBlockEvent(
+          trigger,
+          hz.CodeBlockEvents.OnPlayerEnterTrigger,
+          (player: hz.Player) => {
+            this.sendLocalBroadcastEvent(showPopup, {
+              sender: this.entity,
+              player,
+              popupMessage: popupMessage,
+            });
+          }
+        );
       });
     });
 
@@ -127,7 +139,9 @@ class UI_popUpManager extends ui.UIComponent<typeof UI_popUpManager> {
                 if (backgroundIconId === "" || backgroundIconId === null) {
                   return null;
                 } else {
-                  return ui.ImageSource.fromTextureAsset(new hz.TextureAsset(BigInt(backgroundIconId)));
+                  return ui.ImageSource.fromTextureAsset(
+                    new hz.TextureAsset(BigInt(backgroundIconId))
+                  );
                 }
               }),
               style: {
@@ -214,12 +228,22 @@ class UI_popUpManager extends ui.UIComponent<typeof UI_popUpManager> {
 
   preStart() {
     this.connectCodeBlockEvent(this.entity, hz.CodeBlockEvents.OnPlayerEnterWorld, (player) => {
+      if (player.id > 10000) {
+        // console.log("NPC entered, ignoring for popUpManager");
+        return;
+      }
       if (player.deviceType.get() !== hz.PlayerDeviceType.VR) {
         this.mobilePlayers.push(player);
-        this.entity.setVisibilityForPlayers(this.mobilePlayers, hz.PlayerVisibilityMode.VisibleTo);
+        this.entity.setVisibilityForPlayers(
+          this.mobilePlayers,
+          hz.PlayerVisibilityMode.VisibleTo
+        );
       } else {
         this.otherPlayers.push(player);
-        this.entity.setVisibilityForPlayers(this.otherPlayers, hz.PlayerVisibilityMode.HiddenFrom);
+        this.entity.setVisibilityForPlayers(
+          this.otherPlayers,
+          hz.PlayerVisibilityMode.HiddenFrom
+        );
       }
     });
   }

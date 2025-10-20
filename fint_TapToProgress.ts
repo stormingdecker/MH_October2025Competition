@@ -1,3 +1,4 @@
+import LocalCamera, { CameraTransitionOptions, Easing } from "horizon/camera";
 import {
   CodeBlockEvents,
   Component,
@@ -10,45 +11,49 @@ import {
   Vec3,
 } from "horizon/core";
 import { sysEvents } from "sysEvents";
-import { progressBar } from "sysUIStyleGuide";
-import { getMgrClass } from "sysUtils";
+import { getEntityListByTag, ManagerType } from "sysHelper";
+import { oneHudEvents } from "UI_OneHUD";
 
 class fint_TapToProgress extends Component<typeof fint_TapToProgress> {
-  static propsDefinition = {
-    progressBar: { type: PropTypes.Entity, default: null },
-  };
+  static propsDefinition = {};
 
   private inFocusMode = false;
   private tapCount = 0;
   private activePlayer!: Player;
+  private OneHudEntity: Entity | null = null;
+  private subscribedToFintEvents = false;
 
   preStart() {
-    this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnPlayerEnterTrigger, (player: Player) => {
-      if (this.activePlayer === this.world.getServerPlayer() && player.deviceType.get() !== PlayerDeviceType.VR) {
-        this.activePlayer = player;
-        this.sendNetworkEvent(player, sysEvents.OnStartFocusMode, {
-          requester: this.entity,
-        });
-        this.inFocusMode = true;
+    this.OneHudEntity = getEntityListByTag(ManagerType.UI_OneHUD, this.world)[0];
+
+    this.connectCodeBlockEvent(
+      this.entity,
+      CodeBlockEvents.OnPlayerEnterTrigger,
+      (player: Player) => {
+        if (player.deviceType.get() !== PlayerDeviceType.VR) {
+          this.OnPlayerEnterTrigger(player);
+        } else {
+          console.warn(`Player ${player.name.get()} did not satisfy entry conditions`);
+        }
       }
-    });
+    );
 
     this.connectNetworkEvent(this.entity, sysEvents.OnExitFocusMode, (data) => {
-      if (this.activePlayer === data.player) {
-        this.activePlayer = this.world.getServerPlayer();
-        this.tapCount = 0;
-      }
+      this.onPlayerExitedFocusMode(data.player);
     });
 
     this.connectNetworkEvent(this.entity, sysEvents.OnFocusedInteractionInputStarted, (data) => {
+      if (!this.subscribedToFintEvents) return;
       this.onFintInputStarted(data.interactionInfo);
     });
 
     this.connectNetworkEvent(this.entity, sysEvents.OnFocusedInteractionInputMoved, (data) => {
+      if (!this.subscribedToFintEvents) return;
       this.onFintInputMoved(data.interactionInfo);
     });
 
     this.connectNetworkEvent(this.entity, sysEvents.OnFocusedInteractionInputEnded, (data) => {
+      if (!this.subscribedToFintEvents) return;
       this.onFintInputEnded(data.interactionInfo);
     });
   }
@@ -56,27 +61,44 @@ class fint_TapToProgress extends Component<typeof fint_TapToProgress> {
   start() {
     this.activePlayer = this.world.getServerPlayer();
   }
+
+  //camera transition options
+  private transitionOptions: CameraTransitionOptions = {
+    duration: 0.5,
+    easing: Easing.EaseInOut,
+  };
+
   OnPlayerEnterTrigger(player: Player) {
-    if (this.activePlayer === this.world.getServerPlayer() && player.deviceType.get() !== PlayerDeviceType.VR) {
-      console.log("Player Entered Trigger");
-      this.activePlayer = player;
-      this.sendNetworkEvent(player, sysEvents.OnStartFocusMode, {
-        requester: this.entity,
-      });
-      this.sendNetworkEvent(this.activePlayer, sysEvents.OnSetCameraModeFixed, {
-        position: new Vec3(0, 1.5, -3),
-        rotation: Quaternion.fromEuler(new Vec3(0, 0, 0)),
-      });
+    console.log("Player Entered Trigger");
 
+    this.activePlayer = player;
+    this.tapCount = 0;
 
-      this.sendProgressEvent(0);
-    }
+    //setup camera change
+    const fixedPosition = Vec3.add(this.entity.position.get(), new Vec3(0, 2.5, -2.5));
+    const fixedRotation = this.entity.rotation.get().mul(Quaternion.fromEuler(new Vec3(45, 0, 0)));
+    this.sendNetworkEvent(this.activePlayer, sysEvents.OnSetCameraModeFixed, {
+      position: fixedPosition,
+      rotation: fixedRotation,
+    });
+    //start focus mode
+    this.sendNetworkEvent(player, sysEvents.OnStartFocusMode, {
+      requester: this.entity,
+    });
+    this.subscribedToFintEvents = true;
+    this.inFocusMode = true;
+
+    //show progress bar on OneHUD
+    // this.sendNetworkEvent(this.OneHudEntity!, oneHudEvents.ShowProgressionTask, {
+    //   players: [this.activePlayer],
+    //   header: "Tap to Progress",
+    //   instruction: "Tap 10 times",
+    //   resultImgAssetId: "",
+    //   instructImgAssetId: "",
+    // });
   }
 
-  OnPlayerExitTrigger(player: Player) {
-    this.activePlayer = this.world.getServerPlayer();
-
-  }
+  OnPlayerExitTrigger(player: Player) {}
 
   onFintInputStarted(interactionInfo: InteractionInfo): void {
     this.tapCount++;
@@ -86,24 +108,31 @@ class fint_TapToProgress extends Component<typeof fint_TapToProgress> {
   }
   onFintInputMoved(interactionInfo: InteractionInfo): void {}
   onFintInputEnded(interactionInfo: InteractionInfo): void {
-    if (this.tapCount >= 10) {
+    if (this.tapCount >= 10 && this.inFocusMode) {
       this.sendNetworkBroadcastEvent(sysEvents.ForceExitFocusMode, { player: this.activePlayer });
     }
   }
 
   onPlayerExitedFocusMode(player: Player): void {
-    this.sendProgressEvent(0);
+    this.subscribedToFintEvents = false;
+    this.inFocusMode = false;
+    this.tapCount = 0;
+    this.activePlayer = undefined!;
 
-    if (this.activePlayer === player) {
-      this.tapCount = 0;
-    }
-
+    this.sendNetworkEvent(player, sysEvents.OnSetCameraModeThirdPerson, null);
+    this.sendNetworkEvent(this.OneHudEntity!, oneHudEvents.HideProgressionTask, {
+      players: [player],
+    });
   }
 
   sendProgressEvent(progress: number): void {
-    this.sendNetworkEvent(this.props.progressBar!, sysEvents.updateProgressEvent, {
-      player: this.activePlayer,
-      progress: progress * 100,
+    if (!this.OneHudEntity) {
+      console.error("No OneHUD entity found");
+      return;
+    }
+    this.sendNetworkEvent(this.OneHudEntity, oneHudEvents.UpdateProgressionTask, {
+      players: [this.activePlayer],
+      progressAsString: `${progress * 100}`,
     });
   }
 }

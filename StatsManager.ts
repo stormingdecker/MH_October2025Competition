@@ -62,6 +62,10 @@ export class StatsManager extends Component<typeof StatsManager> {
   public getPlayerStats(player: Player): PlayerStats {
     return this.playerStatsMap.get(player) || DEFAULT_STATS;
   }
+
+  public updatePlayerDailyRewards(player: Player, playerStats: PlayerStats) {
+    this.playerStatsMap.set(player, playerStats);
+  }
   
   //typically called when a player leaves the world
   public prunePlayerStatsMap(player: Player) {
@@ -148,6 +152,8 @@ export class StatsManager extends Component<typeof StatsManager> {
       this.playerStatsMap.set(player, playerStats!);
     }
   }
+
+  
 
   deathAndRespawn(player: Player) {
     //Death logic here

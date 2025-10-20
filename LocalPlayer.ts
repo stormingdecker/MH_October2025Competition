@@ -2,6 +2,12 @@ import LocalCamera, { CameraTransitionOptions, Easing } from "horizon/camera";
 import * as hz from "horizon/core";
 import { sysEvents } from "sysEvents";
 
+export const InteractionMode ={
+  None: "None", 
+  Build: "Build",
+  ProgressionTask: "ProgressionTask",
+}
+
 //region LocalPlayer
 class LocalPlayer extends hz.Component<typeof LocalPlayer> {
   static propsDefinition = {};
@@ -25,6 +31,8 @@ class LocalPlayer extends hz.Component<typeof LocalPlayer> {
   private currentTrailOptions: hz.FocusedInteractionTrailOptions = hz.DefaultFocusedInteractionTrailOptions;
   //endregion
 
+  private curInteractionMode: string = InteractionMode.None;
+
   //region start
   start() {
     //region ownership
@@ -46,7 +54,7 @@ class LocalPlayer extends hz.Component<typeof LocalPlayer> {
     this.connectNetworkEvent(this.owningPlayer, sysEvents.OnStartFocusMode, (data) => {
       this.activeFinteractionTarget = data.requester;
       this.owningPlayer.enterFocusedInteractionMode();
-
+      // this.curInteractionMode = data.interactionMode;
     });
     //endregion
 
@@ -137,7 +145,7 @@ class LocalPlayer extends hz.Component<typeof LocalPlayer> {
 
   //region camera helpers
   private resetCameraToDefaults(): void {
-    LocalCamera.setCameraModeThirdPerson();
+    LocalCamera.setCameraModeThirdPerson(this.transitionOptions);
     LocalCamera.setCameraRollWithOptions(0);
     LocalCamera.resetCameraFOV();
   }
@@ -149,14 +157,17 @@ class LocalPlayer extends hz.Component<typeof LocalPlayer> {
   //region cam listeners
   private setupStandardCameraModeListeners(): void {
     this.connectNetworkEvent(this.owningPlayer, sysEvents.OnSetCameraModeThirdPerson, () => {
+      console.log("Received OnSetCameraModeThirdPerson event");
       LocalCamera.setCameraModeThirdPerson(this.transitionOptions);
     });
 
     this.connectNetworkEvent(this.owningPlayer, sysEvents.OnSetCameraModeFirstPerson, () => {
+      console.log("Received OnSetCameraModeFirstPerson event");
       LocalCamera.setCameraModeFirstPerson(this.transitionOptions);
     });
 
     this.connectNetworkEvent(this.owningPlayer, sysEvents.OnSetCameraModeFixed, (data) => {
+      console.log("Received OnSetCameraModeFixed event", data);
       LocalCamera.setCameraModeFixed({
         position: data.position,
         rotation: data.rotation,
@@ -165,6 +176,7 @@ class LocalPlayer extends hz.Component<typeof LocalPlayer> {
     });
 
     this.connectNetworkEvent(this.owningPlayer, sysEvents.OnSetCameraModeAttached, (data) => {
+      console.log("Received OnSetCameraModeAttached event", data);
       LocalCamera.setCameraModeAttach(data.target, {
         positionOffset: data.positionOffset,
         translationSpeed: data.translationSpeed,
@@ -174,10 +186,12 @@ class LocalPlayer extends hz.Component<typeof LocalPlayer> {
     });
 
     this.connectNetworkEvent(this.owningPlayer, sysEvents.OnSetCameraModeFollow, () => {
+      console.log("Received OnSetCameraModeFollow event");
       LocalCamera.setCameraModeFollow(this.transitionOptions);
     });
 
     this.connectNetworkEvent(this.owningPlayer, sysEvents.OnSetCameraModePan, (data) => {
+      console.log("Received OnSetCameraModePan event", data);
       const panCameraOptions = {
         positionOffset: data.positionOffset,
         ...this.transitionOptions,
@@ -187,6 +201,7 @@ class LocalPlayer extends hz.Component<typeof LocalPlayer> {
     });
 
     this.connectNetworkEvent(this.owningPlayer, sysEvents.OnSetCameraModeOrbit, () => {
+      console.log("Received OnSetCameraModeOrbit event");
       LocalCamera.setCameraModeOrbit(this.transitionOptions);
     });
   }

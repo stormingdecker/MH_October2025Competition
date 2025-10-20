@@ -1,28 +1,22 @@
 import { OnButtonAssetResponse } from "ButtonAssetRegistry";
 import { OnButtonRequest, OnButtonResponse } from "ButtonRegistry";
 import { Asset, Component, Entity, Player, PropTypes, Vec3 } from "horizon/core";
-import { AnimatedBinding, Animation, Binding, DynamicList, Easing, UIComponent, UINode, View } from "horizon/ui";
+import {
+  AnimatedBinding,
+  Animation,
+  Binding,
+  DynamicList,
+  Easing,
+  UIComponent,
+  UINode,
+  View,
+} from "horizon/ui";
 import { sysEvents } from "sysEvents";
 import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
 import { buttonImgWithText, convertAssetIDToImageSource } from "sysUIStyleGuide";
 import { MenuBtnType } from "UI_AccordionMenu";
+import { Primary_MenuType, Sub_PlotType } from "UI_MenuManager";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
-
-export enum BottomMenuType {
-  Closed = "Closed",
-  PlotMenu = "PlotMenu",
-  FishingMenu = "FishingMenu",
-  FarmMenu = "FarmMenu",
-}
-
-export enum PlotMenuTypes {
-  Closed = "Closed",
-  Build = "BuildMenu",
-  Food = "FoodMenu",
-  Staff = "StaffMenu",
-  Upgrades = "UpgradesMenu",
-  Shop = "ShopMenu",
-}
 
 class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
   protected panelWidth: number = 500;
@@ -37,7 +31,7 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
 
   animBnd_traslateY = new AnimatedBinding(0);
   isMenuOpenOnStart = false;
-  closeOffset = 100;
+  closeOffset = 150;
 
   private childrenUINodeArray = new Binding<UINode[]>([]); // Binding to hold child nodes
 
@@ -47,7 +41,7 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
   private btnSpawnAssetIDArrayMap = new Map<string, string[]>();
 
   //multiplayer variables
-  playerActiveSubMenuMap = new Map<Player, string>();
+  playerMenuContextMap = new Map<Player, string[]>();
 
   private plotManager: Entity | null = null;
 
@@ -111,17 +105,21 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
       this.buttonTextArrayMap.set(data.menuType, data.buttonTextArray);
     });
 
-
-    this.connectNetworkBroadcastEvent(sysEvents.toggleBottomMenuEvent, (data) => {
+    this.connectNetworkBroadcastEvent(sysEvents.updateMenuContext, (data) => {
+      const prevMenuContext = this.playerMenuContextMap.get(data.player) ?? [];
+      const curMenuContext = data.menuContext ?? [];
       debugLog(
         this.props.showDebugs,
-        `Toggle Bottom Menu Event Received from ${data.player.name.get()} to open: ${data.menuType}, open: ${data.open}`
+        `Toggle Bottom Menu Event Received from ${data.player.name.get()} to open: ${
+          data.menuContext !== undefined
+        }`
       );
-      if (data.open) { //open the menu
-        if (this.btnImgAssetIDArrayMap.has(data.menuType)) {
-          const btnType = data.menuType;
-          this.playerActiveSubMenuMap.set(data.player, data.menuType);
-          this.playerActiveSubMenuMap.set(data.player, PlotMenuTypes.Closed);
+      if (data.menuContext[0]) {
+        //open the menu
+        if (this.btnImgAssetIDArrayMap.has(data.menuContext[0])) {
+          const btnType = data.menuContext[0];
+          // this.playerMenuContextMap.set(data.player, data.menuType);
+          // this.playerMenuContextMap.set(data.player, PlotMenuTypes.Closed);
           const newUINodeArray = this.convertAssetArrayToUINodeArray(
             this.btnImgAssetIDArrayMap.get(btnType) ?? [],
             this.btnInstanceIDArrayMap.get(btnType) ?? [],
@@ -130,18 +128,13 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
           this.childrenUINodeArray.set(newUINodeArray, [data.player]);
           this.animateMenu(data.player, true);
         }
-      } else { //close the menu
+      } else {
+        //close the menu
         this.animateMenu(data.player, false);
-        this.playerActiveSubMenuMap.set(data.player, MenuBtnType.Closed);
-        this.playerActiveSubMenuMap.set(data.player, PlotMenuTypes.Closed);
 
-        this.sendNetworkBroadcastEvent(sysEvents.TopMenuEvent, {
-          player: data.player,
-          buttonType: MenuBtnType.Closed,
-          open: false,
-        });
         return;
       }
+      this.playerMenuContextMap.set(data.player, curMenuContext);
     });
   }
 
@@ -150,7 +143,9 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
     if (!this.props.enabled) return;
 
     if (this.props.buttonRegistry) {
-      this.sendNetworkEvent(this.props.buttonRegistry!, OnButtonRequest, { requester: this.entity });
+      this.sendNetworkEvent(this.props.buttonRegistry!, OnButtonRequest, {
+        requester: this.entity,
+      });
     }
 
     this.plotManager = getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0] || null;
@@ -186,58 +181,45 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
     }
   }
 
+  //region on Button Pressed()
   onButtonPressed(instanceId: string, player: Player): void {
+    const curMenuContext = this.playerMenuContextMap.get(player) ?? [];
     console.log(`Button with instanceId ${instanceId} pressed by player ${player.name.get()}`);
+    let updatedMenuContext: string[] = [];
     switch (instanceId) {
-      case PlotMenuTypes.Build:
+      case Sub_PlotType.BuildMode:
         console.log("Button 1 Pressed");
-        this.isTopMenuOpen(player, PlotMenuTypes.Build);
-        //this puts the local camera and raycast into buildmode 
-        this.sendNetworkBroadcastEvent(sysEvents.buildMenuEvent, { player: player });
+        if (curMenuContext[1] === Sub_PlotType.BuildMode) {
+          updatedMenuContext = [Primary_MenuType.PlotMenu];
+        } else {
+          updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.BuildMode];
+        }
         break;
-      case PlotMenuTypes.Food:
-        console.log("Button 2 Pressed");
-        this.isTopMenuOpen(player, PlotMenuTypes.Food);
+      case Sub_PlotType.MenuEdit:
+        updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.MenuEdit];
         break;
-      case PlotMenuTypes.Staff:
+      case Sub_PlotType.Staff:
         console.log("Button 3 Pressed");
-        this.isTopMenuOpen(player, PlotMenuTypes.Staff);
+        updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.Staff];
         break;
-      case PlotMenuTypes.Upgrades:
-        this.isTopMenuOpen(player, PlotMenuTypes.Upgrades);
+      case Sub_PlotType.Upgrades:
+        updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.Upgrades];
         console.log("Button 4 Pressed");
         break;
-      case PlotMenuTypes.Shop:
-        this.isTopMenuOpen(player, PlotMenuTypes.Shop);
+      case Sub_PlotType.Shop:
+        updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.Shop];
         console.log("Button 5 Pressed");
         break;
       default:
         break;
     }
-  }
 
-  isTopMenuOpen(player: Player, topMenuType: string): boolean {
-    const playerMenuType = this.playerActiveSubMenuMap.get(player) ?? PlotMenuTypes.Closed;
-    if (playerMenuType === topMenuType) {
-      console.log(`Closing menu: ${topMenuType}`);
-      //close the top menu
-      this.playerActiveSubMenuMap.set(player, PlotMenuTypes.Closed);
-      this.sendNetworkBroadcastEvent(sysEvents.TopMenuEvent, {
-        player: player,
-        buttonType: PlotMenuTypes.Closed,
-        open: false,
-      });
-      return false;
-    } else {
-      console.log(`Opening menu: ${topMenuType}`);
-      this.playerActiveSubMenuMap.set(player, topMenuType);
-      this.sendNetworkBroadcastEvent(sysEvents.TopMenuEvent, {
-        player: player,
-        buttonType: topMenuType,
-        open: true,
-      });
-      return true;
-    }
+    this.playerMenuContextMap.set(player, updatedMenuContext);
+
+    this.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
+      player: player,
+      menuContext: updatedMenuContext,
+    });
   }
 
   animateMenu(player: Player, open: boolean) {

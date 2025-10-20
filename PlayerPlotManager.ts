@@ -8,73 +8,115 @@ import {
   Player,
   PropTypes,
   Quaternion,
+  SpawnPointGizmo,
   Vec3,
 } from "horizon/core";
+import { PerPlotProps } from "PerPlotManager";
+import { FilterType, PlayerManager, PlayerMgrEvents } from "PlayerManager";
 import { sysEvents } from "sysEvents";
-import { getEntityListByTag, ManagerType } from "sysHelper";
+import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
 import { BuildingComponent, DEFAULT_PLOT_LAYOUT, PlayerPlot } from "sysTypes";
-import { fromBase36Safe, generateSafeID, toBase36Safe } from "sysUtils";
+import { fromBase36Safe, generateSafeID, getMgrClass, toBase36Safe } from "sysUtils";
 
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
+
+export const RestaurantItemTag = {
+  chair: "chair",
+  table: "table",
+};
 
 export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
   static propsDefinition = {
     enabled: { type: PropTypes.Boolean, default: true },
     showDebugs: { type: PropTypes.Boolean, default: false },
-    playerPlotBase0: { type: PropTypes.Entity },
-    playerPlotBase1: { type: PropTypes.Entity },
-    playerPlotBase2: { type: PropTypes.Entity },
-    playerPlotBase3: { type: PropTypes.Entity },
-    playerPlotBase4: { type: PropTypes.Entity },
+    autoAssignPlotOnJoin: { type: PropTypes.Boolean, default: true },
   };
 
+  private playerMgr: PlayerManager | undefined = undefined;
+
   private playerPlotMap: Map<Player, PlayerPlot> = new Map();
+  private occupiedPlotsMap: Map<number, boolean> = new Map();
   //track entities spawned by each player by their instanceId
   private player_InstanceIDToEntityMap: Map<Player, Map<string, Entity>> = new Map();
   //reverse lookup: which instanceId does this entity belong to?
   private player_EntityToInstanceIDMap: Map<Player, Map<Entity, string>> = new Map();
+  //track appliance tag types by player
+  private player_TagTypeToEntityMap: Map<Player, Map<string, Entity[]>> = new Map();
   private player_PlotBaseMap: Map<Player, Entity> = new Map();
-  //may need future logic to clean up when player leaves
-  private playerPlotBaseList: Entity[] = [];
+  private player_KitchenMap: Map<Player, Entity> = new Map();
+
+  private perPlayerPlotManagerList: Entity[] = [];
+  private plotPropsList: PerPlotProps[] = [];
+  //FUTURE NOTE: needs logic to clean up when player leaves
 
   //region preStart()
   preStart() {
-    this.playerPlotBaseList = [
-      this.props.playerPlotBase0!,
-      this.props.playerPlotBase1!,
-      this.props.playerPlotBase2!,
-      this.props.playerPlotBase3!,
-      this.props.playerPlotBase4!,
-    ];
-
     this.connectNetworkEvent(this.entity, simpleButtonEvent, (data) => {
       console.log("Simple Button Event Triggered");
     });
 
-    this.connectNetworkEvent(this.entity, sysEvents.spawnPlayerPlot, (data) => {
-      console.log(`Spawn Player Plot for ${data.player.name.get()} on plot base ${data.plotBaseID}`);
-      if (this.player_InstanceIDToEntityMap.has(data.player)) {
-        console.warn(`Player ${data.player.name.get()} already has a plot spawned. Skipping spawn.`);
+    this.connectNetworkEvent(this.entity, PlayerMgrEvents.PlayerJoined, (data) => {
+      this.onPlayerJoined(data.player);
+    });
+
+    this.connectNetworkEvent(this.entity, PlayerMgrEvents.PlayerLeft, (data) => {
+      this.onPlayerLeft(data.player);
+    });
+
+    this.connectNetworkEvent(this.entity, sysEvents.spawnPlayerPlotRequest, (data) => {
+      console.log(
+        `Spawn Player Plot for ${data.player.name.get()} on plot base ${data.plotBaseID}`
+      );
+      //check if plot is already occupied
+      if (
+        this.occupiedPlotsMap.has(data.plotBaseID) ||
+        this.occupiedPlotsMap.get(data.plotBaseID) === true
+      ) {
         return;
       }
+
+      //check if player already has a plot spawned
+      if (this.player_InstanceIDToEntityMap.has(data.player)) {
+        console.warn(
+          `Player ${data.player.name.get()} already has a plot spawned. Skipping spawn.`
+        );
+        return;
+      }
+
       //if plot doesn't exist error
-      const plotBase = this.playerPlotBaseList[data.plotBaseID];
+      const plotBase = this.perPlayerPlotManagerList[data.plotBaseID];
       if (!plotBase) {
         console.error(`No plot base found for ID ${data.plotBaseID}.`);
         return;
       }
+
       this.player_PlotBaseMap.set(data.player, plotBase);
+      this.player_KitchenMap.set(data.player, data.kitchenEntity);
       this.spawnPlayerPlot(data.player, plotBase);
+      this.occupiedPlotsMap.set(data.plotBaseID, true);
     });
 
     this.connectNetworkEvent(this.entity, sysEvents.spawnNewAssetEvent, (data) => {
-      console.log(`Spawn New Asset Event Received from ${data.player.name.get()} for asset ${data.assetId}`);
+      console.log(
+        `Spawn New Asset Event Received from ${data.player.name.get()} for asset ${data.assetId}`
+      );
       const plotBase = this.player_PlotBaseMap.get(data.player);
       if (!plotBase) {
-        console.error(`No plot base found for player ${data.player.name.get()}. Cannot spawn asset.`);
+        console.error(
+          `No plot base found for player ${data.player.name.get()}. Cannot spawn asset.`
+        );
         return;
       }
-      this.spawnItem(data.player, plotBase, "emptyInstanceID", data.assetId, new Vec3(0, 0, 0), Quaternion.zero, Vec3.one, true);
+      this.spawnItem(
+        data.player,
+        plotBase,
+        "emptyInstanceID",
+        data.assetId,
+        new Vec3(0, 0, 0),
+        Quaternion.zero,
+        Vec3.one,
+        true
+      );
       //future pos might be changed
     });
 
@@ -87,14 +129,98 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
       console.log(`Save Player Plot Event Received from ${data.player.name.get()}`);
       this.savePlayerPlot(data.player);
     });
+
+    this.connectNetworkEvent(this.entity, sysEvents.toggleBuildingEvent, (data) => {
+      this.togglePlayerBuildingVisibility(data.player, data.enabled);
+    });
   }
 
   //region start()
   start() {
-    //tmp load player's plot data
+    //Subscribe to PlayerManager.PlayerEnter/Exit events
+    this.playerMgr = getMgrClass<PlayerManager>(this, ManagerType.PlayerManager, PlayerManager);
+    this.playerMgr?.registerSubscriber(this.entity, [FilterType.Human]); //only one filter at a time
   }
 
-  //region plot load and reset
+  public injectPerPlayerManagerProps(plotProps: PerPlotProps) {
+    //align the index of the plotPropsList with the perplotprops.plotId
+    this.plotPropsList[plotProps.plotId] = plotProps;
+    this.perPlayerPlotManagerList[plotProps.plotId] = plotProps.perPlotManager;
+  }
+
+  //region player join/leave
+  onPlayerJoined(player: Player) {
+    if (this.props.autoAssignPlotOnJoin) {
+      this.assignPlayerToOpenPlot(player);
+    }
+  }
+
+  onPlayerLeft(player: Player) {
+    //clean up all maps
+    let raceConditionDelay = 1000;
+    this.async.setTimeout(() => {
+      //find plot base index and free it up
+      this.perPlayerPlotManagerList.forEach((plotBase, index) => {
+        if (this.player_PlotBaseMap.get(player) === plotBase) {
+          this.sendNetworkEvent(this.perPlayerPlotManagerList[index], sysEvents.assignPlotOwner, {
+            player: undefined,
+          });
+          this.occupiedPlotsMap.delete(index);
+          console.log(`Freed up plot base ${index} for player ${player.name.get()}`);
+        }
+      });
+      this.playerPlotMap.delete(player);
+      this.player_PlotBaseMap.delete(player);
+      this.player_KitchenMap.delete(player);
+      this.player_TagTypeToEntityMap.delete(player);
+      this.player_EntityToInstanceIDMap.delete(player);
+      const idMap = this.player_InstanceIDToEntityMap.get(player);
+    }, raceConditionDelay); //
+  }
+
+  //region auto assign plot()
+  assignPlayerToOpenPlot(player: Player) {
+    //get first unoccupied plot
+    let assignedPlotIndex = -1;
+    if (!this.occupiedPlotsMap.has(4)) {
+      assignedPlotIndex = 4;
+    } else {
+      for (let i = 0; i < this.perPlayerPlotManagerList.length; i++) {
+        if (!this.occupiedPlotsMap.get(i)) {
+          assignedPlotIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (assignedPlotIndex === -1) {
+      console.warn(`No available plots for player ${player.name.get()}.`);
+      return;
+    }
+
+    debugLog(
+      this.props.showDebugs,
+      `Assigning plot ${this.perPlayerPlotManagerList[
+        assignedPlotIndex
+      ].name.get()} to ${player.name.get()}`
+    );
+    this.sendNetworkEvent(
+      this.perPlayerPlotManagerList[assignedPlotIndex],
+      sysEvents.assignPlotOwner,
+      { player: player }
+    );
+    let raceConditionDelay = 200;
+    this.async.setTimeout(() => {
+      let plot = this.plotPropsList[assignedPlotIndex];
+      if (!plot) {
+        console.error(`No plot props found for plot ID ${assignedPlotIndex}.`);
+        return;
+      }
+      plot.spawnPoint.teleportPlayer(player);
+    }, raceConditionDelay);
+  }
+
+  //region plot load/reset
   public playerPlotLoaded(player: Player, playerPlot: PlayerPlot) {
     this.playerPlotMap.set(player, playerPlot);
   }
@@ -108,10 +234,28 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     return this.playerPlotMap.get(player) ?? DEFAULT_PLOT_LAYOUT;
   }
 
+  public getPlayerItemsByTag(player: Player, tag: string): Entity[] {
+    // Retrieve entities for a given player and tag
+    const tagMap = this.player_TagTypeToEntityMap.get(player);
+    if (!tagMap) {
+      console.warn(`No tag map found for player ${player.name.get()}.`);
+      return [];
+    }
+    return tagMap.get(tag) ?? [];
+  }
+
+  public getPlayerKitchen(player: Player): Entity | undefined {
+    if (!this.player_KitchenMap.has(player)) {
+      console.warn(`No kitchen found for player ${player.name.get()}.`);
+      return undefined;
+    }
+    return this.player_KitchenMap.get(player);
+  }
+
   //region spawn player plot
   spawnPlayerPlot(player: Player, plotBase: Entity) {
     const buildings = this.playerPlotMap.get(player)?.buildings ?? [];
-    buildings.forEach((building) => {
+    buildings.forEach(async (building) => {
       const assetId = fromBase36Safe(building.aID36);
       const posOffset = new Vec3(building.tform[0], building.tform[1], building.tform[2]);
       let rotation = this.entity.rotation.get();
@@ -138,7 +282,6 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     const assetToSpawn = new Asset(BigInt(assetID));
     if (!assetToSpawn) {
       console.error(`Asset with ID ${assetID} not found`);
-      return;
     }
 
     let plotPos = plotBase.transform.position.get();
@@ -148,19 +291,21 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
 
     // const curInstanceId = generateUUID();
     let curInstanceID = "undefined";
-    if(isNew){
+    if (isNew) {
       curInstanceID = generateSafeID();
     } else {
       curInstanceID = instanceId;
     }
-    console.log(`Spawning asset ${assetID} for ${player.name.get()} with InstanceID ${curInstanceID}`);
+    debugLog(
+      this.props.showDebugs,
+      `Spawning asset ${assetID} for ${player.name.get()} with InstanceID ${curInstanceID}`
+    );
     assets = await this.world.spawnAsset(assetToSpawn, newpos, newrot, scale);
 
     if (assets && assets.length > 0) {
       // playAudio(this, AudioLabel.success);
       // Set tags on the spawned entities
-      for (const entity of assets) {
-        entity.tags.set(["item", "moveable"]);
+      for (const spawnedEntity of assets) {
         // Optionally set interaction mode if needed:
         // entity.interactionMode.set(EntityInteractionMode.Invalid);
         let plotData = this.getPlayerPlot(player);
@@ -171,37 +316,75 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
           newBuildings.push({
             iID: curInstanceID,
             aID36: toBase36Safe(assetID),
-            tform: [
-              position.x,
-              position.y,
-              position.z,
-              0,0,0,
-              1,1,1
-            ],
+            tform: [position.x, position.y, position.z, 0, 0, 0, 1, 1, 1],
           });
-          console.log(`New building added to plot data: ${JSON.stringify(newBuildings[newBuildings.length - 1])}`);
+          debugLog(
+            this.props.showDebugs,
+            `New building added to plot data: ${JSON.stringify(
+              newBuildings[newBuildings.length - 1]
+            )}`
+          );
           this.playerPlotMap.set(player, {
             buildings: newBuildings,
           });
-          console.log(`Added new building to ${player.name.get()}'s plot data.`);
+          debugLog(
+            this.props.showDebugs,
+            `Added new building to ${player.name.get()}'s plot data.`
+          );
         }
-        let InstanceIDToEntity = this.player_InstanceIDToEntityMap.get(player) ?? new Map<string, Entity>();
-        let EntityToInstanceID = this.player_EntityToInstanceIDMap.get(player) ?? new Map<Entity, string>();
 
-        InstanceIDToEntity.set(curInstanceID, entity);
-        EntityToInstanceID.set(entity, curInstanceID);
+        //region tag map
+        if (spawnedEntity.tags.get().length > 0) {
+          //ignore "item" and "moveable" tags
+          const filteredTags = spawnedEntity.tags
+            .get()
+            .filter((tag) => tag !== "item" && tag !== "moveable");
+          if (filteredTags.length > 0) {
+            debugLog(
+              this.props.showDebugs,
+              `Entity has tags ${filteredTags.join(
+                ", "
+              )}. Adding to tag map for player ${player.name.get()}.`
+            );
+            let tagMap = this.player_TagTypeToEntityMap.get(player) ?? new Map<string, Entity[]>();
+            filteredTags.forEach((tag) => {
+              let tagList = tagMap.get(tag) ?? [];
+              tagList.push(spawnedEntity);
+              tagMap.set(tag, tagList);
+            });
+            debugLog(
+              this.props.showDebugs,
+              `Updated tag map for player ${player.name.get()}: ${Array.from(tagMap.entries())}`
+            );
+            //after processing all tags, set the player map
+            this.player_TagTypeToEntityMap.set(player, tagMap);
+          }
+        }
+
+        //region player map gen
+        let InstanceIDToEntity =
+          this.player_InstanceIDToEntityMap.get(player) ?? new Map<string, Entity>();
+        let EntityToInstanceID =
+          this.player_EntityToInstanceIDMap.get(player) ?? new Map<Entity, string>();
+
+        InstanceIDToEntity.set(curInstanceID, spawnedEntity);
+        EntityToInstanceID.set(spawnedEntity, curInstanceID);
         this.player_InstanceIDToEntityMap.set(player, InstanceIDToEntity);
         this.player_EntityToInstanceIDMap.set(player, EntityToInstanceID);
       }
-      
-      if (isNew){
+
+      if (isNew) {
         this.savePlayerPlot(player);
+        this.sendNetworkBroadcastEvent(sysEvents.assignSelectedItem, {
+          player: player,
+          selected: assets[0],
+        });
       }
     }
   }
 
-  //region delete selected item
-  public deleteSelectedItem(player: Player, selected: Entity, alsoSave = true): boolean {
+  //region delete sel item
+  private deleteSelectedItem(player: Player, selected: Entity, alsoSave = true): boolean {
     const entityToId = this.player_EntityToInstanceIDMap.get(player);
     const idToEntities = this.player_InstanceIDToEntityMap.get(player);
     if (!entityToId || !idToEntities) {
@@ -232,7 +415,7 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     const newBuildings = plotData.buildings.filter((b) => b.iID !== UUID);
     this.playerPlotMap.set(player, { ...plotData, buildings: newBuildings });
 
-    console.log(`Deleted plot item ${UUID} for ${player.name.get()}.`);
+    debugLog(this.props.showDebugs, `Deleted plot item ${UUID} for ${player.name.get()}.`);
 
     if (alsoSave) {
       this.savePlayerPlot(player);
@@ -241,8 +424,7 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
   }
 
   //region save player plot
-  savePlayerPlot(player: Player) {
-    // this.savePlayerPlot(data.player);
+  private savePlayerPlot(player: Player) {
     // for each building we need to save its current transform
     const plotData = this.getPlayerPlot(player);
     const buildings = plotData.buildings;
@@ -258,7 +440,17 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
         const pos = entity.position.get().sub(plotBase!.position.get());
         const quatRot = entity.rotation.get().mul(plotBase!.rotation.get().inverse());
         const rot = quatRot.toEuler(EulerOrder.XYZ);
-        building.tform = [Math.round(pos.x), Math.round(pos.y), Math.round(pos.z), Math.round(rot.x), Math.round(rot.y), Math.round(rot.z), 1, 1, 1];
+        building.tform = [
+          Math.round(pos.x),
+          Math.round(pos.y),
+          Math.round(pos.z),
+          Math.round(rot.x),
+          Math.round(rot.y),
+          Math.round(rot.z),
+          1,
+          1,
+          1,
+        ];
         console.log(`Updated building ${building.iID} transform in plot data.`);
       } else {
         console.warn(`Entity with ID ${building.iID} not found in world.`);
@@ -266,14 +458,32 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     });
     this.playerPlotMap.set(player, { ...plotData, buildings });
     console.log(`Player ${player.name.get()}'s plot data saved.`);
-    // const saveManager = getMgrClass<SaveManager>(this, ManagerType.SaveManager, SaveManager);
-    // saveManager?.savePlayerData(data.player);
     const saveManager = getEntityListByTag(ManagerType.SaveManager, this.world)[0];
     this.sendNetworkEvent(saveManager!, sysEvents.SavePlayerData, { player: player });
   }
 
-  findBuildingById(plot: PlayerPlot, id: string): BuildingComponent | undefined {
+  private findBuildingById(plot: PlayerPlot, id: string): BuildingComponent | undefined {
     return plot.buildings.find((b) => b.iID === id);
+  }
+
+  private togglePlayerBuildingVisibility(player: Player, enabled: boolean) {
+    const show = !enabled;
+    const entityToggleList = this.getPlayerItemsByTag(player, "togglable") ?? [];
+    if (entityToggleList.length === 0) {
+      console.warn("No togglable entities found.");
+      return;
+    }
+
+    if (!entityToggleList) {
+      console.warn("No togglable entities found.");
+      return;
+    }
+    
+    entityToggleList.forEach((ent: Entity) => {
+      ent.visible.set(show);
+
+      ent.collidable.set(show);
+    });
   }
 }
 Component.register(PlayerPlotManager);

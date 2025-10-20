@@ -1,5 +1,5 @@
 import { CameraMode } from 'horizon/camera';
-import * as hz from 'horizon/core';
+import { Component, PropTypes, CodeBlockEvents, Player, Vec3, Quaternion } from 'horizon/core';
 import { sysEvents } from 'sysEvents';
 
 /**
@@ -9,10 +9,10 @@ import { sysEvents } from 'sysEvents';
  * Supports standard camera modes and special camera effects.
  * Resets camera when player exits the trigger area.
  */
-class sysCameraChangeTrigger extends hz.Component<typeof sysCameraChangeTrigger> {
+class sysCameraChangeTrigger extends Component<typeof sysCameraChangeTrigger> {
   static propsDefinition = {
-    showDebugs: { type: hz.PropTypes.Boolean, default: false },
-    cameraMode: { type: hz.PropTypes.String },
+    showDebugs: { type: PropTypes.Boolean, default: false },
+    cameraMode: { type: PropTypes.String },
   };
 
   private readonly cameraModeMap: Record<string, CameraMode> = {
@@ -32,14 +32,14 @@ class sysCameraChangeTrigger extends hz.Component<typeof sysCameraChangeTrigger>
   }
 
   start() {
-    this.connectCodeBlockEvent(this.entity, hz.CodeBlockEvents.OnPlayerEnterTrigger, this.handlePlayerEnterTrigger.bind(this));
-    this.connectCodeBlockEvent(this.entity, hz.CodeBlockEvents.OnPlayerExitTrigger, this.handlePlayerExitTrigger.bind(this));
+    this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnPlayerEnterTrigger, this.handlePlayerEnterTrigger.bind(this));
+    this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnPlayerExitTrigger, this.handlePlayerExitTrigger.bind(this));
   }
 
   /**
    * Handle when a player enters the trigger area
    */
-  private handlePlayerEnterTrigger(player: hz.Player): void {
+  private handlePlayerEnterTrigger(player: Player): void {
     const cameraMode = this.getCameraMode();
 
     if (cameraMode === null) {
@@ -53,7 +53,7 @@ class sysCameraChangeTrigger extends hz.Component<typeof sysCameraChangeTrigger>
   /**
    * Apply special camera effects that aren't part of the CameraMode enum
    */
-  private applySpecialCameraEffect(player: hz.Player): void {
+  private applySpecialCameraEffect(player: Player): void {
     switch (this.props.cameraMode) {
       case "Roll":
         this.sendNetworkEvent(player, sysEvents.OnSetCameraRoll, { rollAngle: 45 });
@@ -81,7 +81,7 @@ class sysCameraChangeTrigger extends hz.Component<typeof sysCameraChangeTrigger>
   /**
    * Apply a standard camera mode from the CameraMode enum
    */
-  private applyStandardCameraMode(player: hz.Player, cameraMode: CameraMode): void {
+  private applyStandardCameraMode(player: Player, cameraMode: CameraMode): void {
     switch (cameraMode) {
       case CameraMode.FirstPerson:
         this.sendNetworkEvent(player, sysEvents.OnSetCameraModeFirstPerson, null);
@@ -96,7 +96,7 @@ class sysCameraChangeTrigger extends hz.Component<typeof sysCameraChangeTrigger>
         this.updateTextGizmo("Camera set to Follow Mode");
         break;
       case CameraMode.Pan:
-        const panPositionOffset = new hz.Vec3(0, 1, -6);
+        const panPositionOffset = new Vec3(0, 1, -6);
         this.sendNetworkEvent(player, sysEvents.OnSetCameraModePan, {
           panSpeed: 1.0,
           positionOffset: panPositionOffset
@@ -104,8 +104,8 @@ class sysCameraChangeTrigger extends hz.Component<typeof sysCameraChangeTrigger>
         this.updateTextGizmo("Camera set to Pan Mode with position offset");
         break;
       case CameraMode.Fixed:
-        const fixedPosition = hz.Vec3.add(this.entity.position.get(), new hz.Vec3(0, 1, -5));
-        const fixedRotation = hz.Quaternion.fromEuler(new hz.Vec3(0, 0, 0));
+        const fixedPosition = Vec3.add(this.entity.position.get(), new Vec3(0, 1, -5));
+        const fixedRotation = Quaternion.fromEuler(new Vec3(0, 0, 0));
         this.sendNetworkEvent(player, sysEvents.OnSetCameraModeFixed, {
           position: fixedPosition,
           rotation: fixedRotation
@@ -113,7 +113,7 @@ class sysCameraChangeTrigger extends hz.Component<typeof sysCameraChangeTrigger>
         this.updateTextGizmo("Camera set to Fixed Mode");
         break;
       case CameraMode.Attach:
-        const positionOffset = new hz.Vec3(0, 0, -5);
+        const positionOffset = new Vec3(0, 0, -5);
         const translationSpeed = 1;
         const rotationSpeed = 1;
         this.sendNetworkEvent(player, sysEvents.OnSetCameraModeAttached, {
@@ -138,7 +138,7 @@ class sysCameraChangeTrigger extends hz.Component<typeof sysCameraChangeTrigger>
   /**
    * Handle when a player exits the trigger area
    */
-  private handlePlayerExitTrigger(player: hz.Player): void {
+  private handlePlayerExitTrigger(player: Player): void {
     const cameraMode = this.getCameraMode();
 
     if (cameraMode === null) {
@@ -156,7 +156,7 @@ class sysCameraChangeTrigger extends hz.Component<typeof sysCameraChangeTrigger>
   /**
    * Remove special camera effects when exiting the trigger
    */
-  private removeSpecialCameraEffect(player: hz.Player): void {
+  private removeSpecialCameraEffect(player: Player): void {
     switch (this.props.cameraMode) {
       case "Roll":
         this.sendNetworkEvent(player, sysEvents.OnSetCameraRoll, { rollAngle: 0 });
@@ -184,7 +184,7 @@ class sysCameraChangeTrigger extends hz.Component<typeof sysCameraChangeTrigger>
   /**
    * Reset the camera to third person mode
    */
-  private resetToThirdPerson(player: hz.Player): void {
+  private resetToThirdPerson(player: Player): void {
     this.sendNetworkEvent(player, sysEvents.OnSetCameraModeThirdPerson, null);
   }
 
@@ -204,4 +204,4 @@ class sysCameraChangeTrigger extends hz.Component<typeof sysCameraChangeTrigger>
     return this.cameraModeMap[this.cameraMode] ?? null;
   }
 }
-hz.Component.register(sysCameraChangeTrigger);
+Component.register(sysCameraChangeTrigger);

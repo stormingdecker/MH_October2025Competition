@@ -17,6 +17,7 @@ import {
   MeshEntity,
   Color,
 } from "horizon/core";
+import { sysEvents } from "sysEvents";
 
 enum ThrustState {
   OFF,
@@ -65,6 +66,7 @@ export class EXO_JETPACK extends Component<typeof EXO_JETPACK> {
   private thrustState: ThrustState = ThrustState.OFF;
 
   private localPlayer: Player | undefined;
+  private isGrabbed: boolean = false;
 
   //region preStart()
   override preStart() {
@@ -73,6 +75,22 @@ export class EXO_JETPACK extends Component<typeof EXO_JETPACK> {
     );
 
     this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnGrabEnd, (player: Player) => this.onRelease(player));
+  
+   this.connectNetworkBroadcastEvent(sysEvents.updateMenuContext, (data) => {
+      if (data.menuContext.length > 0){
+        this.isGrabbed = false;
+        this.ascendInput?.disconnect();
+        this.descendInput?.disconnect();
+        this.enableFly?.disconnect();
+        this.updateSubscription?.disconnect();
+        this.isAscending = false;
+        this.isDescending = false;
+        this.updateThrustState(ThrustState.OFF);
+      }
+      else if (!this.isGrabbed && this.localPlayer) {
+        this.onGrab(this.localPlayer!);
+      }
+   });
   }
 
   //region start()
@@ -152,6 +170,7 @@ export class EXO_JETPACK extends Component<typeof EXO_JETPACK> {
 
   //region onGrab()
   private onGrab(player: Player) {
+    this.isGrabbed = true;
     const attachable = this.entity.as(AttachableEntity);
     if (!attachable) return;
 

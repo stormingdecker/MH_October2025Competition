@@ -9,7 +9,8 @@ export enum InventoryType {
   wood = "wood",
   stone = "stone",
   iron = "iron",
-  gold = "gold",
+  money = "money",
+  currency = "currency",
   diamond = "diamond",
 }
 
@@ -18,7 +19,8 @@ export const DEFAULT_INVENTORY: PlayerInventory = Object.freeze({
     [InventoryType.wood]: 0,
     [InventoryType.stone]: 0,
     [InventoryType.iron]: 0,
-    [InventoryType.gold]: 0,
+    [InventoryType.money]: 0,
+    [InventoryType.currency]: 10000,
     [InventoryType.diamond]: 0,
   },
 });
@@ -29,6 +31,13 @@ export type PlayerStats = {
 };
 
 export enum StatType {
+  //daily login
+  lastPlayedAt = "lastPlayedAt", //epoch ms
+  lastClaimAt = "lastClaimAt", //epoch ms
+  lastClaimDate = "lastClaimDate", //yyyymmdd
+  dailyStreak = "dailyStreak",
+  dailyCycleDay = "dailyCycleDay", //0-6
+  //core rpg
   health = "health",
   deaths = "deaths",
   stamina = "stamina",
@@ -58,6 +67,13 @@ export enum StatType {
 
 export const DEFAULT_STATS: PlayerStats = Object.freeze({
   type: {
+    //region daily login
+    [StatType.lastPlayedAt]: 0,
+    [StatType.lastClaimAt]: 0,
+    [StatType.lastClaimDate]: 0,
+    [StatType.dailyStreak]: 0,
+    [StatType.dailyCycleDay]: 0,
+    //general
     [StatType.health]: 100,
     [StatType.deaths]: 0,
     [StatType.stamina]: 100,
@@ -96,17 +112,42 @@ export type PlayerPlot = {
 };
 
 export const DEFAULT_PLOT_LAYOUT: PlayerPlot = Object.freeze({
+  // buildings: [
+  //   { iID: "n0fc1o", aID36: "ihtt0k19bs", tform: [0, 0, 0, 0, 0, 0, 1, 1, 1] },
+  //   { iID: "-7clqod", aID36: "ak4bcful5p", tform: [-3, 0, 3, 180, 0, -180, 1, 1, 1] },
+  //   { iID: "-oxr8fn", aID36: "ep96dlr2ud", tform: [-2, 0, 3, 180, 0, -180, 1, 1, 1] },
+  //   { iID: "vzo5h8", aID36: "d9qx24uicw", tform: [-1, 0, 3, 180, 0, -180, 1, 1, 1] },
+  //   { iID: "-8tr246", aID36: "ep96dlr2ud", tform: [0, 0, 3, 180, 0, -180, 1, 1, 1] },
+  //   { iID: "-4ck61q", aID36: "d9qx24uicw", tform: [1, 0, 3, 180, 0, -180, 1, 1, 1] },
+  //   { iID: "-f4ruai", aID36: "dawolkuh36", tform: [2, 0, 3, 0, 0, 0, 1, 1, 1] },
+  //   { iID: "6lfgtt", aID36: "f7ojp81337", tform: [-3, 0, -2, 0, 0, 0, 1, 1, 1] },
+  //   { iID: "-8fx14q", aID36: "7g6wd6b45t", tform: [-3, 0, -3, 0, 0, 0, 1, 1, 1] },
+  //   { iID: "-fegtvk", aID36: "7g6wd6b45t", tform: [-3, 0, -1, 180, 0, -180, 1, 1, 1] },
+  //   { iID: "mkcrwx", aID36: "f7ojp81337", tform: [0, 0, -2, 0, 0, 0, 1, 1, 1] },
+  //   { iID: "-l3tt7f", aID36: "7g6wd6b45t", tform: [0, 0, -1, 180, 0, -180, 1, 1, 1] },
+  //   { iID: "ltvnk0", aID36: "7g6wd6b45t", tform: [0, 0, -3, 0, 0, 0, 1, 1, 1] },
+  // ],
   buildings: [
-    { iID: "jtow90", aID36: "ihtt0k19bs", tform: [0, 0, 0, 0, 0, 0, 1, 1, 1] },
-    { iID: "-hqy8bu", aID36: "ak4bcful5p", tform: [-2, 0, 3, 180, 0, -180, 1, 1, 1] },
-    { iID: "cz2705", aID36: "et2c8nx5ep", tform: [0, 0, 3, 180, 0, -180, 1, 1, 1] },
-    { iID: "pfbp7z", aID36: "bzt01qwe5w", tform: [-1, 0, 3, 0, 0, 0, 1, 1, 1] },
-    { iID: "-gsx0c0", aID36: "bzt01qwe5w", tform: [1, 0, 3, 0, 0, 0, 1, 1, 1] },
-    { iID: "-us3xg", aID36: "bzt01qwe5w", tform: [-3, 0, 3, 0, 0, 0, 1, 1, 1] },
-    { iID: "9032f3", aID36: "bzt01qwe5w", tform: [2, 0, 3, 0, 0, 0, 1, 1, 1] },
-    { iID: "68yagq", aID36: "xe8iqukxo0", tform: [-2, 0, -1, 0, 0, 0, 1, 1, 1] },
-    { iID: "knrm3e", aID36: "7g6wd6b45t", tform: [-2, 0, 0, 180, 0, -180, 1, 1, 1] },
-    { iID: "nw9011", aID36: "7g6wd6b45t", tform: [-2, 0, -2, 0, 0, 0, 1, 1, 1] },
+    { iID: "xk2sfd", aID36: "6kapw1bmeq", tform: [0, 0, -5, 0, 0, 0, 1, 1, 1] },
+    { iID: "-kl2usl", aID36: "k5fr1o4z02", tform: [-5, 0, 0, 0, 0, 0, 1, 1, 1] },
+    { iID: "-7cglc", aID36: "k5fr1o4z02", tform: [5, 0, 0, 0, 0, 0, 1, 1, 1] },
+    { iID: "-dwlv4q", aID36: "k5fr1o4z02", tform: [0, 0, 5, 0, 90, 0, 1, 1, 1] },
+    { iID: "1d25y0", aID36: "pluz2j832u", tform: [0, 0, 0, 0, 0, 0, 1, 1, 1] },
+    { iID: "-8j45b6", aID36: "emj03kdclc", tform: [0, 0, 0, 0, 0, 0, 1, 1, 1] },
+    { iID: "hya1t5", aID36: "k8yzc0qj38", tform: [4, 0, 0, 0, 0, 0, 1, 1, 1] },
+    { iID: "18evk9", aID36: "beginasth0", tform: [-4, 0, 0, 0, 0, 0, 1, 1, 1] },
+    { iID: "cw65w5", aID36: "d0ki8y156d", tform: [4, 0, 1, -180, 0, -180, 1, 1, 1] },
+    { iID: "ihvjl6", aID36: "dawolkuh36", tform: [1, 0, 4, 0, 0, 0, 1, 1, 1] },
+    { iID: "fhbbo4", aID36: "ak4bcful5p", tform: [-2, 0, 4, -180, 0, -180, 1, 1, 1] },
+    { iID: "-sr9bn2", aID36: "ep96dlr2ud", tform: [0, 0, 4, -180, 0, -180, 1, 1, 1] },
+    { iID: "-rw42z", aID36: "d9qx24uicw", tform: [-1, 0, 4, -180, 0, -180, 1, 1, 1] },
+    { iID: "jl9lc6", aID36: "86j4s0dmll", tform: [-4, 0, 1, -180, 0, -180, 1, 1, 1] },
+    { iID: "-mt4ou9", aID36: "86j4s0dmll", tform: [-4, 0, -1, 0, 0, 0, 1, 1, 1] },
+    { iID: "-k109j", aID36: "d0ki8y156d", tform: [3, 0, 0, 0, 90, 0, 1, 1, 1] },
+    { iID: "-c4fa6k", aID36: "d0ki8y156d", tform: [4, 0, -1, 0, 0, 0, 1, 1, 1] },
+    { iID: "bmex6b", aID36: "exdsgwidbx", tform: [-3, 0, -4, 0, 0, 0, 1, 1, 1] },
+    { iID: "-4uu49z", aID36: "77wxpssf11", tform: [-4, 0, -4, 0, 90, 0, 1, 1, 1] },
+    { iID: "70ne6y", aID36: "77wxpssf11", tform: [-2, 0, -4, 0, -90, 0, 1, 1, 1] },
   ],
   // buildings: [],
 });
@@ -128,7 +169,17 @@ export type Vec3Like = [number, number, number];
 export type EulerLike = [number, number, number];
 export type QuaternionLike = [number, number, number, number];
 
-export type TransformLike = [number, number, number, number, number, number, number, number, number]; // position + euler + scale
+export type TransformLike = [
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number
+]; // position + euler + scale
 
 // Common identifiers
 export type InstanceId = string; // unique per placed entity (e.g., "chair_0001")

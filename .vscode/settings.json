@@ -1,5 +1,5 @@
 {
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "typescript.tsdk": "./node_modules/typescript/lib",
-  "cSpell.words": ["rebake"]
+  "cSpell.words": ["Fint", "rebake", "tform", "togglable"]
 }

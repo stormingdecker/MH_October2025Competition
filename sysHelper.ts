@@ -23,8 +23,8 @@ export function getPlayerType(player: Player, world: World): PlayerType {
     return "server";
   } else if (!world.getPlayers().includes(player)) {
     return "departed";
-  } else if (player.isInBuildMode.get()) {
-    return "builder";
+  // } else if (player.isInBuildMode.get()) {
+  //   return "builder";
   } else if (player.id > 100000) {
     return "npc";
   } else {
@@ -120,6 +120,9 @@ export enum ManagerType {
   AudioManager = "AudioManager",
   VFXManager = "VFXManager",
   PlayerPlotManager = "PlotManager",
+  UI_OneHUD = "UI_OneHUD",
+  DailyRewardManager = "DailyRewardManager",
+  UI_MenuManager = "UI_MenuManager",
 }
 
 /**

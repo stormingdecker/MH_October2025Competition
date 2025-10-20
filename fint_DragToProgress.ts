@@ -10,6 +10,8 @@ import {
   Vec3,
 } from "horizon/core";
 import { sysEvents } from "sysEvents";
+import { getEntityListByTag, ManagerType } from "sysHelper";
+import { oneHudEvents } from "UI_OneHUD";
 
 class fint_DragToProgress extends Component<typeof fint_DragToProgress> {
   static propsDefinition = {
@@ -20,24 +22,21 @@ class fint_DragToProgress extends Component<typeof fint_DragToProgress> {
   private activePlayer!: Player;
   private prevScreenPos: Vec3 | null = null;
   private dragDistance = 0;
+  private OneHudEntity: Entity | null = null;
 
   preStart() {
+    this.OneHudEntity = getEntityListByTag(ManagerType.UI_OneHUD, this.world)[0];
+
     this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnPlayerEnterTrigger, (player: Player) => {
-      if (this.activePlayer === this.world.getServerPlayer() && player.deviceType.get() !== PlayerDeviceType.VR) {
-        this.activePlayer = player;
-        this.sendNetworkEvent(player, sysEvents.OnStartFocusMode, {
-          requester: this.entity,
-        });
-        this.inFocusMode = true;
-        this.dragDistance = 0;
+      if (player.deviceType.get() !== PlayerDeviceType.VR) {
+        this.OnPlayerEnterTrigger(player);
+      } else {
+        console.warn(`Player ${player.name.get()} did not satisfy entry conditions`);
       }
     });
 
     this.connectNetworkEvent(this.entity, sysEvents.OnExitFocusMode, (data) => {
-      if (this.activePlayer === data.player) {
-        this.activePlayer = this.world.getServerPlayer();
-        this.inFocusMode = false;
-      }
+      this.onPlayerExitedFocusMode(data.player);
     });
 
     this.connectNetworkEvent(this.entity, sysEvents.OnFocusedInteractionInputStarted, (data) => {
@@ -58,53 +57,74 @@ class fint_DragToProgress extends Component<typeof fint_DragToProgress> {
   }
 
   OnPlayerEnterTrigger(player: Player) {
-    if (this.activePlayer === this.world.getServerPlayer() && player.deviceType.get() !== PlayerDeviceType.VR) {
-      console.log("Player Entered Trigger");
-      this.activePlayer = player;
-      this.sendNetworkEvent(player, sysEvents.OnStartFocusMode, {
-        requester: this.entity,
-      });
-      this.sendNetworkEvent(player, sysEvents.OnSetCameraModeFixed, {
-        position: new Vec3(0, 1.5, -3),
-        rotation: Quaternion.fromEuler(new Vec3(0, 0, 0)),
-      });
-    }
-
+    this.activePlayer = player;
     this.counter = 0;
-    this.sendProgressEvent(0);
+
+    //setup camera change
+    const fixedPosition = Vec3.add(this.entity.position.get(), new Vec3(0, 2.5, -2.5));
+    const fixedRotation = this.entity.rotation.get().mul(Quaternion.fromEuler(new Vec3(45, 0, 0)));
+    this.sendNetworkEvent(this.activePlayer, sysEvents.OnSetCameraModeFixed, {
+      position: fixedPosition,
+      rotation: fixedRotation,
+    });
+    //start focus mode
+    this.sendNetworkEvent(player, sysEvents.OnStartFocusMode, {
+      requester: this.entity,
+    });
+    this.inFocusMode = true;
+
+    //show progress bar on OneHUD
+    // this.sendNetworkEvent(this.OneHudEntity!, oneHudEvents.ShowProgressionTask, {
+    //   players: [this.activePlayer],
+    //   header: "Drag to Progress",
+    //   instruction: "Drag finger in a circle",
+    //   resultImgAssetId: "",
+    //   instructImgAssetId: "",
+    // });
   }
 
-  OnPlayerExitTrigger(player: Player) {
-    this.sendProgressEvent(0);
-
-    this.activePlayer = this.world.getServerPlayer();
-  }
+  OnPlayerExitTrigger(player: Player) {}
 
   onFintInputStarted(interactionInfo: InteractionInfo): void {
     this.prevScreenPos = null;
   }
 
-  counter = -1;
-  onFintInputMoved(interactionInfo: InteractionInfo): void {
-    if (!this.inFocusMode) return;
-    const pos = new Vec3(interactionInfo.screenPosition.x, interactionInfo.screenPosition.y, 0);
-    if (this.prevScreenPos) {
-      this.dragDistance += pos.sub(this.prevScreenPos).magnitude();
-      console.log(`Drag Distance: ${this.dragDistance}`);
-      if (this.dragDistance*2 >= 10) {
-        console.log("Drag Distance Threshold Reached, Exiting Focus Mode");
-        this.sendNetworkBroadcastEvent(sysEvents.ForceExitFocusMode, { player: this.activePlayer });
-        this.inFocusMode = false;
-      }
-    }
-    this.prevScreenPos = pos;
-    
-    const progress = Math.round((this.dragDistance*2 / 10) * 10);
-    console.log(`Progress: ${progress}`);
-    if(progress !== this.counter)
-      this.sendProgressEvent(progress);
-    this.counter = progress;
+private counter: number = -1; // Throttles progress updates
+private lastProgressTime: number = 0;
+private readonly progressInterval: number = 200; // in ms
+
+onFintInputMoved(interactionInfo: InteractionInfo): void {
+  if (!this.inFocusMode) return;
+
+  const pos = new Vec3(interactionInfo.screenPosition.x, interactionInfo.screenPosition.y, 0);
+
+  // Track cumulative drag distance
+  if (this.prevScreenPos) {
+    const delta = pos.sub(this.prevScreenPos).magnitude();
+    this.dragDistance += delta;
   }
+  this.prevScreenPos = pos;
+
+  // Calculate progress (scaled and rounded)
+  const progress = Math.round(this.dragDistance * 2);
+
+  // Debounce progress updates
+  const now = Date.now();
+  if (progress !== this.counter && now - this.lastProgressTime > this.progressInterval) {
+    this.sendProgressEvent(progress);
+    this.counter = progress;
+    this.lastProgressTime = now;
+  }
+
+  // Exit focus mode after reaching threshold
+  if (this.counter >= 10) {
+    console.log("Drag Distance Threshold Reached — Exiting Focus Mode");
+    this.sendNetworkBroadcastEvent(sysEvents.ForceExitFocusMode, { player: this.activePlayer });
+    this.inFocusMode = false; // Prevent retrigger
+  }
+}
+
+
 
   onFintInputEnded(interactionInfo: InteractionInfo): void {}
 
@@ -112,13 +132,20 @@ class fint_DragToProgress extends Component<typeof fint_DragToProgress> {
     if (this.activePlayer === player) {
       this.inFocusMode = false;
       this.dragDistance = 0;
+
+      this.sendNetworkEvent(this.activePlayer, sysEvents.OnSetCameraModeThirdPerson, null);
+      this.sendNetworkEvent(this.OneHudEntity!, oneHudEvents.HideProgressionTask, { players: [this.activePlayer] });
     }
   }
 
   sendProgressEvent(progress: number): void {
-    this.sendNetworkEvent(this.props.progressBar!, sysEvents.updateProgressEvent, {
-      player: this.activePlayer,
-      progress: progress * 10,
+    if (!this.OneHudEntity) {
+      console.error("No OneHUD entity found");
+      return;
+    }
+    this.sendNetworkEvent(this.OneHudEntity, oneHudEvents.UpdateProgressionTask, {
+      players: [this.activePlayer],
+      progressAsString: `${progress * 10}`,
     });
   }
 }

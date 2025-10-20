@@ -23,7 +23,7 @@ export class PlayerManager extends Component<typeof PlayerManager> {
   };
 
   private playerRegistry: PlayerRegistry = new Map<Player, PlayerProperties>();
-  private subscribers: PlayerSubscriber[] = [];
+  private subscribers: EntitySubscriber[] = [];
 
   //region PreStart
   preStart() {
@@ -41,7 +41,7 @@ export class PlayerManager extends Component<typeof PlayerManager> {
     filterType = filterType ?? ["all"];
     const filter = filterType.includes("all") ? () => true : buildFilter(filterType, this.world);
 
-    const subscriber: PlayerSubscriber = {
+    const subscriber: EntitySubscriber = {
       entity: requester,
       filter,
       onJoin: (player: Player) => {
@@ -82,18 +82,10 @@ export class PlayerManager extends Component<typeof PlayerManager> {
         subscriber.onJoin?.(player);
       }
     }
-
-    // Filter out human players (Useful even if not being used here)
-    // const humanPlayers = this.world
-    //   .getPlayers()
-    //   .filter((p) => getPlayerType(p, this.world) === "human");
-    // const npcPlayers = this.world
-    //   .getPlayers()
-    //   .filter((p) => getPlayerType(p, this.world) === "npc");
   }
 
   //region Replay Joins
-  private replayJoinsToNewSubscriber(subscriber: PlayerSubscriber) {
+  private replayJoinsToNewSubscriber(subscriber: EntitySubscriber) {
     this.playerRegistry.forEach((props, player) => {
       if (subscriber.filter(player)) {
         this.sendNetworkEvent(subscriber.entity, PlayerMgrEvents.PlayerJoined, { player });
@@ -106,20 +98,38 @@ export class PlayerManager extends Component<typeof PlayerManager> {
     if (!this.playerRegistry.has(player)) {
       return;
     }
+    const props = this.playerRegistry.get(player);
+    if (!props) {
+      console.error(`No properties found for player ${player.name.get()}`);
+      return;
+    }
 
-    this.playerRegistry.delete(player);
-    debugLog(this.props.showDebugs, `${player.name.get()} exited the world`);
-
+    const jsonString = JSON.stringify(props, null, 2);
+    debugLog(this.props.showDebugs, `Player ${player.name.get()} exiting the world as\n` + `${jsonString}`);
+    // debugLog(this.props.showDebugs, `${player.name.get()} exited the world`);
+    
     // Notify subscribers about the player exit
     for (const subscriber of this.subscribers) {
+      debugLog(this.props.showDebugs, `Checking if subscriber ${subscriber.entity.name.get()} filter ${subscriber.filter(player)} matches exiting player ${player.name.get()}`);
       if (subscriber.filter(player)) {
-        // subscriber.callback(player);
         subscriber.onLeave?.(player);
       }
+      else{
+        debugLog(this.props.showDebugs, `Subscriber ${subscriber.entity.name.get()} filter does NOT match exiting player ${player.name.get()}`);
+      }
     }
+    this.playerRegistry.delete(player);
   }
 }
 Component.register(PlayerManager);
+
+    // Filter out human players (Useful even if not being used here)
+    // const humanPlayers = this.world
+    //   .getPlayers()
+    //   .filter((p) => getPlayerType(p, this.world) === "human");
+    // const npcPlayers = this.world
+    //   .getPlayers()
+    //   .filter((p) => getPlayerType(p, this.world) === "npc");
 
 //region Player Properties
 type PlayerProperties = {
@@ -128,7 +138,7 @@ type PlayerProperties = {
   index: number;
   type: "human" | "npc" | "server" | "builder" | "departed";
   inBuildMode: boolean;
-  device: PlayerDeviceType.Desktop | PlayerDeviceType.Mobile | PlayerDeviceType.VR;
+  device: PlayerDeviceType.Desktop | PlayerDeviceType.Mobile | PlayerDeviceType.VR | undefined;
 };
 
 type PlayerRegistry = Map<Player, PlayerProperties>;
@@ -136,7 +146,7 @@ type PlayerRegistry = Map<Player, PlayerProperties>;
 //region Player Subscribers
 type PlayerFilter = (player: Player) => boolean;
 
-type PlayerSubscriber = {
+type EntitySubscriber = {
   entity: Entity;
   filter: PlayerFilter;
   onJoin?: (player: Player) => void;
@@ -151,7 +161,8 @@ function buildPlayerProperties(player: Player, world: World): PlayerProperties {
     index: player.index.get(),
     type: getPlayerType(player, world),
     inBuildMode: player.isInBuildMode.get(),
-    device: player.deviceType.get(),
+    // device: PlayerDeviceType.Mobile, //temporary hardcode until player.deviceType.get() is functional
+    device: player.id < 100000 ? player.deviceType.get() : undefined,
   };
 }
 
@@ -160,21 +171,38 @@ function buildPlayerProperties(player: Player, world: World): PlayerProperties {
 function buildFilter(filterTags: string[], world: World): PlayerFilter {
   return (player: Player): boolean => {
     const props = buildPlayerProperties(player, world);
-    return filterTags.every((tag) =>
-      tag === FilterType.Human
-        ? props.type === FilterType.Human
-        : tag === FilterType.NPC
-        ? props.type === FilterType.NPC
-        : tag === FilterType.Mobile
-        ? props.device === PlayerDeviceType.Mobile
-        : tag === FilterType.Desktop
-        ? props.device === PlayerDeviceType.Desktop
-        : tag === FilterType.VR
-        ? props.device === PlayerDeviceType.VR
-        : tag === FilterType.NonVR
-        ? props.device !== PlayerDeviceType.VR
-        : false
-    );
+    for (const tag of filterTags) {
+      let matched = false;
+      switch (tag) {
+        case FilterType.Human:
+          matched = props.type === FilterType.Human || props.type === "builder"; 
+          break;
+        case FilterType.NPC:
+          matched = props.type === FilterType.NPC;
+          break;
+        case FilterType.Mobile:
+          matched = props.device === PlayerDeviceType.Mobile;
+          break;
+        case FilterType.Desktop:
+          matched = props.device === PlayerDeviceType.Desktop;
+          break;
+        case FilterType.VR:
+          matched = props.device === PlayerDeviceType.VR;
+          break;
+        case FilterType.NonVR:
+          matched = props.device !== PlayerDeviceType.VR;
+          break;
+        default:
+          matched = false;
+      }
+      if (!matched) {
+        // console.warn(
+        //   `Player ${props.name} (id: ${props.playerId}) failed to match filter "${tag}". Properties: ${JSON.stringify(props)}`
+        // );
+        return false;
+      }
+    }
+    return true;
   };
 }
 

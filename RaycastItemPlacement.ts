@@ -22,15 +22,21 @@ import {
   Quaternion,
   CodeBlockEvents,
 } from "horizon/core";
+import { KitchenApplianceTag } from "KitchenManager";
 import { buildModeEvent } from "MoveableBase";
+import { PlayerPlotManager } from "PlayerPlotManager";
 import { sysEvents } from "sysEvents";
 import { getEntityListByTag, getPlayerType, ManagerType } from "sysHelper";
+import { getMgrClass } from "sysUtils";
 import { animateScaleEvent } from "TweenHandler";
+import { Primary_MenuType, Sub_PlotType } from "UI_MenuManager";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 import { playVFX, VFXLabel } from "VFXManager";
 
 export const damageEvent = new NetworkEvent<{ player: Player; damage: number }>("damageEvent");
-export const tryDeleteSelectedItemEvent = new NetworkEvent<{ player: Player }>("tryDeleteSelectedItemEvent");
+export const tryDeleteSelectedItemEvent = new NetworkEvent<{ player: Player }>(
+  "tryDeleteSelectedItemEvent"
+);
 /**
  *
  */
@@ -52,7 +58,8 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
 
   //tap and trail options
   private currentTapOptions: FocusedInteractionTapOptions = DefaultFocusedInteractionTapOptions;
-  private currentTrailOptions: FocusedInteractionTrailOptions = DefaultFocusedInteractionTrailOptions;
+  private currentTrailOptions: FocusedInteractionTrailOptions =
+    DefaultFocusedInteractionTrailOptions;
 
   //custom input variables
   private swapInput?: PlayerInput;
@@ -77,6 +84,9 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
 
   private tweenHandler: Entity | null = null;
 
+  //this prevents multiple subscriptions to fint events
+  private subscribedToFintEvents = false;
+
   //region preStart()
   preStart(): void {
     if (!this.props.enabled) return;
@@ -100,19 +110,17 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
 
     this.connectNetworkEvent(this.entity, simpleButtonEvent, (data) => {
       // still need a local check
-      // if (!this.inFocusMode) {
-      //   console.log("Entering Focused Interaction Mode");
-      //   this.entity.owner.get().enterFocusedInteractionMode();
-      //   this.inFocusMode = true;
-      // } else {
-      //   console.log("Exiting Focused Interaction Mode");
-      //   this.entity.owner.get().exitFocusedInteractionMode();
-      //   this.inFocusMode = false;
-      // }
+    });
+
+    this.connectNetworkBroadcastEvent(sysEvents.assignSelectedItem, (data) => {
+      console.log("Assign selected item event received");
+      if (data.player !== this.playerOwner) return;
+      this.selectedItem = data.selected;
     });
 
     //region focused interaction events
     this.connectLocalBroadcastEvent(PlayerControls.onFocusedInteractionInputStarted, (data) => {
+      if (!this.subscribedToFintEvents) return;
       const firstInteraction = data.interactionInfo[0];
       console.log("Focused Interaction Input Started", firstInteraction);
       if (firstInteraction.interactionIndex !== 0) return;
@@ -122,6 +130,7 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
     });
 
     this.connectLocalBroadcastEvent(PlayerControls.onFocusedInteractionInputMoved, (data) => {
+      if (!this.subscribedToFintEvents) return;
       const firstInteraction = data.interactionInfo[0];
       if (firstInteraction.interactionIndex !== 0) return;
 
@@ -129,6 +138,7 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
     });
 
     this.connectLocalBroadcastEvent(PlayerControls.onFocusedInteractionInputEnded, (data) => {
+      if (!this.subscribedToFintEvents) return;
       const firstInteraction = data.interactionInfo[0];
       if (firstInteraction.interactionIndex !== 0) return;
 
@@ -136,16 +146,22 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
     });
 
     //region build mode event
-    this.connectNetworkBroadcastEvent(sysEvents.buildMenuEvent, (data) => {
+    this.connectNetworkBroadcastEvent(sysEvents.updateMenuContext, (data) => {
       console.log("Build mode event received");
       if (data.player !== this.playerOwner) return;
-
       if (this.playerOwner?.deviceType.get() === PlayerDeviceType.VR) {
         console.error("VR not supported for camera switching");
         return;
       }
 
-      if (!this.isBuildMode) {
+      const isDetailMenu = data.menuContext.length == 3;
+      const isSubMenu = data.menuContext.length == 2;
+
+      if (
+        data.menuContext[0] === Primary_MenuType.PlotMenu &&
+        data.menuContext[1] === Sub_PlotType.BuildMode &&
+        !this.isBuildMode
+      ) {
         //Enter build mode
         this.sendNetworkBroadcastEvent(buildModeEvent, {
           player: this.playerOwner!,
@@ -157,28 +173,50 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
         console.log("Switching to First Person View");
         // LocalCamera.setCameraModeFirstPerson(this.transitionOptions);
         LocalCamera.setCameraModeAttach(this.props.camAttachTarget!, {});
+        // this.sendNetworkEvent(this.playerOwner!, sysEvents.OnSetCameraModeFixed,{
+        //   position: new Vec3(0, 2, 0),
+        //   rotation: Quaternion.fromEuler(new Vec3(90, 0, 0)),
+        // });
         this.playerOwner?.enterFocusedInteractionMode();
+        this.subscribedToFintEvents = true;
         this.inFocusMode = true;
         playAudio(this, AudioLabel.open);
-      } else {
+      } else if (
+        this.isBuildMode &&
+        !isDetailMenu &&
+        data.menuContext[1] !== Sub_PlotType.BuildMode
+      ) {
         //End build mode
         //save placements
         this.sendNetworkBroadcastEvent(buildModeEvent, {
           player: this.playerOwner!,
           inBuildMode: false,
         });
-        const plotManager = getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0] || null;
-        this.sendNetworkEvent(plotManager!, sysEvents.savePlayerPlot, { player: this.playerOwner! });
+        const plotManager =
+          getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0] || null;
+        this.sendNetworkEvent(plotManager!, sysEvents.savePlayerPlot, {
+          player: this.playerOwner!,
+        });
 
         console.log("Switching to Third Person View");
         LocalCamera.setCameraModeThirdPerson(this.transitionOptions);
         this.async.setTimeout(() => {
           this.playerOwner?.exitFocusedInteractionMode();
+          this.subscribedToFintEvents = false;
           this.inFocusMode = false;
           playAudio(this, AudioLabel.close);
         }, 250);
+      } else {
+        return;
       }
       this.isBuildMode = !this.isBuildMode;
+
+      
+      const plotManager = getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0] || null;
+      this.sendNetworkEvent(plotManager!, sysEvents.toggleBuildingEvent, {
+        player: this.playerOwner!,
+        enabled: this.isBuildMode,
+      });
     });
 
     this.connectNetworkBroadcastEvent(sysEvents.buildRotateEvent, (data) => {
@@ -209,7 +247,6 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
       this.tryDeleteSelectedItem();
       // playAudio(this, AudioLabel.trash);
     });
-
   }
 
   //region start()
@@ -237,7 +274,9 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
     const hitPoint = this.raycastHitPoint(this.selectionRaycastGizmo!, touchInfo);
     debugLog(
       this.props.showDebugs,
-      `Hit slot: ${hitEntity ? hitEntity.name.get() : "None"}, Hit point: ${hitPoint ? hitPoint.toString() : "None"}`
+      `Hit slot: ${hitEntity ? hitEntity.name.get() : "None"}, Hit point: ${
+        hitPoint ? hitPoint.toString() : "None"
+      }`
     );
     //Entity must have tag "item" to be considered in hit
     if (hitEntity) {
@@ -309,7 +348,9 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
     }
     if (this.selectedItem) {
       this.selectedItem.position.set(this.selectedItem.position.get());
-      this.sendNetworkEvent(this.tweenHandler!, animateScaleEvent, { targetEntity: this.selectedItem! });
+      this.sendNetworkEvent(this.tweenHandler!, animateScaleEvent, {
+        targetEntity: this.selectedItem!,
+      });
     }
   }
 
@@ -330,7 +371,11 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
       const itemToDelete = this.selectedItem;
       this.selectedItem = null;
       const plotManager = getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0] || null;
-      this.sendNetworkEvent(plotManager!, sysEvents.deleteSelectedItemEvent, { player: this.playerOwner!, selected: itemToDelete, alsoSave: true });
+      this.sendNetworkEvent(plotManager!, sysEvents.deleteSelectedItemEvent, {
+        player: this.playerOwner!,
+        selected: itemToDelete,
+        alsoSave: true,
+      });
     }
   }
 }

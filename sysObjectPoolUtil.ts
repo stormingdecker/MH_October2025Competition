@@ -19,7 +19,7 @@ export class Pool<T> {
 
   //spawning items takes time so if we're close to limit we can spawn more items before we run out
   needsMore(): boolean { 
-    return this.available.length < 2;
+    return this.available.length < 1;
   }
 
   hasActive(): boolean {

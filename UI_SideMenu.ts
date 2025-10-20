@@ -1,5 +1,6 @@
-import { OnButtonRequest, OnButtonResponse } from "ButtonRegistry";
-import { Asset, NetworkEvent, Player, PropTypes, Vec3 } from "horizon/core";
+import { OnButtonAssetResponse } from "ButtonAssetRegistry";
+import { ButtonProps, OnButtonRequest, OnButtonResponse } from "ButtonRegistry";
+import { Asset, Entity, NetworkEvent, Player, PropTypes, Vec3 } from "horizon/core";
 import {
   AnimatedBinding,
   Animation,
@@ -12,45 +13,67 @@ import {
   UINode,
   View,
 } from "horizon/ui";
-import { tryDeleteSelectedItemEvent } from "RaycastItemPlacement";
+import { InventoryManager } from "InventoryManager";
 import { sysEvents } from "sysEvents";
+import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
+import { InventoryType } from "sysTypes";
 import {
-
+  buttonImg,
   buttonImgWithText,
   convertAssetIDToImageSource,
+  convertAssetToImageSource,
+  menuButton,
 } from "sysUIStyleGuide";
+import { getMgrClass } from "sysUtils";
 import { MenuBtnType } from "UI_AccordionMenu";
+import { Detail_Kitchen, Sub_PlotType } from "UI_MenuManager";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 
-
+export enum BuildSubMenuTypes {
+  Dashboard = "Dashboard",
+  ChairsMenu = "ChairsMenu",
+  TablesMenu = "TablesMenu",
+  OvensMenu = "OvensMenu",
+  PrepStationsMenu = "PrepStationsMenu",
+  OrderStationsMenu = "OrderStationsMenu",
+  FridgesMenu = "FridgesMenu",
+}
 
 class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
-  protected panelWidth: number = 100;
+  protected panelWidth: number = 200;
   protected panelHeight: number = 460;
 
   static propsDefinition = {
     enabled: { type: PropTypes.Boolean, default: true },
+    showDebugs: { type: PropTypes.Boolean, default: false },
     offset: { type: PropTypes.Vec3, default: new Vec3(95, 50, 0) },
     buttonRegistry: { type: PropTypes.Entity, default: null },
+    backBtnImgAsset: { type: PropTypes.Asset },
   };
+
+  inventoryMgr: InventoryManager | undefined = undefined;
 
   animBnd_traslateX = new AnimatedBinding(0);
   isMenuOpen = false;
+  closeOffset = 400;
+  bnd_backBtnDisplay = new Binding<string>("flex");
 
   private childrenUINodeArray = new Binding<UINode[]>([]); // Binding to hold child nodes
 
-  private btnImgAssetIDArrayMap = new Map<string, string[]>();
-  private btnInstanceIDArrayMap = new Map<string, string[]>();
-  private buttonTextArrayMap = new Map<string, string[]>();
+  private buttonPropsMap = new Map<string, ButtonProps>();
 
   //multiplayer variables
-  playerActiveMenuMap = new Map<Player, string>();
+  playerMenuContextMap = new Map<Player, string[]>();
+
+  private plotManager: Entity | null = null;
+
+  // private curPlayerMenuContextMap: Map<Player, string[]> = new Map();
 
   //region initioalizeUI()
   initializeUI(): UINode {
     if (!this.props.enabled) this.entity.visible.set(false);
 
-    this.animBnd_traslateX.set(this.isMenuOpen ? 0 : 200);
+    this.animBnd_traslateX.set(this.isMenuOpen ? 0 : this.closeOffset);
 
     return View({
       children: [
@@ -58,15 +81,36 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
           data: this.childrenUINodeArray,
           renderItem: (item: UINode) => item, // Render each item as is
           style: {
-            // flexDirection: "row",
-            // flexWrap: "wrap",
+            flexDirection: "row",
+            flexWrap: "wrap",
             width: "100%",
             height: "100%",
           },
         }),
+        View({
+          children: [
+            menuButton(
+              this,
+              "back",
+              "BACK",
+              this.onButtonPressed.bind(this)
+            ),
+          ],
+          style: {
+            backgroundColor: "rgba(255, 0, 0, 1)",
+            position: "absolute",
+            width: 100,
+            height: 40,
+            left: "50%",
+            top: "105%",
+            layoutOrigin: [0.5, 0.5],
+            borderRadius: 15,
+            display: this.bnd_backBtnDisplay,
+          },
+        }),
       ],
       style: {
-        // backgroundColor: "rgba(0, 0, 0, 0.5)",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
         left: `${this.props.offset.x!}%`,
         top: `${100 - this.props.offset.y!}%`,
         height: this.panelHeight,
@@ -93,63 +137,79 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
     //BUTTON ASSET ARRAY RESPONSE
     this.connectNetworkEvent(this.entity, OnButtonResponse, (data) => {
       console.log("Button Asset Response Received");
-      this.btnImgAssetIDArrayMap.set(data.buttonType, data.btnImgAssetIDArray);
-      this.btnInstanceIDArrayMap.set(data.buttonType, data.btnInstanceIDArray);
-      this.buttonTextArrayMap.set(data.buttonType, data.buttonTextArray);
+      this.buttonPropsMap.set(data.buttonType, {
+        buttonType: data.buttonType,
+        btnImgAssetIDArray: data.btnImgAssetIDArray,
+        btnInstanceIDArray: data.btnInstanceIDArray,
+        buttonTextArray: data.buttonTextArray,
+      });
     });
 
-    this.connectNetworkBroadcastEvent(sysEvents.TopMenuEvent, (data) => {
+    this.connectNetworkEvent(this.entity, OnButtonAssetResponse, (data) => {
+      debugLog(this.props.showDebugs, `Button Asset Response Received`);
+      this.buttonPropsMap.set(data.menuType, {
+        buttonType: data.menuType,
+        btnImgAssetIDArray: data.btnImgAssetIDArray,
+        btnInstanceIDArray: data.btnAssetIDArray,
+        buttonTextArray: data.buttonTextArray,
+      });
+    });
+
+    this.connectNetworkBroadcastEvent(sysEvents.updateMenuContext, (data) => {
+      // const curPlayerMenuContext = this.curPlayerMenuContextMap.get(data.player) ?? [];
+      let menuType = "";
+      let backBtnDisplay = "flex";
       console.log(
-        `SubMenu Event Received from ${data.player.name.get()} to move: ${data.buttonType}, open: ${data.open}`
+        `Update Menu Context Received: ${data.menuContext} from ${data.player.name.get()}`
       );
-
-      const playerMenuType = this.playerActiveMenuMap.get(data.player) ?? MenuBtnType.Closed;
-      if (
-        data.buttonType === MenuBtnType.Closed ||
-        data.buttonType === MenuBtnType.AccordionMenu ||
-        data.buttonType === playerMenuType
-      ) {
-        console.log(`Closing menu: ${data.buttonType}`);
-        this.playerActiveMenuMap.set(data.player, data.buttonType);
+      if (data.menuContext.length <= 1) {
+        //close menu
         this.animateMenu(data.player, false);
+        if (this.isMenuOpen) {
+        }
         return;
+      } else if (data.menuContext.length === 3) {
+        //detail menu stuff
+        //if there's no sub menu, close menu
+        if (this.buttonPropsMap.has(data.menuContext[2]) === false) {
+          this.animateMenu(data.player, false);
+          return;
+        }
+        menuType = data.menuContext[2]!;
+        backBtnDisplay = "flex";
+      } else if (data.menuContext.length === 2) {
+        //sub menu stuff
+        if (this.buttonPropsMap.has(data.menuContext[1]) === false) {
+          this.animateMenu(data.player, false);
+          return;
+        }
+        menuType = data.menuContext[1]!;
+      } else {
+        console.warn(`Invalid menu context length: ${data.menuContext.length}`);
       }
-      if (this.btnImgAssetIDArrayMap.has(data.buttonType!)) {
-        if (data.open) {
-          if (playerMenuType === MenuBtnType.AccordionMenu) {
-            //open the new menu
-            console.log(`Opening menu: ${data.buttonType}`);
-            const btnType = data.buttonType!;
-            this.playerActiveMenuMap.set(data.player, data.buttonType!);
-            const newUINodeArray = this.convertAssetArrayToUINodeArray(
-              this.btnImgAssetIDArrayMap.get(btnType) ?? [],
-              this.btnInstanceIDArrayMap.get(btnType) ?? [],
-              this.buttonTextArrayMap.get(btnType) ?? []
-            );
-            this.childrenUINodeArray.set(newUINodeArray, [data.player]);
-            this.animateMenu(data.player, true);
-          } else {
-            //close current menu then open new menu
-            console.log(`Switching menu: ${data.buttonType}`);
-            this.animateMenu(data.player, false);
-
-            this.async.setTimeout(() => {
-              const btnType = data.buttonType!;
-              this.playerActiveMenuMap.set(data.player, data.buttonType!);
-              const newUINodeArray = this.convertAssetArrayToUINodeArray(
-                this.btnImgAssetIDArrayMap.get(btnType) || [],
-                this.btnInstanceIDArrayMap.get(btnType) || [],
-                this.buttonTextArrayMap.get(btnType) || []
-              );
-              this.childrenUINodeArray.set(newUINodeArray, [data.player]);
-              this.animateMenu(data.player, true);
-            }, 250);
-          }
-        } else {
+      
+      if (this.buttonPropsMap.has(menuType)) {
+        //does the current menu need to close first?
+        let closeBeforeOpen = false;
+        if (this.isMenuOpen) {
+          closeBeforeOpen = true;
           this.animateMenu(data.player, false);
         }
+        const delayForClose = closeBeforeOpen ? 250 : 0;
+        
+        this.async.setTimeout(() => {
+          this.playerMenuContextMap.set(data.player, data.menuContext!);
+          const newUINodeArray = this.convertAssetArrayToUINodeArray(
+            this.buttonPropsMap.get(menuType)?.btnImgAssetIDArray ?? [],
+            this.buttonPropsMap.get(menuType)?.btnInstanceIDArray ?? [],
+            this.buttonPropsMap.get(menuType)?.buttonTextArray ?? []
+          );
+          this.childrenUINodeArray.set(newUINodeArray, [data.player]);
+          this.animateMenu(data.player, true);
+          this.bnd_backBtnDisplay.set(backBtnDisplay, [data.player]);
+        }, delayForClose);
       } else {
-        console.warn(`No menu found for type: ${data.buttonType} on ${this.entity.name.get()}`);
+        console.warn(`No menu found for type: ${menuType} on ${this.entity.name.get()}`);
       }
     });
   }
@@ -159,8 +219,17 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
     if (!this.props.enabled) return;
 
     if (this.props.buttonRegistry) {
-      this.sendNetworkEvent(this.props.buttonRegistry!, OnButtonRequest, { requester: this.entity });
+      this.sendNetworkEvent(this.props.buttonRegistry!, OnButtonRequest, {
+        requester: this.entity,
+      });
     }
+
+    this.plotManager = getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0] || null;
+    this.inventoryMgr = getMgrClass<InventoryManager>(
+      this,
+      ManagerType.InventoryManager,
+      InventoryManager
+    );
   }
 
   //region Asset[] to UINode[]
@@ -171,7 +240,7 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
   ): UINode[] {
     try {
       const newUIArray: UINode[] = [];
-      const txtOffset = new Vec3(75, 0, 120); //(x%,y%, width%)
+      const txtOffset = new Vec3(50, 0, 120); //(x%,y%, width%)
 
       buttonImgAssetIDArray.forEach((textureID, index) => {
         newUIArray.push(
@@ -195,23 +264,85 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
 
   //region onButtonPressed()
   onButtonPressed(instanceId: string, player: Player): void {
+    const curMenuContext = this.playerMenuContextMap.get(player) ?? [];
+    if(instanceId === "back"){
+      //handle back button
+      if(curMenuContext.length > 1){
+        const newMenuContext = curMenuContext.slice(0, curMenuContext.length -1);
+        console.log(`Back Button Pressed. New Menu Context: ${newMenuContext}`);
+        this.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
+          player: player,
+          menuContext: newMenuContext,
+        });
+      }
+      return;
+    }
+    
+    if (curMenuContext.length === 3) {
+      //we in detail menu
+      const buttonProps = this.buttonPropsMap.get(curMenuContext[2]);
+      const index = buttonProps?.btnInstanceIDArray.indexOf(instanceId);
+      console.log(`Button Pressed: ${instanceId} at index ${index} in menu ${curMenuContext[2]}`);
+      if (typeof index === "number" && index >= 0 && buttonProps?.buttonTextArray) {
+        console.log(`Button Text: ${buttonProps.buttonTextArray[index]}`);
+        //convert text into number if possible
+        const buttonText = buttonProps.buttonTextArray[index];
+        const numVal = parseInt(buttonText);
+        if (!isNaN(numVal)) {
+          console.log(`Button Text as num val: ${numVal}`);
+          this.tryPurchaseAsset(player, instanceId, numVal);
+        } else {
+          console.log(`Button Text is not a number: ${buttonText}`);
+        }
+      } else {
+        console.log(`Button Text: undefined`);
+      }
+    } else if (curMenuContext.length === 2) {
+      //we in sub menu
+      const buttonProps = this.buttonPropsMap.get(curMenuContext[1]);
+      const newMenuContext = [...curMenuContext, instanceId];
+      console.log(`Button Pressed: ${instanceId} in menu ${newMenuContext}`);
+      this.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
+        player: player,
+        menuContext: newMenuContext,
+      });
+    }
+
     console.log(`Button with instanceId ${instanceId} pressed by player ${player.name.get()}`);
     switch (instanceId) {
-      case "rotate":
-        console.log("Button 1 Pressed");
-        this.sendNetworkBroadcastEvent(sysEvents.buildRotateEvent, { player: player });
-        break;
-      case "delete":
-        console.log("Button 2 Pressed");
-        this.sendNetworkBroadcastEvent(sysEvents.tryDeleteSelectedItemEvent, { player: player });
-        break;
       default:
         break;
     }
   }
 
+  tryPurchaseAsset(player: Player, assetId: string, cost: number) {
+    const playerInventory = this.inventoryMgr?.getPlayerInventory(player);
+    if (!playerInventory) {
+      console.error(`No inventory found for player ${player.name.get()}`);
+      return;
+    }
+    if (playerInventory.items.currency < cost) {
+      console.warn(
+        `Player ${player.name.get()} does not have enough currency to purchase asset ${assetId}`
+      );
+      return;
+    }
+    this.inventoryMgr?.updatePlayerInventory(player, InventoryType.currency, -cost, this.entity);
+
+    const asset = new Asset(BigInt(assetId));
+    if (asset && this.plotManager) {
+      this.sendNetworkEvent(this.plotManager!, sysEvents.spawnNewAssetEvent, {
+        player: player!,
+        assetId: assetId,
+      });
+    } else {
+      console.error(`Error fetching asset for assetId ${assetId}`);
+    }
+  }
+
   animateMenu(player: Player, open: boolean) {
-    const moveToOffset = open ? 0 : 200;
+    this.isMenuOpen = open;
+    const moveToOffset = open ? 0 : this.closeOffset;
 
     this.animBnd_traslateX.set(
       // notice that -100 will make it go up 100px

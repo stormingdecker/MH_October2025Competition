@@ -36,7 +36,13 @@ export const confirm = (
         children: [
           // Cancel Btn
           Pressable({
-            children: [...confirmButton(new Binding<string>("Cancel"), new Binding<number>(30), bndCancel_Scale)],
+            children: [
+              ...confirmButton(
+                new Binding<string>("Cancel"),
+                new Binding<number>(30),
+                bndCancel_Scale
+              ),
+            ],
             onPress: (player) => {
               bndCancel_Scale.set(0.9, [player]);
               component.async.setTimeout(() => {
@@ -51,7 +57,13 @@ export const confirm = (
           }),
           // Confirm Btn
           Pressable({
-            children: [...confirmButton(new Binding<string>("Confirm"), new Binding<number>(30), bndConfirm_Scale)],
+            children: [
+              ...confirmButton(
+                new Binding<string>("Confirm"),
+                new Binding<number>(30),
+                bndConfirm_Scale
+              ),
+            ],
             onPress: (player) => {
               bndConfirm_Scale.set(0.9, [player]);
               component.async.setTimeout(() => {
@@ -213,7 +225,9 @@ export const popup = (
       }),
       // Pressable
       Pressable({
-        children: [...popupButton(new Binding<string>("OK!"), new Binding<number>(24), bndBtnScale)],
+        children: [
+          ...popupButton(new Binding<string>("OK!"), new Binding<number>(24), bndBtnScale),
+        ],
         //Cancel
         onPress: (player: Player) => {
           bndBtnScale.set(0.9, [player]);
@@ -312,14 +326,14 @@ export const numberUp = (
 //region progBar def
 export const progressBar = (
   progress: Binding<string>,
-  showProgressBar: boolean,
-  screenPosition: { x: number; y: number; z: number },
+  showProgressBar: Binding<string>,
+  containerSize: { x: number; y: number; z: number }, //width, height, scale
+  screenPosition: { x: number; y: number; z: number }, //x%, y%, z-index
   rotation: number,
-  scale: number,
-  barColor: Color,
-  fillColor: Color,
+  barColor: string,
+  fillColor: string,
   showText: boolean,
-  textColor: Color
+  textColor: string
 ) => {
   return [
     View({
@@ -331,6 +345,7 @@ export const progressBar = (
             width: progress,
             backgroundColor: fillColor,
             alignSelf: "flex-start",
+            borderRadius: 20,
           },
         }),
         // this view represents the text label showing the progress percentage
@@ -351,8 +366,8 @@ export const progressBar = (
       ],
       // this style represents the background of the progress bar
       style: {
-        width: "50%",
-        height: 50,
+        width: containerSize.x,
+        height: containerSize.y,
         layoutOrigin: [0.5, 0.5],
         alignSelf: "flex-end",
         backgroundColor: barColor,
@@ -365,8 +380,139 @@ export const progressBar = (
         left: `${screenPosition.x}%`,
         top: `${100 - screenPosition.y}%`,
         zIndex: screenPosition.z,
-        transform: [{ rotate: `${rotation}deg` }, { scale: scale }],
-        display: showProgressBar ? "flex" : "none",
+        transform: [{ rotate: `${rotation}deg` }, { scale: containerSize.z }],
+        display: showProgressBar,
+      },
+    }),
+  ];
+};
+
+//region prog task UI def
+export const progressionTask = (
+  showProgTask: boolean,
+  bnd_HeaderText: Binding<string>,
+  bnd_Instructions: Binding<string>,
+  bnd_ProgressAsString: Binding<string>,
+  resultImgId: Binding<ImageSource>,
+  instructImgId: Binding<ImageSource>,
+  containerSize: { x: number; y: number; z: number }, //width, height, scale
+  screenPosition: { x: number; y: number; z: number }, //x%, y%, z-index
+  animBnd_translateY: AnimatedBinding,
+  bnd_ShowProgressBar: Binding<string>
+) => {
+  return [
+    View({
+      children: [
+        View({
+          children: [
+            Text({
+              text: bnd_HeaderText,
+              style: {
+                padding: 20,
+                fontSize: 24,
+                color: "white",
+                textAlign: "center",
+                textAlignVertical: "center",
+                height: "100%",
+                borderRadius: 15,
+                backgroundColor: "rgba(41, 126, 255, 1)",
+                fontWeight: "bold",
+              },
+            }),
+          ],
+          style: {
+            // backgroundColor: "rgba(0, 0, 0, 0.5)",
+            //this creates the dynamic background for the text
+            alignItems: "center",
+            justifyContent: "center",
+            position: "absolute",
+            layoutOrigin: [0.5, 0.5],
+            left: "50%",
+            top: "0%",
+            width: "100%",
+            height: 50,
+            paddingHorizontal: 20,
+            zIndex: 11,
+          },
+        }),
+        Text({
+          text: bnd_Instructions,
+          style: {
+            padding: 20,
+            fontSize: 24,
+            color: "black",
+            textAlign: "center",
+            textAlignVertical: "center",
+            // alignSelf: "center",
+            width: "60%",
+            height: 50,
+            left: "50%",
+            top: "45%",
+            // backgroundColor: "rgba(255, 0, 0, 1)",
+            fontWeight: "bold",
+            position: "absolute",
+            zIndex: 11,
+            layoutOrigin: [0.5, 0.5],
+          },
+        }),
+        ...progressBar(
+          bnd_ProgressAsString,
+          bnd_ShowProgressBar,
+          new Vec3(300, 30, 1),
+          new Vec3(50, 20, 11),
+          0,
+          "grey",
+          "rgba(4, 150, 255, 1)",
+          false,
+          "black"
+        ),
+        Image({
+          source: resultImgId,
+          style: {
+            position: "absolute",
+            left: "2%",
+            top: "50%",
+            width: 75,
+            height: 75,
+            layoutOrigin: [0, 0.5],
+            zIndex: 11,
+          },
+        }),
+        Image({
+          source: instructImgId,
+          style: {
+            position: "absolute",
+            left: "98%",
+            top: "50%",
+            width: 75,
+            height: 75,
+            layoutOrigin: [1, 0.5],
+            zIndex: 11,
+          },
+        }),
+        // Progress task bar
+        View({
+          style: {
+            backgroundColor: "rgba(255, 255, 255, 1)",
+            borderRadius: 15,
+            width: "100%",
+            height: "100%",
+            zIndex: 10,
+          },
+        }),
+      ],
+      style: {
+        // backgroundColor: "rgba(0, 0, 0, 0.67)",
+        width: containerSize.x!,
+        height: containerSize.y!,
+        left: `${screenPosition.x!}%`,
+        top: `${100 - screenPosition.y!}%`,
+        position: "absolute",
+        layoutOrigin: [0.5, 0.5],
+        zIndex: screenPosition.z!,
+        // borderRadius: 20,
+        display: showProgTask ? "flex" : "none",
+        transform: [{ translateY: animBnd_translateY }, { scale: containerSize.z! }],
       },
     }),
   ];
@@ -442,7 +588,9 @@ export const FONT_MAIN = "Roboto"; //Kallisto, Anton, Bangers, Optimistic, Oswal
 export function convertAssetToImageSource(asset: Asset): ImageSource {
   const textureAsset = asset?.as(TextureAsset);
   if (!textureAsset) {
-    throw new Error(`convertAssetToImageSource: Provided asset (id: ${asset?.id}) is not a TextureAsset`);
+    throw new Error(
+      `convertAssetToImageSource: Provided asset (id: ${asset?.id}) is not a TextureAsset`
+    );
   }
   return ImageSource.fromTextureAsset(textureAsset);
 }
@@ -455,14 +603,20 @@ export function convertAssetIDToImageSource(assetID: string): ImageSource {
   const asset = new Asset(BigInt(assetID));
   const textureAsset = asset?.as(TextureAsset);
   if (!textureAsset) {
-    throw new Error(`convertAssetIDToImageSource: Provided assetID (${assetID}) is not a valid TextureAsset`);
+    throw new Error(
+      `convertAssetIDToImageSource: Provided assetID (${assetID}) is not a valid TextureAsset`
+    );
   }
   return ImageSource.fromTextureAsset(textureAsset);
 }
 //endregion Asset Conversion
 
 //region btn w/ text
-export const button = (bndHeaderText: Binding<string>, bndFontSize: Binding<number>, bndBtnScale: Binding<number>) => {
+export const button = (
+  bndHeaderText: Binding<string>,
+  bndFontSize: Binding<number>,
+  bndBtnScale: Binding<number>
+) => {
   return [
     Text({
       text: bndHeaderText,
@@ -520,7 +674,7 @@ export const buttonImg = (
     },
     onRelease: (player) => {},
     style: {
-      backgroundColor: "rgba(0, 255, 60, 0.73)",
+      // backgroundColor: "rgba(0, 255, 60, 0.73)",
       width: 75,
       height: 75,
       alignSelf: "center",
@@ -539,7 +693,8 @@ export const buttonImgWithText = (
   img: ImageSource,
   text: string,
   textOffset: Vec3,
-  onButtonPressed: (instanceID: string, player: Player) => void
+  onButtonPressed: (instanceID: string, player: Player) => void,
+  size?: number,
 ) => {
   const scaleBinding = new Binding<number>(1);
   return Pressable({
@@ -558,7 +713,7 @@ export const buttonImgWithText = (
             style: {
               fontFamily: FONT_MAIN,
               fontWeight: "bold",
-              color: "rgba(11, 81, 15, 1)",
+              color: "rgba(0, 0, 0, 1)",
               fontSize: 15,
               layoutOrigin: [0.5, 0.5],
               // left: `${textOffset.x}%`,
@@ -569,7 +724,7 @@ export const buttonImgWithText = (
               width: `${textOffset.z}%`,
               textAlign: "center",
               textAlignVertical: "center",
-              backgroundColor: "rgba(167, 158, 131, 1)",
+              backgroundColor: "rgba(255, 255, 255, 1)",
               // padding: 5,
               borderRadius: 5,
               height: "30%",
@@ -594,13 +749,95 @@ export const buttonImgWithText = (
       // backgroundColor: "rgba(0, 255, 60, 0.73)",
       // width: "100%",
       // height: "100%",
-      width: 70,
-      height: 70,
+      width: size ? size : 70,
+      height: size ? size : 70,
       // alignSelf: "center",
       justifyContent: "center",
       borderRadius: 5,
       margin: 10,
       transform: [{ scale: scaleBinding }],
+    },
+  });
+};
+
+//region btn img bnd text
+export const btnImgBndText = (
+  component: Component,
+  instanceId: string,
+  currencyImg: ImageSource,
+  bndAmount: Binding<string>,
+  plusImg: ImageSource,
+  animScale: AnimatedBinding,
+  onButtonPressed: (instanceID: string, player: Player) => void
+) => {
+  const scaleBinding = new Binding<number>(1);
+  return Pressable({
+    children: [
+      View({
+        children: [
+          Image({
+            source: currencyImg,
+            style: {
+              // backgroundColor: "rgba(255, 0, 0, 1)",
+              width: 50,
+              height: 50,
+            },
+          }),
+          Text({
+            text: bndAmount,
+            style: {
+              // backgroundColor: "rgba(0, 0, 0, 0.5)",
+              fontFamily: "Bangers",
+              color: "white",
+              fontSize: 28,
+              width: 120,
+              height: 50,
+              textAlign: "left",
+              textAlignVertical: "center",
+              paddingLeft: 10,
+            },
+          }),
+          Image({
+            source: plusImg,
+            style: {
+              // backgroundColor: "rgba(0, 21, 255, 1)",
+              position: "absolute",
+              top: "70%",
+              left: 30,
+              width: 25,
+              height: 25,
+            },
+          }),
+        ],
+        style: {
+          // backgroundColor: "rgba(197, 0, 251, 0.87)",
+          flexDirection: "row",
+          width: 100,
+          height: 50,
+          transform: [{ scale: animScale }],
+          // alignContent: "space-around",
+        },
+      }),
+    ],
+    onPress: (player) => {
+      scaleBinding.set(0.9, [player]);
+      component.async.setTimeout(() => {
+        scaleBinding.set(1, [player]);
+      }, 100);
+      onButtonPressed(instanceId, player);
+    },
+    onRelease: (player) => {},
+    style: {
+      // backgroundColor: "rgba(0, 255, 60, 0.73)",
+      width: "100%",
+      // height: "100%",
+      // width: 100,
+      height: 50,
+      // alignSelf: "center",
+      justifyContent: "center",
+      borderRadius: 5,
+      transform: [{ scale: scaleBinding }],
+      marginTop: 10,
     },
   });
 };
@@ -634,7 +871,7 @@ export const menuButton = (
         style: {
           width: "100%",
           height: "100%",
-          backgroundColor: "rgba(0, 118, 39, 1)",
+          // backgroundColor: "rgba(0, 118, 39, 1)",
           borderRadius: 20,
           // alignItems: "center", //by default applies to horizontal axis
           justifyContent: "center", //by default applies to vertical axis
@@ -655,7 +892,7 @@ export const menuButton = (
       // apply button scaling changes
       transform: [{ scale: scaleBinding }],
       // backgroundColor: "rgba(252, 0, 0, 0.5)",
-      bottom: "-20%",
+      // bottom: "-20%",
     },
   });
 };

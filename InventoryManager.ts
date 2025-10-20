@@ -1,8 +1,9 @@
 import { Component, Entity, NetworkEvent, Player } from "horizon/core";
 import { sysEvents } from "sysEvents";
-import { debugLog } from "sysHelper";
+import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
 import { DEFAULT_INVENTORY, InventoryType, PlayerInventory } from "sysTypes";
 import { getMgrClass } from "sysUtils";
+import { oneHudEvents } from "UI_OneHUD";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 
 export class InventoryManager extends Component<typeof InventoryManager> {
@@ -12,7 +13,9 @@ export class InventoryManager extends Component<typeof InventoryManager> {
   };
 
   private playerInventoryMap: Map<Player, PlayerInventory> = new Map();
+  private oneHUD: Entity | undefined;
 
+  //region preStart()
   preStart(): void {
     this.connectNetworkEvent(this.entity, simpleButtonEvent, (data) => {
       console.log("Simple Button Event Triggered");
@@ -23,15 +26,19 @@ export class InventoryManager extends Component<typeof InventoryManager> {
     });
   }
 
+  //region start()
   start() {
+    this.oneHUD = getEntityListByTag(ManagerType.UI_OneHUD, this.world)[0];
   }
 
+  //region InventoryLoaded()
   public playerInventoryLoaded(player: Player, inventory: PlayerInventory) {
     inventory = validatePlayerInventory(player, inventory);
     this.playerInventoryMap.set(player, inventory);
     this.broadcastPlayerInventory(player);
   }
 
+  //region reset Inventory()
   public resetPlayerInventory(player: Player) {
     debugLog(this.props.showDebugs, `Resetting inventory for player ${player.name.get()}`);
     this.playerInventoryMap.set(player, DEFAULT_INVENTORY);
@@ -55,6 +62,7 @@ export class InventoryManager extends Component<typeof InventoryManager> {
     }
   }
 
+  //region update Inventory()
   public updatePlayerInventory(player: Player, itemType: InventoryType, quantity: number, sender: Entity | null = null) {
     const inventory = this.playerInventoryMap.get(player);
     if (inventory) {
@@ -62,19 +70,32 @@ export class InventoryManager extends Component<typeof InventoryManager> {
         debugLog(this.props.showDebugs, 
           `Updated inventory for player ${player.name.get()}: ${itemType} is now ${inventory.items[itemType]}`
         );
-        switch (itemType) {
-  
-          default:
-            inventory.items[itemType] += quantity;
-            if (inventory.items[itemType] < 0) inventory.items[itemType] = 0; // Prevent negative quantities
-            this.playerInventoryMap.set(player, inventory);
+        inventory.items[itemType] += quantity;
+        if (inventory.items[itemType] < 0) inventory.items[itemType] = 0; // Prevent negative quantities
 
+        switch (itemType) {
+          case InventoryType.currency:
+            this.sendNetworkEvent(this.oneHUD!, oneHudEvents.UpdateInventoryUI, {
+              player: player,
+              inventoryType: itemType,
+              newValue: inventory.items[itemType].toString()
+            });
+            break;
+            case InventoryType.diamond:
+            this.sendNetworkEvent(this.oneHUD!, oneHudEvents.UpdateInventoryUI, {
+              player: player,
+              inventoryType: itemType,
+              newValue: inventory.items[itemType].toString()
+            });
+              break;
+          default:
             debugLog(
               this.props.showDebugs,
               `Updated inventory for player ${player.name.get()}: ${itemType} is now ${inventory.items[itemType]}`
             );
             break;
-        }
+          }
+          this.playerInventoryMap.set(player, inventory);
       } else {
         console.warn(`Item ${itemType} does not exist in the inventory.`);
       }

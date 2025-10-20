@@ -1,8 +1,32 @@
 // Copyright (c) Dave Mills (uRocketLife). Released under the MIT License.
 
 import { Asset, Color, Entity, NetworkEvent, Player, PropTypes, Vec3 } from "horizon/core";
-import { AnimatedBinding, Animation, Binding, Easing, ImageSource, UIComponent, UINode, View } from "horizon/ui";
-import { confirm, DefaultBlankImgAssetID, notification, numberUp, popup, progressBar } from "sysUIStyleGuide";
+import {
+  AnimatedBinding,
+  Animation,
+  Binding,
+  DynamicList,
+  Easing,
+  Image,
+  ImageSource,
+  Text,
+  UIComponent,
+  UINode,
+  View,
+} from "horizon/ui";
+import { InventoryType } from "sysTypes";
+import {
+  btnImgBndText,
+  buttonImgWithText,
+  confirm,
+  convertAssetIDToImageSource,
+  DefaultBlankImgAssetID,
+  notification,
+  numberUp,
+  popup,
+  progressBar,
+  progressionTask,
+} from "sysUIStyleGuide";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 
 export const UI_OneHudTag = "UI_OneHUD";
@@ -31,6 +55,19 @@ export const oneHudEvents = {
   ConfirmationPanelResponse: new NetworkEvent<{ player: Player; message: string; accepted: boolean }>(
     "ConfirmationPanelResponse"
   ),
+
+  ShowProgressionTask: new NetworkEvent<{
+    players: Player[];
+    header: string;
+    instruction: string;
+    resultImgAssetId: string;
+    instructImgAssetId: string;
+    showProgressBar: boolean;
+  }>("ShowProgressionTask"),
+  HideProgressionTask: new NetworkEvent<{ players: Player[] }>("HideProgressionTask"),
+  UpdateProgressionTask: new NetworkEvent<{ players: Player[]; progressAsString: string }>("UpdateProgressionTask"),
+
+  UpdateInventoryUI: new NetworkEvent<{ player: Player; inventoryType: string; newValue: string }>("UpdateInventoryUI"),
 };
 
 export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
@@ -42,11 +79,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     progressBarEnabled: { type: PropTypes.Boolean, default: true },
     pbScreenPosition: { type: PropTypes.Vec3, default: new Vec3(50, 90, 10) },
     pbRotation: { type: PropTypes.Number, default: 0 },
-    pbScale: { type: PropTypes.Number, default: 0.75 },
-    pbBarColor: { type: PropTypes.Color, default: new Color(1, 1, 1) },
-    pbFillColor: { type: PropTypes.Color, default: new Color(1, 1, 0) },
     pbShowText: { type: PropTypes.Boolean, default: true },
-    pbTextColor: { type: PropTypes.Color, default: new Color(0, 0, 0) },
     //player level vars
     LEVEL_HEADER: { type: PropTypes.String, default: "Level" },
     lvlEnabled: { type: PropTypes.Boolean, default: true },
@@ -61,11 +94,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     healthBarEnabled: { type: PropTypes.Boolean, default: true },
     hbScreenPosition: { type: PropTypes.Vec3, default: new Vec3(50, 80, 10) },
     hbRotation: { type: PropTypes.Number, default: 0 },
-    hbScale: { type: PropTypes.Number, default: 0.65 },
-    hbBarColor: { type: PropTypes.Color, default: new Color(1, 1, 1) },
-    hbFillColor: { type: PropTypes.Color, default: new Color(1, 0, 0) },
     hbShowText: { type: PropTypes.Boolean, default: true },
-    hbTextColor: { type: PropTypes.Color, default: new Color(0, 0, 0) },
     //player score vars
     SCORE_HEADER: { type: PropTypes.String, default: "Score" },
     scoreEnabled: { type: PropTypes.Boolean, default: true },
@@ -89,51 +118,50 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     CONFIRMATION_HEADER: { type: PropTypes.String, default: "Confirmation" },
     confirmationEnabled: { type: PropTypes.Boolean, default: true },
     hideConfirmationOnStart: { type: PropTypes.Boolean, default: true },
-    //coin count vars
-    COIN_HEADER: { type: PropTypes.String, default: "CoinCount" },
-    coinEnabled: { type: PropTypes.Boolean, default: true },
-    coinImgAsset: { type: PropTypes.Asset },
-    coinScreenPosition: { type: PropTypes.Vec3, default: new Vec3(50, 70, 11) },
-    coinScale: { type: PropTypes.Number, default: 1.0 },
-    coinNumColor: { type: PropTypes.Color, default: new Color(1, 1, 1) },
-    coinBackgroundOn: { type: PropTypes.Boolean, default: true },
-    coinBackgroundColor: { type: PropTypes.Color, default: new Color(1, 0.84, 0) },
-    //diamond count vars
-    DIAMOND_HEADER: { type: PropTypes.String, default: "DiamondCount" },
-    diamondEnabled: { type: PropTypes.Boolean, default: true },
+
+    //currency vars
+    CURRENCY_HEADER: { type: PropTypes.String, default: "CurrencyButtons" },
+    currencyImgAsset: { type: PropTypes.Asset },
     diamondImgAsset: { type: PropTypes.Asset },
-    diamondScreenPosition: { type: PropTypes.Vec3, default: new Vec3(50, 70, 11) },
-    diamondScale: { type: PropTypes.Number, default: 1.0 },
-    diamondNumColor: { type: PropTypes.Color, default: new Color(1, 1, 1) },
-    diamondBackgroundOn: { type: PropTypes.Boolean, default: true },
-    diamondBackgroundColor: { type: PropTypes.Color, default: new Color(0, 1, 1) },
+    currencyPlusImg: { type: PropTypes.Asset },
+    currencyScreenPosition: { type: PropTypes.Vec3, default: new Vec3(50, 70, 11) },
+    currencyContainerSize: { type: PropTypes.Vec3, default: new Vec3(75, 75, 0) },
+    //task progress popup
+    PROGRESSION_TASK_HEADER: { type: PropTypes.String, default: "Progression Task" },
+    progTaskEnabled: { type: PropTypes.Boolean, default: false },
+    progTaskSize: { type: PropTypes.Vec3, default: new Vec3(300, 100, 1) }, //width, height, scale
+    progTaskScreenPosition: { type: PropTypes.Vec3, default: new Vec3(50, 60, 11) }, //x%, y%, z-index
+    progTaskResultImg: { type: PropTypes.Asset },
+    progTaskInstructImg: { type: PropTypes.Asset },
   };
 
   //region private var
   //progressBar Variables
   bnd_progressBar = new Binding<string>("0%");
-
+  bnd_showLvlProgress = new Binding<string>("none");
+  
   //lvlUp Variables
   bnd_lvlNumber = new Binding<string>("0");
   animBnd_lvlScale = new AnimatedBinding(1);
-
+  
   //healthBar Variables
   //this is just visual, default value is set in setHealth()
-  bnd_healthBar = new Binding<string>("100");
+  bnd_healthBar = new Binding<string>("50");
+  bnd_showHealthBar = new Binding<string>("none");
   playerHealthMap: Map<Player, number> = new Map();
-
+  
   //score Variables
   bnd_score = new Binding<string>("0");
   animBnd_scoreScale = new AnimatedBinding(1);
-
-  //coin Variables
-  bnd_coinCount = new Binding<string>("0");
-  animBnd_coinScale = new AnimatedBinding(1);
-
+  
+  //currency Variables
+  bnd_currencyCount = new Binding<string>("0");
+  animBnd_currencyScale = new AnimatedBinding(1);
+  
   //diamond Variables
   bnd_diamondCount = new Binding<string>("0");
   animBnd_diamondScale = new AnimatedBinding(1);
-
+  
   //popup Variables
   bnd_popupDisplay = new Binding<string>("flex");
   bnd_popupTitle = new Binding<string>("New Popup!");
@@ -143,14 +171,14 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   bnd_popupBtnScale = new Binding<number>(1);
   //keeps track of which entity by which player requested the popup, so we can respond to the right entity when they close it
   popupRequestResponseMap = new Map<Player, Entity>();
-
+  
   //notification variables
   bnd_notifyDisplay = new Binding<string>("flex");
   bndAlertImg = new Binding<ImageSource>("");
   bndAlertMsg = new Binding<string>("Looking good today!");
   animBnd_translateX = new AnimatedBinding(0);
   private notifyEasing!: Easing;
-
+  
   //confirmation variables
   bnd_confirmDisplay = new Binding<string>("flex");
   bndHeaderText = new Binding<string>("Are you sure you want to proceed?");
@@ -158,6 +186,19 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   playerMessageMap: Map<Player, { entity: Entity; message: string }> = new Map();
   bndConfirm_Scale = new Binding<number>(1);
   bndCancel_Scale = new Binding<number>(1);
+  
+  //prog task
+  bnd_progTaskHeader = new Binding<string>("Progression Task");
+  bnd_progTaskContent = new Binding<string>("Complete the task to earn rewards!");
+  bnd_progTaskResultImg = new Binding<ImageSource>(convertAssetIDToImageSource(DefaultBlankImgAssetID));
+  bnd_progTaskInstructImg = new Binding<ImageSource>(convertAssetIDToImageSource(DefaultBlankImgAssetID));
+  bnd_progTaskProgressAsString = new Binding<string>("0");
+  animBnd_ProgTaskTranslateY = new AnimatedBinding(0);
+  openProgTaskOnStart = false;
+  bnd_showTaskProgressBar = new Binding<string>("flex");
+  
+  //currency ui nodes
+  private currencyUINodeArray = new Binding<UINode[]>([]); // Binding to hold currency nodes
 
   //region initializeUI()
   initializeUI(): UINode {
@@ -175,106 +216,162 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     const lvlImgAssetId = this.props.lvlImgAsset?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
     const scoreImgAssetId = this.props.scoreImgAsset?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
 
-    const coinImgAssetId = this.props.coinImgAsset?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
+    const currencyImgAssetId = this.props.currencyImgAsset?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
     const diamondImgAssetId = this.props.diamondImgAsset?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
+    const plusImgAssetId = this.props.currencyPlusImg?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
+    this.animBnd_currencyScale.set(1);
+    this.animBnd_diamondScale.set(1);
+
+    const progTaskResultImgId = this.props.progTaskResultImg?.id?.toString() ?? DefaultBlankImgAssetID;
+    this.bnd_progTaskResultImg.set(convertAssetIDToImageSource(progTaskResultImgId));
+    const progTaskInstructImgId = this.props.progTaskInstructImg?.id?.toString() ?? DefaultBlankImgAssetID;
+    this.bnd_progTaskInstructImg.set(convertAssetIDToImageSource(progTaskInstructImgId));
+    this.animBnd_ProgTaskTranslateY.set(this.openProgTaskOnStart ? 0 : 200);
 
     // Initialize UI elements here
     return View({
       children: [
         //progress bar
-        ...progressBar(
-          this.bnd_progressBar,
-          this.props.progressBarEnabled,
-          this.props.pbScreenPosition,
-          this.props.pbRotation,
-          this.props.pbScale,
-          this.props.pbBarColor,
-          this.props.pbFillColor,
-          this.props.pbShowText,
-          this.props.pbTextColor
+        ...this.toNodes(
+          progressBar(
+            this.bnd_progressBar,
+            this.bnd_showLvlProgress,
+            new Vec3(500, 50, 1),
+            this.props.pbScreenPosition,
+            this.props.pbRotation,
+            "grey",
+            "yellow",
+            this.props.pbShowText,
+            "black"
+          )
         ),
+
         //health bar
-        ...progressBar(
-          this.bnd_healthBar,
-          this.props.healthBarEnabled,
-          this.props.hbScreenPosition,
-          this.props.hbRotation,
-          this.props.hbScale,
-          this.props.hbBarColor,
-          this.props.hbFillColor,
-          this.props.hbShowText,
-          this.props.hbTextColor
+        ...this.toNodes(
+          progressBar(
+            this.bnd_healthBar,
+            this.bnd_showHealthBar,
+            new Vec3(500, 50, 1),
+            this.props.hbScreenPosition,
+            this.props.hbRotation,
+            "grey",
+            "red",
+            this.props.hbShowText,
+            "black"
+          )
         ),
         //level up
-        ...numberUp(
-          this.bnd_lvlNumber,
-          this.props.lvlEnabled,
-          this.props.lvlScreenPosition,
-          this.props.lvlScale,
-          this.props.lvlBackgroundOn,
-          this.props.lvlBackgroundColor,
-          this.props.lvlNumColor,
-          this.animBnd_lvlScale,
-          lvlImgAssetId
+        ...this.toNodes(
+          numberUp(
+            this.bnd_lvlNumber,
+            this.props.lvlEnabled,
+            this.props.lvlScreenPosition,
+            this.props.lvlScale,
+            this.props.lvlBackgroundOn,
+            this.props.lvlBackgroundColor,
+            this.props.lvlNumColor,
+            this.animBnd_lvlScale,
+            lvlImgAssetId
+          )
         ),
         //score
-        ...numberUp(
-          this.bnd_score,
-          this.props.scoreEnabled,
-          this.props.scoreScreenPosition,
-          this.props.scoreScale,
-          this.props.scoreBackgroundOn,
-          this.props.scoreBackgroundColor,
-          this.props.scoreNumColor,
-          this.animBnd_scoreScale,
-          scoreImgAssetId
+        ...this.toNodes(
+          numberUp(
+            this.bnd_score,
+            this.props.scoreEnabled,
+            this.props.scoreScreenPosition,
+            this.props.scoreScale,
+            this.props.scoreBackgroundOn,
+            this.props.scoreBackgroundColor,
+            this.props.scoreNumColor,
+            this.animBnd_scoreScale,
+            scoreImgAssetId
+          )
         ),
-        //coin count
-        ...numberUp(
-          this.bnd_coinCount,
-          this.props.coinEnabled,
-          this.props.coinScreenPosition,
-          this.props.coinScale,
-          this.props.coinBackgroundOn,
-          this.props.coinBackgroundColor,
-          this.props.coinNumColor,
-          this.animBnd_coinScale,
-          coinImgAssetId
-        ),
-        //diamond count
-        ...numberUp(
-          this.bnd_diamondCount,
-          this.props.diamondEnabled,
-          this.props.diamondScreenPosition,
-          this.props.diamondScale,
-          this.props.diamondBackgroundOn,
-          this.props.diamondBackgroundColor,
-          this.props.diamondNumColor,
-          this.animBnd_diamondScale,
-          diamondImgAssetId
-        ),
+        View({
+          //region btn img bnd text
+          children: [
+            //diamond count
+            ...this.toNodes(
+              btnImgBndText(
+                this,
+                "diamondBtn",
+                convertAssetIDToImageSource(diamondImgAssetId),
+                this.bnd_diamondCount,
+                convertAssetIDToImageSource(plusImgAssetId),
+                this.animBnd_diamondScale,
+                this.onButtonPressed.bind(this)
+              )
+            ),
+            ...this.toNodes(
+              btnImgBndText(
+                this,
+                "currencyBtn",
+                convertAssetIDToImageSource(currencyImgAssetId),
+                this.bnd_currencyCount,
+                convertAssetIDToImageSource(plusImgAssetId),
+                this.animBnd_currencyScale,
+                this.onButtonPressed.bind(this)
+              )
+            ),
+          ],
+          style: {
+            // backgroundColor: "rgba(0, 0, 0, 0.5)",
+            left: `${this.props.currencyScreenPosition.x!}%`,
+            top: `${100 - this.props.currencyScreenPosition.y!}%`,
+            height: this.props.currencyContainerSize.y!,
+            width: this.props.currencyContainerSize.x!,
+            flexDirection: "row",
+
+            alignItems: "center",
+            position: "absolute",
+            layoutOrigin: [0, 1],
+            // transform: [{ scale: this.props.currencyContainerSize }],
+          },
+        }),
         //popup window
-        popup(
-          this.bnd_popupTitle,
-          this.bnd_popupContent,
-          this.bnd_popupWatermark,
-          this.bnd_popupDisplay,
-          this.animBnd_popupPosY,
-          600,
-          300,
-          this.bnd_popupBtnScale,
-          (player: Player) => this.onPopupBtnPressed(player)
+        ...this.toNodes(
+          popup(
+            this.bnd_popupTitle,
+            this.bnd_popupContent,
+            this.bnd_popupWatermark,
+            this.bnd_popupDisplay,
+            this.animBnd_popupPosY,
+            600,
+            300,
+            this.bnd_popupBtnScale,
+            (player: Player) => this.onPopupBtnPressed(player)
+          )
         ),
         //notification
-        notification(this.bnd_notifyDisplay, this.bndAlertImg, this.bndAlertMsg, this.animBnd_translateX, 400, 100),
+        ...this.toNodes(
+          notification(this.bnd_notifyDisplay, this.bndAlertImg, this.bndAlertMsg, this.animBnd_translateX, 400, 100)
+        ),
         //confirmation panel
-        confirm(
-          this,
-          this.bndHeaderText,
-          this.bndConfirm_Scale,
-          this.bndCancel_Scale,
-          this.bnd_confirmDisplay,
-          (accepted: boolean, player: Player) => this.handleConfirmationResponse(accepted, player)
+        ...this.toNodes(
+          confirm(
+            this,
+            this.bndHeaderText,
+            this.bndConfirm_Scale,
+            this.bndCancel_Scale,
+            this.bnd_confirmDisplay,
+            (accepted: boolean, player: Player) => this.handleConfirmationResponse(accepted, player)
+          )
+        ),
+        //progress task popup
+        ...this.toNodes(
+          progressionTask(
+            this.props.progTaskEnabled,
+            this.bnd_progTaskHeader,
+            this.bnd_progTaskContent,
+            this.bnd_progTaskProgressAsString,
+            this.bnd_progTaskResultImg,
+            this.bnd_progTaskInstructImg,
+            this.props.progTaskSize,
+            this.props.progTaskScreenPosition,
+            this.animBnd_ProgTaskTranslateY,
+            this.bnd_showTaskProgressBar,
+          )
         ),
       ],
       style: {
@@ -285,12 +382,28 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     });
   }
 
+  // inside class UI_OneHUD
+  private toNodes(nodeOrNodes: UINode | UINode[] | undefined): UINode[] {
+    if (!nodeOrNodes) return [];
+    return Array.isArray(nodeOrNodes) ? nodeOrNodes : [nodeOrNodes];
+  }
+
+  progTaskIsHidden = true;
   //region preStart()
   preStart(): void {
     if (!this.props.enabled) return;
 
+    // this.setupCurrencyContainer();
+
     this.connectNetworkEvent(this.entity, simpleButtonEvent, (data) => {
       console.log(`Simple button called on ${this.entity.name.get()} pressed by ${data.player.name.get()}`);
+      if (this.progTaskIsHidden) {
+        this.showProgTask([data.player], "Task In Progress", "Tap rapidly", "", "");
+        this.progTaskIsHidden = false;
+      } else {
+        this.hideProgTask([data.player]);
+        this.progTaskIsHidden = true;
+      }
     });
 
     // progress subscriptions
@@ -326,13 +439,32 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     this.connectNetworkEvent(this.entity, oneHudEvents.ConfirmationPanelRequest, (data) => {
       this.showConfirmationPanel(data.requester, data.player, data.confirmationMessage);
     });
+
+    // prog task subscriptions
+    this.connectNetworkEvent(this.entity, oneHudEvents.ShowProgressionTask, (data) => {
+      this.showProgTask(data.players, data.header, data.instruction, data.resultImgAssetId, data.instructImgAssetId, data.showProgressBar);
+    });
+    this.connectNetworkEvent(this.entity, oneHudEvents.HideProgressionTask, (data) => {
+      this.hideProgTask(data.players);
+    });
+    this.connectNetworkEvent(this.entity, oneHudEvents.UpdateProgressionTask, (data) => {
+      this.updateProgTask(data.players, data.progressAsString);
+    });
+    this.connectNetworkEvent(this.entity, oneHudEvents.UpdateInventoryUI, (data) => {
+      this.updateInventoryUI(data.player, data.inventoryType, data.newValue);
+    });
   }
+
 
   //region start()
   start() {
     if (!this.props.enabled) return;
 
     this.notifyEasing = Easing.inOut(Easing.cubic);
+
+    //prevents odd oversizing at start
+    this.animBnd_currencyScale.set(1);
+    this.animBnd_diamondScale.set(1);
 
     if (this.props.hidePopupOnStart) {
       this.bnd_popupDisplay.set("none");
@@ -349,6 +481,62 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       this.bnd_confirmDisplay.set("none");
     } else {
       this.bnd_confirmDisplay.set("flex");
+    }
+  }
+
+  // setupCurrencyContainer(): void {
+  //   const btnImgAssetIDArray = [
+  //     this.props.currencyImgAsset?.id?.toString() ?? DefaultBlankImgAssetID,
+  //     this.props.diamondImgAsset?.id?.toString() ?? DefaultBlankImgAssetID,
+  //   ];
+  //   const btnInstanceIDArray = ["currencyBtn", "diamondBtn"];
+  //   const buttonTextArray = [this.bnd_currencyCount, this.bnd_diamondCount];
+  //   const newUINodeArray = this.convertAssetArrayToUINodeArray(btnImgAssetIDArray, btnInstanceIDArray, buttonTextArray);
+  //   this.currencyUINodeArray.set(newUINodeArray);
+  // }
+
+  // //region Asset[] to UINode[]
+  // private convertAssetArrayToUINodeArray(
+  //   buttonImgAssetIDArray: string[],
+  //   btnInstanceIDArray: string[],
+  //   buttonTextArray: Binding<string>[]
+  // ): UINode[] {
+  //   try {
+  //     const newUIArray: UINode[] = [];
+  //     const txtOffset = new Vec3(50, 0, 120); //(x%,y%, width%)
+
+  //     buttonImgAssetIDArray.forEach((textureID, index) => {
+  //       newUIArray.push(
+  //         btnImgBndText(
+  //           this,
+  //           `${btnInstanceIDArray[index]}`,
+  //           convertAssetIDToImageSource(buttonImgAssetIDArray[index]),
+  //           buttonTextArray[index],
+  //           convertAssetIDToImageSource(this.props.currencyPlusImg?.id?.toString() ?? DefaultBlankImgAssetID),
+  //           this.onButtonPressed.bind(this),
+  //         )
+  //       );
+  //     });
+
+  //     return newUIArray;
+  //   } catch (error) {
+  //     console.error(`Error fetching texture assets`, error);
+  //     return []; // Skip this iteration if texture asset is not found
+  //   }
+  // }
+
+  //region onButtonPressed()
+  onButtonPressed(instanceId: string, player: Player) {
+    switch (instanceId) {
+      case "currencyBtn":
+        console.log("Currency Button Pressed");
+        break;
+      case "diamondBtn":
+        console.log("Diamond Button Pressed");
+        break;
+      default:
+        console.warn(`Unhandled button press for instanceId: ${instanceId}`);
+        break;
     }
   }
 
@@ -508,7 +696,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     );
   }
 
-  //region Request()
+  //region confirm Request()
   public showConfirmationPanel(requester: Entity, player: Player, confirmationMessage: string): void {
     //set up confirmation message
     console.log(`Confirmation request received`);
@@ -519,7 +707,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     //store message and requester to player (multiplayer support)
     this.playerMessageMap.set(player, { entity: requester, message: confirmationMessage });
   }
-  //region Response()
+  //region Confirm Response()
   private handleConfirmationResponse(accepted: boolean, player: Player): void {
     // Get the message associated with the player from stored map
     const message = this.playerMessageMap.get(player)?.message ?? { message: "" };
@@ -536,5 +724,143 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       this.bnd_confirmDisplay.set("none", [player]);
     }, 100);
   }
+
+  /**bnd_progTaskHeader = new Binding<string>("Progression Task");
+  bnd_progTaskContent = new Binding<string>("Complete the task to earn rewards!");
+  bnd_progTaskResultImg = new Binding<ImageSource>(convertAssetIDToImageSource(DefaultBlankImgAssetID));
+  bnd_progTaskInstructImg = new Binding<ImageSource>(convertAssetIDToImageSource(DefaultBlankImgAssetID));
+  bnd_progTaskProgressAsString = new Binding<string>("0");
+  animBnd_ProgTaskTranslateY = new AnimatedBinding(0);
+  */
+
+  //region prog task Request()
+  public showProgTask(
+    players: Player[],
+    header: string,
+    instruction: string,
+    imgResultId: string | undefined,
+    imgInstructId: string | undefined, 
+    showProgressBar: boolean = true
+  ): void {
+    const resultImgAsset =
+      imgResultId && imgResultId !== "" ? new Asset(BigInt(imgResultId)) : this.props.notificationImg!;
+    const resultImgSrc = ImageSource.fromTextureAsset(resultImgAsset);
+    const instructImgAsset =
+      imgInstructId && imgInstructId !== "" ? new Asset(BigInt(imgInstructId)) : this.props.notificationImg!;
+    const instructImgSrc = ImageSource.fromTextureAsset(instructImgAsset);
+
+    //populate or leave undefined to appeal to bind.set second param
+    let recipients = players.length > 0 ? players : undefined;
+    this.bnd_progTaskResultImg.set(resultImgSrc, recipients);
+    this.bnd_progTaskInstructImg.set(instructImgSrc, recipients);
+
+    this.bnd_progTaskHeader.set(header, recipients);
+    this.bnd_progTaskContent.set(instruction, recipients);
+
+    this.bnd_progTaskProgressAsString.set("0", recipients);
+    this.animBnd_ProgTaskTranslateY.set(200);
+
+    this.bnd_showTaskProgressBar.set(showProgressBar ? "flex" : "none", recipients);
+
+    //then move the UI alll the way to the left(-1000px) over 1000ms
+    this.animBnd_ProgTaskTranslateY.set(
+      Animation.timing(0, {
+        duration: 200,
+        easing: this.notifyEasing,
+      }),
+      undefined,
+      recipients ?? undefined
+    );
+  }
+
+  public hideProgTask(players: Player[]): void {
+    let recipients = players.length > 0 ? players : undefined;
+    this.animBnd_ProgTaskTranslateY.set(0);
+
+    //then move the UI alll the way to the left(-1000px) over 1000ms
+    this.animBnd_ProgTaskTranslateY.set(
+      Animation.timing(200, {
+        duration: 200,
+        easing: this.notifyEasing,
+      }),
+      undefined,
+      recipients ?? undefined
+    );
+  }
+
+  public updateProgTask(players: Player[], progressAsString: string): void {
+    if (progressAsString.endsWith("%")) {
+      progressAsString = progressAsString.slice(0, -1);
+    }
+    let recipients = players.length > 0 ? players : undefined;
+    this.bnd_progTaskProgressAsString.set(progressAsString, recipients);
+  }
+
+  //region animate scale
+
+  public animateNewValue(player: Player, type: string, newValue: string): void {
+    let bindingValue: Binding<string> | undefined;
+    let animBndScale: AnimatedBinding | undefined;
+    switch (type) {
+      case "currency":
+        bindingValue = this.bnd_currencyCount;
+        animBndScale = this.animBnd_currencyScale;
+        break;
+      case "diamond":
+        bindingValue = this.bnd_diamondCount;
+        animBndScale = this.animBnd_diamondScale;
+        break;
+      default:
+        console.warn(`Unknown type: ${type}`);
+        return; // Exit the function if the type is unknown
+    }
+
+    if (bindingValue && animBndScale) {
+      bindingValue.set(newValue, [player]);
+
+      animBndScale.set(2, undefined, [player]);
+      animBndScale.set(
+        Animation.timing(1, {
+          duration: 100,
+          easing: Easing.inOut(Easing.elastic(1)),
+        }),
+        undefined,
+        [player]
+      );
+    }
+  }
+
+  //region updateInventoryUI()
+  updateInventoryUI(player: Player, inventoryType: string, newValue: string) {
+    let bindingValue: Binding<string> | undefined;
+    let animBndScale: AnimatedBinding | undefined;
+    switch (inventoryType) {
+      case InventoryType.currency:
+        bindingValue = this.bnd_currencyCount;
+        animBndScale = this.animBnd_currencyScale;
+        break;
+      case InventoryType.diamond:
+        bindingValue = this.bnd_diamondCount;
+        animBndScale = this.animBnd_diamondScale;
+        break;
+      default:
+        console.warn(`Unknown type: ${inventoryType}`);
+        return; // Exit the function if the type is unknown
+    }
+
+    if (bindingValue && animBndScale) {
+      bindingValue.set(newValue, [player]);
+
+      animBndScale.set(2, undefined, [player]);
+      animBndScale.set(
+        Animation.timing(1, {
+          duration: 100,
+          easing: Easing.inOut(Easing.elastic(1)),
+        }),
+        undefined,
+        [player]
+      );
+    }
+  } 
 }
 UIComponent.register(UI_OneHUD);

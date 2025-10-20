@@ -12,7 +12,7 @@ import {
 
 
 
-export const enum MenuBtnType {
+export const enum MenuBtnType { //this is not used as of 10/16/2025
   Closed = "Closed",
   AccordionMenu = "AccordionMenu",
   BuildMenu = "BuildMenu",
@@ -179,11 +179,11 @@ class UI_AccordionMenu extends UIComponent<typeof UI_AccordionMenu> {
           this.animateMenu(player, false);
           this.playerActiveMenuMap.set(player, MenuBtnType.Closed);
 
-          this.sendNetworkBroadcastEvent(sysEvents.TopMenuEvent, {
-            player: player,
-            buttonType: MenuBtnType.Closed,
-            open: false,
-          });
+          // this.sendNetworkBroadcastEvent(sysEvents.SubMenuEvent, {
+          //   player: player,
+          //   buttonType: MenuBtnType.Closed,
+          //   open: false,
+          // });
         }
         break;
       case MenuBtnType.BuildMenu:
@@ -212,26 +212,27 @@ class UI_AccordionMenu extends UIComponent<typeof UI_AccordionMenu> {
 
   isMenuOpen(player: Player, menuBtnType: string): boolean{
     const playerMenuType = this.playerActiveMenuMap.get(player) ?? MenuBtnType.Closed;
-    if (playerMenuType === menuBtnType) {
-      console.log(`Closing menu: ${menuBtnType}`);
-      //close the build menu
-      this.playerActiveMenuMap.set(player, MenuBtnType.AccordionMenu);
-      this.sendNetworkBroadcastEvent(sysEvents.TopMenuEvent, {
-        player: player,
-        buttonType: MenuBtnType.AccordionMenu,
-        open: false,
-      });
-      return false;
-    } else {
-      console.log(`Opening menu: ${menuBtnType}`);
-      this.playerActiveMenuMap.set(player, menuBtnType);
-      this.sendNetworkBroadcastEvent(sysEvents.TopMenuEvent, {
-        player: player,
-        buttonType: menuBtnType,
-        open: true,
-      });
-      return true;
-    }
+    // if (playerMenuType === menuBtnType) {
+    //   console.log(`Closing menu: ${menuBtnType}`);
+    //   //close the build menu
+    //   this.playerActiveMenuMap.set(player, MenuBtnType.AccordionMenu);
+    //   this.sendNetworkBroadcastEvent(sysEvents.SubMenuEvent, {
+    //     player: player,
+    //     buttonType: MenuBtnType.AccordionMenu,
+    //     open: false,
+    //   });
+    //   return false;
+    // } else {
+    //   console.log(`Opening menu: ${menuBtnType}`);
+    //   this.playerActiveMenuMap.set(player, menuBtnType);
+    //   this.sendNetworkBroadcastEvent(sysEvents.SubMenuEvent, {
+    //     player: player,
+    //     buttonType: menuBtnType,
+    //     open: true,
+    //   });
+    //   return true;
+    // }
+    return false;
   }
 
   //region animateMenu()
