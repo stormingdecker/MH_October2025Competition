@@ -30,6 +30,7 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     enabled: { type: PropTypes.Boolean, default: true },
     showDebugs: { type: PropTypes.Boolean, default: false },
     autoAssignPlotOnJoin: { type: PropTypes.Boolean, default: true },
+    toggleBuildingInBuildMode: { type: PropTypes.Boolean, default: true },
   };
 
   private playerMgr: PlayerManager | undefined = undefined;
@@ -479,11 +480,13 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
       return;
     }
     
-    entityToggleList.forEach((ent: Entity) => {
-      ent.visible.set(show);
-
-      ent.collidable.set(show);
-    });
+    if (this.props.toggleBuildingInBuildMode){
+      entityToggleList.forEach((ent: Entity) => {
+        ent.visible.set(show);
+  
+        ent.collidable.set(show);
+      });
+    }
   }
 }
 Component.register(PlayerPlotManager);

@@ -147,11 +147,18 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
   OnPlayerEnterTrigger(player: Player) {
     console.log(`Player entered plot trigger: ${player.name.get()}`);
 
-    //FUTURE NOTE: currently we'll send an event to whomever enters the trigger but in the future we'll filter by player ownership of the plot
-    this.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
-      player: player,
-      menuContext: [Primary_MenuType.PlotMenu],
-    });
+    if (player.id > 10000) {
+      //player is an NPC
+      
+    }
+    else{
+      //player is a real player
+      //FUTURE NOTE: currently we'll send an event to whomever enters the trigger but in the future we'll filter by player ownership of the plot
+      this.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
+        player: player,
+        menuContext: [Primary_MenuType.PlotMenu],
+      });
+    }
   }
 
   //region OnExitTrigger

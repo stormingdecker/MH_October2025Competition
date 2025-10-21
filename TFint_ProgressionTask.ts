@@ -133,7 +133,9 @@ export class TFint_ProgressionTask extends Component<typeof TFint_ProgressionTas
     });
   }
 
-  OnPlayerExitTrigger(player: Player) {}
+  OnPlayerExitTrigger(player: Player) {
+  
+  }
 
   onFintInputStarted_TapTask(interactionInfo: InteractionInfo): void {
     this.tapCount++;

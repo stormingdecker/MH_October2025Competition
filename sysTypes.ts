@@ -112,35 +112,15 @@ export type PlayerPlot = {
 };
 
 export const DEFAULT_PLOT_LAYOUT: PlayerPlot = Object.freeze({
-  // buildings: [
-  //   { iID: "n0fc1o", aID36: "ihtt0k19bs", tform: [0, 0, 0, 0, 0, 0, 1, 1, 1] },
-  //   { iID: "-7clqod", aID36: "ak4bcful5p", tform: [-3, 0, 3, 180, 0, -180, 1, 1, 1] },
-  //   { iID: "-oxr8fn", aID36: "ep96dlr2ud", tform: [-2, 0, 3, 180, 0, -180, 1, 1, 1] },
-  //   { iID: "vzo5h8", aID36: "d9qx24uicw", tform: [-1, 0, 3, 180, 0, -180, 1, 1, 1] },
-  //   { iID: "-8tr246", aID36: "ep96dlr2ud", tform: [0, 0, 3, 180, 0, -180, 1, 1, 1] },
-  //   { iID: "-4ck61q", aID36: "d9qx24uicw", tform: [1, 0, 3, 180, 0, -180, 1, 1, 1] },
-  //   { iID: "-f4ruai", aID36: "dawolkuh36", tform: [2, 0, 3, 0, 0, 0, 1, 1, 1] },
-  //   { iID: "6lfgtt", aID36: "f7ojp81337", tform: [-3, 0, -2, 0, 0, 0, 1, 1, 1] },
-  //   { iID: "-8fx14q", aID36: "7g6wd6b45t", tform: [-3, 0, -3, 0, 0, 0, 1, 1, 1] },
-  //   { iID: "-fegtvk", aID36: "7g6wd6b45t", tform: [-3, 0, -1, 180, 0, -180, 1, 1, 1] },
-  //   { iID: "mkcrwx", aID36: "f7ojp81337", tform: [0, 0, -2, 0, 0, 0, 1, 1, 1] },
-  //   { iID: "-l3tt7f", aID36: "7g6wd6b45t", tform: [0, 0, -1, 180, 0, -180, 1, 1, 1] },
-  //   { iID: "ltvnk0", aID36: "7g6wd6b45t", tform: [0, 0, -3, 0, 0, 0, 1, 1, 1] },
-  // ],
   buildings: [
     { iID: "xk2sfd", aID36: "6kapw1bmeq", tform: [0, 0, -5, 0, 0, 0, 1, 1, 1] },
     { iID: "-kl2usl", aID36: "k5fr1o4z02", tform: [-5, 0, 0, 0, 0, 0, 1, 1, 1] },
     { iID: "-7cglc", aID36: "k5fr1o4z02", tform: [5, 0, 0, 0, 0, 0, 1, 1, 1] },
-    { iID: "-dwlv4q", aID36: "k5fr1o4z02", tform: [0, 0, 5, 0, 90, 0, 1, 1, 1] },
     { iID: "1d25y0", aID36: "pluz2j832u", tform: [0, 0, 0, 0, 0, 0, 1, 1, 1] },
     { iID: "-8j45b6", aID36: "emj03kdclc", tform: [0, 0, 0, 0, 0, 0, 1, 1, 1] },
     { iID: "hya1t5", aID36: "k8yzc0qj38", tform: [4, 0, 0, 0, 0, 0, 1, 1, 1] },
     { iID: "18evk9", aID36: "beginasth0", tform: [-4, 0, 0, 0, 0, 0, 1, 1, 1] },
     { iID: "cw65w5", aID36: "d0ki8y156d", tform: [4, 0, 1, -180, 0, -180, 1, 1, 1] },
-    { iID: "ihvjl6", aID36: "dawolkuh36", tform: [1, 0, 4, 0, 0, 0, 1, 1, 1] },
-    { iID: "fhbbo4", aID36: "ak4bcful5p", tform: [-2, 0, 4, -180, 0, -180, 1, 1, 1] },
-    { iID: "-sr9bn2", aID36: "ep96dlr2ud", tform: [0, 0, 4, -180, 0, -180, 1, 1, 1] },
-    { iID: "-rw42z", aID36: "d9qx24uicw", tform: [-1, 0, 4, -180, 0, -180, 1, 1, 1] },
     { iID: "jl9lc6", aID36: "86j4s0dmll", tform: [-4, 0, 1, -180, 0, -180, 1, 1, 1] },
     { iID: "-mt4ou9", aID36: "86j4s0dmll", tform: [-4, 0, -1, 0, 0, 0, 1, 1, 1] },
     { iID: "-k109j", aID36: "d0ki8y156d", tform: [3, 0, 0, 0, 90, 0, 1, 1, 1] },
@@ -148,7 +128,13 @@ export const DEFAULT_PLOT_LAYOUT: PlayerPlot = Object.freeze({
     { iID: "bmex6b", aID36: "exdsgwidbx", tform: [-3, 0, -4, 0, 0, 0, 1, 1, 1] },
     { iID: "-4uu49z", aID36: "77wxpssf11", tform: [-4, 0, -4, 0, 90, 0, 1, 1, 1] },
     { iID: "70ne6y", aID36: "77wxpssf11", tform: [-2, 0, -4, 0, -90, 0, 1, 1, 1] },
+    { iID: "-v3iwl8", aID36: "b53pcsxz0f", tform: [-1, 0, 4, -180, 0, -180, 1, 1, 1] },
+    { iID: "-y0j75p", aID36: "d8be9toj77", tform: [-2, 0, 4, -180, 0, -180, 1, 1, 1] },
+    { iID: "y25gvg", aID36: "7o8mmsi30a", tform: [2, 0, 4, 0, 0, 0, 1, 1, 1] },
+    { iID: "-vonugw", aID36: "n2nidr86xx", tform: [0, 0, 4, -180, 0, -180, 1, 1, 1] },
+    { iID: "rq9ul7", aID36: "qc0t78d56f", tform: [0, 0, 5, -180, 0, -180, 1, 1, 1] },
   ],
+
   // buildings: [],
 });
 

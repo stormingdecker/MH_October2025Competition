@@ -77,6 +77,8 @@ export class EXO_JETPACK extends Component<typeof EXO_JETPACK> {
     this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnGrabEnd, (player: Player) => this.onRelease(player));
   
    this.connectNetworkBroadcastEvent(sysEvents.updateMenuContext, (data) => {
+    if (data.player.id !== this.localPlayer?.id) return;
+
       if (data.menuContext.length > 0){
         this.isGrabbed = false;
         this.ascendInput?.disconnect();
