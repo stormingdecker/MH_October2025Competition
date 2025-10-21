@@ -247,6 +247,18 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
       this.tryDeleteSelectedItem();
       // playAudio(this, AudioLabel.trash);
     });
+
+    this.connectNetworkEvent(this.playerOwner!, sysEvents.announcePlotOwner, (data) => {
+      // console.error("Plot owner announcement received in RaycastItemPlacement");
+      // const player = data.plotOwner;
+      // if (player) {
+      //   console.log(
+      //     `Player ${player.name.get()} is the owner of this RaycastItemPlacement component.`
+      //   );
+      // } else {
+      //   console.log("No owner assigned to this RaycastItemPlacement component.");
+      // }
+    });
   }
 
   //region start()

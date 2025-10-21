@@ -27,6 +27,7 @@ import {
 import { getMgrClass } from "sysUtils";
 import { MenuBtnType } from "UI_AccordionMenu";
 import { Detail_Kitchen, Sub_PlotType } from "UI_MenuManager";
+import { oneHudEvents } from "UI_OneHUD";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 
 export enum BuildSubMenuTypes {
@@ -88,14 +89,7 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
           },
         }),
         View({
-          children: [
-            menuButton(
-              this,
-              "back",
-              "BACK",
-              this.onButtonPressed.bind(this)
-            ),
-          ],
+          children: [menuButton(this, "back", "BACK", this.onButtonPressed.bind(this))],
           style: {
             backgroundColor: "rgba(255, 0, 0, 1)",
             position: "absolute",
@@ -187,7 +181,7 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
       } else {
         console.warn(`Invalid menu context length: ${data.menuContext.length}`);
       }
-      
+
       if (this.buttonPropsMap.has(menuType)) {
         //does the current menu need to close first?
         let closeBeforeOpen = false;
@@ -196,7 +190,7 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
           this.animateMenu(data.player, false);
         }
         const delayForClose = closeBeforeOpen ? 250 : 0;
-        
+
         this.async.setTimeout(() => {
           this.playerMenuContextMap.set(data.player, data.menuContext!);
           const newUINodeArray = this.convertAssetArrayToUINodeArray(
@@ -265,10 +259,10 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
   //region onButtonPressed()
   onButtonPressed(instanceId: string, player: Player): void {
     const curMenuContext = this.playerMenuContextMap.get(player) ?? [];
-    if(instanceId === "back"){
+    if (instanceId === "back") {
       //handle back button
-      if(curMenuContext.length > 1){
-        const newMenuContext = curMenuContext.slice(0, curMenuContext.length -1);
+      if (curMenuContext.length > 1) {
+        const newMenuContext = curMenuContext.slice(0, curMenuContext.length - 1);
         console.log(`Back Button Pressed. New Menu Context: ${newMenuContext}`);
         this.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
           player: player,
@@ -277,7 +271,7 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
       }
       return;
     }
-    
+
     if (curMenuContext.length === 3) {
       //we in detail menu
       const buttonProps = this.buttonPropsMap.get(curMenuContext[2]);
@@ -325,6 +319,13 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
       console.warn(
         `Player ${player.name.get()} does not have enough currency to purchase asset ${assetId}`
       );
+      const oneHUD = getEntityListByTag(ManagerType.UI_OneHUD, this.world)[0];
+      const message = "Insufficient funds!";
+      this.sendNetworkEvent(oneHUD!, oneHudEvents.NotificationEvent, {
+        message,
+        players: [player],
+        imageAssetId: null,
+      });
       return;
     }
     this.inventoryMgr?.updatePlayerInventory(player, InventoryType.currency, -cost, this.entity);

@@ -1,6 +1,6 @@
 import { Asset, CodeBlockEvents, Component, Entity, Player, PropTypes } from "horizon/core";
 import { KitchenManager, OrderTicket } from "KitchenManager";
-import { NPCAgent } from "NPCAgent";
+import { NPCAgent, NPCChair } from "NPCAgent";
 import { NPCStateMachine_Client, NPCStateMachine_WorldGreeter } from "NPCStateMachines";
 import { PlayerPlotManager, RestaurantItemTag } from "PlayerPlotManager";
 import { debugLog, ManagerType } from "sysHelper";
@@ -21,19 +21,6 @@ export enum NPCAnimationID {
 }
 
 export const sittingAnimationAsset = new Asset(BigInt("1280729506637777"));
-
-export interface NPCChair {
-  chairEntity: Entity;
-  parentPlayer: Player;
-  kitchenManager: KitchenManager;
-  assignedToNPC: NPCAgent | undefined;
-}
-
-interface NPCRecipeAssignment {
-  chair: NPCChair;
-  recipeType: string;
-  orderTicket: OrderTicket;
-}
 
 // --- NPC Agent Pool ---
 
@@ -147,9 +134,15 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
       }
 
       for (const chairEntity of chairList) {
+        const tableEntity = plotManager.getTableForChair(chairEntity);
+        if (tableEntity === undefined) {
+          debugLog(this.props.debugLogging, `No table found for chair ${chairEntity.name.get()} for player ${player.name.get()}`);
+          continue;
+        }
         const npcChair: NPCChair = {
           parentPlayer: player,
           chairEntity: chairEntity,
+          tableEntity: tableEntity,
           kitchenManager: kitchenManager,
           assignedToNPC: undefined,
         };

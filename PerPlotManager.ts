@@ -158,6 +158,12 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
         player: player,
         menuContext: [Primary_MenuType.PlotMenu],
       });
+
+      if (this.plotOwner){
+        this.sendNetworkEvent(player, sysEvents.announcePlotOwner,{
+          plotOwner: this.plotOwner,
+        })
+      }
     }
   }
 

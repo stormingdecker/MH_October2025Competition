@@ -116,7 +116,6 @@ enum NPCStates_Client {
 }
 
 export class NPCStateMachine_Client extends NPCStateMachine {
-  private wantedFoodItemIndex = -1;
   private chair?: NPCChair;
   private recipeAssignment?: NPCRecipeAssignment;
 
@@ -165,13 +164,20 @@ export class NPCStateMachine_Client extends NPCStateMachine {
       }
       case NPCStates_Client.Sit: {
         debugLog(this.debugLogging, `Client NPC sitting down`);
-        await this.parentAgent!.rotateTowardsPosition(this.chair!.chairEntity.position.get().add(this.chair!.chairEntity.forward.get()));
+        const chairPosition = this.chair!.chairEntity.position.get();
+        this.parentAgent!.teleportToPosition(chairPosition.add(new Vec3(0, 0.5, 0)));
+        await this.parentAgent!.rotateTowardsPosition(chairPosition.add(this.chair!.chairEntity.forward.get()));
         this.parentAgent?.playAvatarAnimation(NPCAnimationID.Sitting);
         this.currentState = NPCStates_Client.OrderFood;
         break;
       }
       case NPCStates_Client.OrderFood: {
-        const recipeType = RecipeType.BurgerBasic;
+        // Randomly select a recipe type
+        const recipes = Object.keys(RecipeType);
+        const recipeCount = recipes.length;
+        const randomIndex = Math.floor(Math.random() * recipeCount);
+        const recipeType = (RecipeType as any)[recipes[randomIndex]];
+        // Place order with kitchen manager
         const orderTicket = this.chair!.kitchenManager.generateNewOrder(this.chair!.parentPlayer, recipeType);
         this.recipeAssignment = {
           chair: this.chair!,
@@ -190,7 +196,15 @@ export class NPCStateMachine_Client extends NPCStateMachine {
         this.parentAgent?.playAvatarAnimation(NPCAnimationID.None);
         const spawnPoint = this.parentAgent!.getSpawnPoint()!.position.get();
         await this.parentAgent!.rotateTowardsPosition(spawnPoint);
-        await this.parentAgent!.moveToPosition(spawnPoint, NPCMovementSpeedID.Walk);
+        const isPathPossibleAlongNavMesh = this.parentAgent!.isPathPossibleAlongNavMesh(spawnPoint);
+        if (isPathPossibleAlongNavMesh) {
+          debugLog(this.debugLogging, `Client NPC walking to spawnpoint using NavMesh`);
+          await this.parentAgent!.moveToPositionUsingNavMesh(spawnPoint, NPCMovementSpeedID.Walk);
+        } else {
+          debugLog(this.debugLogging, `Client NPC walking to spawnpoint using direct movement`);
+          await this.parentAgent!.moveToPosition(spawnPoint, NPCMovementSpeedID.Walk);
+        }
+        this.parentAgent!.teleportToPosition(spawnPoint.add(new Vec3(0, 0.5, 0)));
         debugLog(this.debugLogging, `Releasing chair: ${this.chair!.chairEntity.name.get()}`);
         this.chair!.chairEntity.collidable.set(true);
         this.chair!.assignedToNPC = undefined;

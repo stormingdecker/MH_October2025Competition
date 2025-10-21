@@ -145,7 +145,7 @@ export class KitchenManager extends Component<typeof KitchenManager> {
     let activeOrderList = this.activeOrders.get(player);
     let orderStatus = activeOrderList?.[0]?.orderStatus ?? -1;
     orderStatus++;
-    const orderRecipeType = activeOrderList?.[0]?.recipeType ?? RecipeType.EmptyRecipe;
+    const orderRecipeType = activeOrderList?.[0]?.recipeType ?? RecipeType.BurgerBasic;
     const stepInstructions = RecipeCatalog[orderRecipeType]?.steps[orderStatus];
 
     //region if Completed
@@ -192,12 +192,15 @@ export class KitchenManager extends Component<typeof KitchenManager> {
         //find available prep stations and choose first available or closets to player
         //tmp for now we define it in props definition
         moveableBase = this.getFirstAvailablePrepStation()?.getComponents<MoveableBase>(MoveableBase)[0];
+        console.log(`Next step triggable by player ${player.name.get()}`);
         moveableBase?.setWhoCanTrigger([player]);
         // const optionalTFint = moveableBase?.getOptionalTFint();
         // const TFint = optionalTFint?.getComponents<TFint_ProgressionTask>(TFint_ProgressionTask)[0];
         // TFint?.setTaskType(nextStepTaskType, this.entity);
       } else if (nextStepTaskType === ProgTaskType.Timed) {
         moveableBase = this.getFirstAvailableCookingStation()?.getComponents<MoveableBase>(MoveableBase)[0];
+        console.log(`Next step triggable by player ${player.name.get()}`);
+
         moveableBase?.setWhoCanTrigger([player]);
       }
 
@@ -208,6 +211,8 @@ export class KitchenManager extends Component<typeof KitchenManager> {
       console.log("Starting Timed Task");
       //do timed task logic
       moveableBase = this.getFirstAvailableCookingStation()?.getComponents<MoveableBase>(MoveableBase)[0];
+      console.log(`Next step triggable by player NO ONE`);
+
       moveableBase?.setWhoCanTrigger([]);
       const optionalTFint = moveableBase?.getOptionalTFint();
 
@@ -219,6 +224,7 @@ export class KitchenManager extends Component<typeof KitchenManager> {
       console.log("Starting Progression Task");
       //find all counters owned by kitchen owner and set who can trigger to kitchen owner
       moveableBase = this.getFirstAvailablePrepStation()?.getComponents<MoveableBase>(MoveableBase)[0];
+      console.log(`Next step triggable by player NO ONE`);
       moveableBase?.setWhoCanTrigger([]);
       const optionalTFint = moveableBase?.getOptionalTFint();
       const TFint = optionalTFint?.getComponents<TFint_ProgressionTask>(TFint_ProgressionTask)[0];

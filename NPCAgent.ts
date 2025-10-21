@@ -22,6 +22,7 @@ export const sittingAnimationAsset = new Asset(BigInt("1280729506637777"));
 
 export interface NPCChair {
   chairEntity: Entity;
+  tableEntity: Entity;
   parentPlayer: Player;
   kitchenManager: KitchenManager;
   assignedToNPC: NPCAgent | undefined;

@@ -7,17 +7,11 @@ export const ProgTaskType = {
 };
 
 export const RecipeType = {
-  EmptyRecipe: "empty_recipe",
   BurgerBasic: "burger_basic",
   HotDogBasic: "hotdog_basic",
 };
 
 export const RecipeCatalog = {
-  [RecipeType.EmptyRecipe]: {
-    recipeType: RecipeType.EmptyRecipe,
-    name: "Empty Recipe",
-    steps: [],
-  },
   //region burger
   [RecipeType.BurgerBasic]: {
     recipeType: RecipeType.BurgerBasic,
