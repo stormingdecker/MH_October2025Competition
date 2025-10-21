@@ -1,8 +1,9 @@
-import { assert, Asset, Component, Entity, GrabbableEntity, NetworkEvent, ParticleGizmo, Player, PropTypes, Quaternion, TriggerGizmo, Vec3 } from "horizon/core";
+import { Asset, Component, Entity, GrabbableEntity, ParticleGizmo, Player, PropTypes, Quaternion, TriggerGizmo, Vec3 } from "horizon/core";
 import { MoveableBase } from "MoveableBase";
 import { FilterType, PlayerManager, PlayerMgrEvents } from "PlayerManager";
 import { PlayerPlotManager } from "PlayerPlotManager";
 import { ProgTaskType, RecipeCatalog, RecipeType } from "RecipeCatalog";
+import { ServableFood } from "ServableFood";
 import { sysEvents } from "sysEvents";
 import { assertAllNullablePropsSet, getEntityListByTag, ManagerType } from "sysHelper";
 import { generateSafeID, getMgrClass } from "sysUtils";
@@ -41,8 +42,8 @@ export class KitchenManager extends Component<typeof KitchenManager> {
     this.OneHudEntity = getEntityListByTag(ManagerType.UI_OneHUD, this.world)[0];
 
     this.connectNetworkEvent(this.entity, simpleButtonEvent, (data) => {
-      const { player } = data;
-      this.generateNewOrder(player, RecipeType.BurgerBasic);
+      const { player, recipeType } = data;
+      this.generateNewOrder(player, recipeType);
       // this.generateNewOrder(player, RecipeType.HotDogBasic);
       // this.spawnFoodPlateAtPosition(player, this.props.foodPlate!.id.toString());
     });
@@ -152,7 +153,7 @@ export class KitchenManager extends Component<typeof KitchenManager> {
     if (!stepInstructions) {
       console.log("Completed Recipe!");
       //FUTURE NOTE: spawn the servableFood entity and inject necessary properties
-      this.spawnFoodPlateAtPosition(player, this.props.foodPlate!.id.toString());
+      this.spawnFoodPlateAtPosition(player, this.props.foodPlate!.id.toString(), orderRecipeType);
 
       this.stopArrowVFX();
       //remove active order from map
@@ -263,7 +264,7 @@ export class KitchenManager extends Component<typeof KitchenManager> {
   }
 
   //region spawn food()
-  async spawnFoodPlateAtPosition(player: Player, assetId: string) {
+  async spawnFoodPlateAtPosition(player: Player, assetId: string, recipeType: string) {
     let assets: Entity[] | undefined;
     const assetToSpawn = new Asset(BigInt(assetId));
     if (!assetToSpawn) {
@@ -288,6 +289,8 @@ export class KitchenManager extends Component<typeof KitchenManager> {
       for (const spawnedFood of assets) {
         const grabbable = spawnedFood.as(GrabbableEntity);
         grabbable?.setWhoCanGrab(this.thisKitchensManagers);
+        const servableFood = spawnedFood.getComponents(ServableFood)[0];
+        servableFood?.switchVisibleGroupToRecipe(recipeType);
       }
     } else {
       console.error("Failed to spawn food plate asset.");

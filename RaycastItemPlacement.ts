@@ -87,6 +87,8 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
   //this prevents multiple subscriptions to fint events
   private subscribedToFintEvents = false;
 
+  private activePlot: Entity | undefined = undefined;
+
   //region preStart()
   preStart(): void {
     if (!this.props.enabled) return;
@@ -168,15 +170,12 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
           inBuildMode: true,
         });
 
-        const playerOffset = this.playerOwner!.position.get().add(new Vec3(-3, 0, 3));
-        this.props.camOffsetRoot!.position.set(playerOffset);
-        console.log("Switching to First Person View");
-        // LocalCamera.setCameraModeFirstPerson(this.transitionOptions);
+        const cameraRootPos = this.activePlot!.position.get();
+        // const playerOffset = this.playerOwner!.position.get().add(new Vec3(-3, 0, 3));
+        this.props.camOffsetRoot!.position.set(cameraRootPos);
+   
         LocalCamera.setCameraModeAttach(this.props.camAttachTarget!, {});
-        // this.sendNetworkEvent(this.playerOwner!, sysEvents.OnSetCameraModeFixed,{
-        //   position: new Vec3(0, 2, 0),
-        //   rotation: Quaternion.fromEuler(new Vec3(90, 0, 0)),
-        // });
+
         this.playerOwner?.enterFocusedInteractionMode();
         this.subscribedToFintEvents = true;
         this.inFocusMode = true;
@@ -211,7 +210,6 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
       }
       this.isBuildMode = !this.isBuildMode;
 
-      
       const plotManager = getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0] || null;
       this.sendNetworkEvent(plotManager!, sysEvents.toggleBuildingEvent, {
         player: this.playerOwner!,
@@ -249,15 +247,11 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
     });
 
     this.connectNetworkEvent(this.playerOwner!, sysEvents.announcePlotOwner, (data) => {
-      // console.error("Plot owner announcement received in RaycastItemPlacement");
-      // const player = data.plotOwner;
-      // if (player) {
-      //   console.log(
-      //     `Player ${player.name.get()} is the owner of this RaycastItemPlacement component.`
-      //   );
-      // } else {
-      //   console.log("No owner assigned to this RaycastItemPlacement component.");
-      // }
+      //FUTURE NOTE: announcePlotOwner will eventually carry PlotOwners or KitchenManagers array
+
+      if (data.plotOwner !== this.playerOwner) return;
+
+      this.activePlot = data.plotBase;
     });
   }
 
@@ -335,9 +329,9 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
       const hitPoint = this.raycastHitPoint(this.planeRaycastGizmo!, touchInfo);
       if (hitPoint) {
         let hitPointRounded = new Vec3(
-          this.snapToWhole(hitPoint.x),
+          this.snapToHalfNoWhole(hitPoint.x),
           this.heightOffset,
-          this.snapToWhole(hitPoint.z)
+          this.snapToHalfNoWhole(hitPoint.z)
         );
         if (this.prevHitPointRounded && !hitPointRounded.equals(this.prevHitPointRounded)) {
           this.selectedItem.position.set(hitPointRounded.add(this.moveableOffset));

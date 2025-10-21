@@ -45,7 +45,7 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
   dailyRewardManager: DailyRewardManager | undefined = undefined;
 
   private plotMgr: PlayerPlotManager | undefined = undefined;
-  private playerPlot: PlayerPlot | undefined = undefined;
+
   private plotManagers: Player[] = [];
   private plotProps: PerPlotProps | undefined = undefined;
   private plotOwner: Player | undefined = undefined;
@@ -162,6 +162,7 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
       if (this.plotOwner){
         this.sendNetworkEvent(player, sysEvents.announcePlotOwner,{
           plotOwner: this.plotOwner,
+          plotBase: this.props.PlotBase!,
         })
       }
     }

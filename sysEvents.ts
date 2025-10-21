@@ -71,7 +71,7 @@ export const sysEvents = {
   buildRotateEvent: new NetworkEvent<{ player: Player }>("buildRotateEvent"),
   buildMenuEvent: new NetworkEvent<{ player: Player }>("buildMenuEvent"),
   // SubMenuEvent: new NetworkEvent<{ player: Player; buttonType?: string; open: boolean }>("subButtonEvent"),
-  announcePlotOwner: new NetworkEvent<{ plotOwner: Player }>("announcePlotOwner"),
+  announcePlotOwner: new NetworkEvent<{ plotOwner: Player; plotBase: Entity }>("announcePlotOwner"),
 
 
     //region Jet Events

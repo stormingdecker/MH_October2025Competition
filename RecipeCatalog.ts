@@ -27,31 +27,31 @@ export const RecipeCatalog = {
         header: "Basic Burger",
         description: "Drag in a circles",
       },
-      {
-        taskType: ProgTaskType.Destination,
-        header: "Basic Burger",
-        description: "Go to oven",
-      },
-      {
-        taskType: ProgTaskType.Timed,
-        header: "Basic Burger",
-        description: "Wait 5 seconds",
-      },
+      // {
+      //   taskType: ProgTaskType.Destination,
+      //   header: "Basic Burger",
+      //   description: "Go to oven",
+      // },
+      // {
+      //   taskType: ProgTaskType.Timed,
+      //   header: "Basic Burger",
+      //   description: "Wait 5 seconds",
+      // },
       // {
       //   taskType: ProgTaskType.StopBurning,
       //   header: "Basic Burger",
       //   description: "Remove from oven",
       // },
-      {
-        taskType: ProgTaskType.Destination,
-        header: "Basic Burger",
-        description: "Go to kitchen",
-      },
-      {
-        taskType: ProgTaskType.TapToProgress,
-        header: "Basic Burger",
-        description: "Tap to chop",
-      },
+      // {
+      //   taskType: ProgTaskType.Destination,
+      //   header: "Basic Burger",
+      //   description: "Go to kitchen",
+      // },
+      // {
+      //   taskType: ProgTaskType.TapToProgress,
+      //   header: "Basic Burger",
+      //   description: "Tap to chop",
+      // },
     ],
   },
   //region hotdog
@@ -64,26 +64,26 @@ export const RecipeCatalog = {
         header: "Basic Hot Dog",
         description: "Go to kitchen",
       },
-      {
-        taskType: ProgTaskType.TapToProgress,
-        header: "Basic Hot Dog",
-        description: "Tap to chop",
-      },
-      {
-        taskType: ProgTaskType.Destination,
-        header: "Basic Hot Dog",
-        description: "Go to oven",
-      },
-      {
-        taskType: ProgTaskType.Timed,
-        header: "Basic Hot Dog",
-        description: "Boil for 5 seconds",
-      },
-      {
-        taskType: ProgTaskType.Destination,
-        header: "Basic Burger",
-        description: "Go to kitchen",
-      },
+      // {
+      //   taskType: ProgTaskType.TapToProgress,
+      //   header: "Basic Hot Dog",
+      //   description: "Tap to chop",
+      // },
+      // {
+      //   taskType: ProgTaskType.Destination,
+      //   header: "Basic Hot Dog",
+      //   description: "Go to oven",
+      // },
+      // {
+      //   taskType: ProgTaskType.Timed,
+      //   header: "Basic Hot Dog",
+      //   description: "Boil for 5 seconds",
+      // },
+      // {
+      //   taskType: ProgTaskType.Destination,
+      //   header: "Basic Burger",
+      //   description: "Go to kitchen",
+      // },
       {
         taskType: ProgTaskType.DragToProgress,
         header: "Basic Hot Dog",

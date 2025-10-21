@@ -371,7 +371,15 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
         const pos = entity.position.get().sub(plotBase!.position.get());
         const quatRot = entity.rotation.get().mul(plotBase!.rotation.get().inverse());
         const rot = quatRot.toEuler(EulerOrder.XYZ);
-        building.tform = [Math.round(pos.x), Math.round(pos.y), Math.round(pos.z), Math.round(rot.x), Math.round(rot.y), Math.round(rot.z), 1, 1, 1];
+        building.tform = [
+          Math.round(pos.x * 100) / 100, 
+          Math.round(pos.y * 100) / 100, 
+          Math.round(pos.z * 100) / 100, 
+          Math.round(rot.x * 100) / 100, 
+          Math.round(rot.y * 100) / 100, 
+          Math.round(rot.z * 100) / 100, 
+          1, 1, 1
+        ];
         console.log(`Updated building ${building.iID} transform in plot data.`);
       } else {
         console.warn(`Entity with ID ${building.iID} not found in world.`);
