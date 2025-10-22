@@ -1,6 +1,6 @@
 import { Asset, AttachableEntity, AttachablePlayerAnchor, AvatarGripPose, Color, Component, Entity, Handedness, Player, PropTypes, Vec3 } from "horizon/core";
 import { Npc, NpcPlayer } from "horizon/npc";
-import { KitchenManager, OrderTicket } from "KitchenManager";
+import { KitchenManager } from "KitchenManager";
 import { NavMeshController } from "NavMeshController";
 import { debugLog } from "sysHelper";
 
@@ -26,12 +26,6 @@ export interface NPCChair {
   parentPlayer: Player;
   kitchenManager: KitchenManager;
   assignedToNPC: NPCAgent | undefined;
-}
-
-export interface NPCRecipeAssignment {
-  chair: NPCChair;
-  recipeType: string;
-  orderTicket: OrderTicket;
 }
 
 // --- State Machine Base Class ---
@@ -143,8 +137,14 @@ export class NPCAgent extends Component<typeof NPCAgent> {
     this.npcPlayer?.position.set(targetPosition);
   }
 
-  public async moveToPosition(targetPosition: Vec3, movementSpeedID: NPCMovementSpeedID) {
+  public async moveToPosition(targetPosition: Vec3, movementSpeedID: NPCMovementSpeedID, giveUpAfterSeconds: number = 0) {
     debugLog(this.props.debugLogging, `Moving to position: ${targetPosition}`);
+    if (giveUpAfterSeconds > 0) {
+      this.async.setTimeout(() => {
+        debugLog(this.props.debugLogging, `Giving up on moving to position: ${targetPosition}`);
+        this.npcPlayer?.stopMovement();
+      }, giveUpAfterSeconds * 1000);
+    }
     await this.npcPlayer?.moveToPosition(targetPosition, { movementSpeed: NPCMovementSpeed[movementSpeedID] });
   }
 

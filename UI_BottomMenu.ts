@@ -59,6 +59,8 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
           style: {
             flexDirection: "row",
             flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "center",
             width: "100%",
             height: "100%",
           },

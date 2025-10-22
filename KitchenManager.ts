@@ -44,8 +44,6 @@ export class KitchenManager extends Component<typeof KitchenManager> {
     this.connectNetworkEvent(this.entity, simpleButtonEvent, (data) => {
       const { player, recipeType } = data;
       this.generateNewOrder(player, recipeType);
-      // this.generateNewOrder(player, RecipeType.HotDogBasic);
-      // this.spawnFoodPlateAtPosition(player, this.props.foodPlate!.id.toString());
     });
 
     this.connectNetworkEvent(this.entity, PlayerMgrEvents.PlayerJoined, (data) => {
@@ -77,20 +75,21 @@ export class KitchenManager extends Component<typeof KitchenManager> {
   }
 
   //region generateNewOrder()
-  generateNewOrder(player: Player, recipeType: string) {
-    const OrderTicket = {
+  generateNewOrder(player: Player, recipeType: string, chairEntity?: Entity) {
+    const orderTicket = {
       orderId: makeOrderId(),
       recipeType: recipeType,
       orderStatus: -1,
+      chairEntity: chairEntity,
     };
 
-    this.orderQueue.push(OrderTicket);
+    this.orderQueue.push(orderTicket);
 
     //any order counter will allow player to see trigger and order
     //FUTURE NOTE: Eventually, only use OrderStations owned by the kitchen owner
     this.updateOrderStationTriggers(this.thisKitchensManagers);
 
-    return OrderTicket;
+    return orderTicket;
   }
 
   //region activateNewOrder()
@@ -144,16 +143,22 @@ export class KitchenManager extends Component<typeof KitchenManager> {
     }
 
     let activeOrderList = this.activeOrders.get(player);
-    let orderStatus = activeOrderList?.[0]?.orderStatus ?? -1;
+    if (!activeOrderList || activeOrderList.length === 0) {
+      console.warn(`Player ${player.name.get()} has no active orders to update.`);
+      return;
+    }
+
+    const orderTicket = activeOrderList[0];
+    let orderStatus = orderTicket.orderStatus;
     orderStatus++;
-    const orderRecipeType = activeOrderList?.[0]?.recipeType ?? RecipeType.BurgerBasic;
+    const orderRecipeType = orderTicket.recipeType;
     const stepInstructions = RecipeCatalog[orderRecipeType]?.steps[orderStatus];
 
     //region if Completed
     if (!stepInstructions) {
       console.log("Completed Recipe!");
       //FUTURE NOTE: spawn the servableFood entity and inject necessary properties
-      this.spawnFoodPlateAtPosition(player, this.props.foodPlate!.id.toString(), orderRecipeType);
+      this.spawnFoodPlateAtPosition(player, this.props.foodPlate!.id.toString(), orderTicket!);
 
       this.stopArrowVFX();
       //remove active order from map
@@ -264,7 +269,7 @@ export class KitchenManager extends Component<typeof KitchenManager> {
   }
 
   //region spawn food()
-  async spawnFoodPlateAtPosition(player: Player, assetId: string, recipeType: string) {
+  async spawnFoodPlateAtPosition(player: Player, assetId: string, orderTicket: OrderTicket) {
     let assets: Entity[] | undefined;
     const assetToSpawn = new Asset(BigInt(assetId));
     if (!assetToSpawn) {
@@ -290,7 +295,7 @@ export class KitchenManager extends Component<typeof KitchenManager> {
         const grabbable = spawnedFood.as(GrabbableEntity);
         grabbable?.setWhoCanGrab(this.thisKitchensManagers);
         const servableFood = spawnedFood.getComponents(ServableFood)[0];
-        servableFood?.switchVisibleGroupToRecipe(recipeType);
+        servableFood?.switchVisibleGroupToOrder(orderTicket);
       }
     } else {
       console.error("Failed to spawn food plate asset.");
@@ -391,6 +396,7 @@ export interface OrderTicket {
   orderId: string;
   recipeType: string;
   orderStatus: number;
+  chairEntity?: Entity;
 }
 
 // A tiny ID generator (base36)

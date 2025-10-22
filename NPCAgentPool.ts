@@ -1,5 +1,5 @@
 import { Asset, CodeBlockEvents, Component, Entity, Player, PropTypes } from "horizon/core";
-import { KitchenManager, OrderTicket } from "KitchenManager";
+import { KitchenManager } from "KitchenManager";
 import { NPCAgent, NPCChair } from "NPCAgent";
 import { NPCStateMachine_Client, NPCStateMachine_WorldGreeter } from "NPCStateMachines";
 import { PlayerPlotManager, RestaurantItemTag } from "PlayerPlotManager";
@@ -74,7 +74,7 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
   private spawnClient() {
     // Rebuild the available chairs list if it's empty
     if (this.availableChairs.length === 0) {
-      debugLog(this.props.debugLogging, "Rebuilding available chairs list");
+      debugLog(this.props.debugLogging, "NPCAgentPool: Rebuilding available chairs list");
       this.buildAvailableChairsList();
       if (this.availableChairs.length === 0) {
         return;
@@ -84,14 +84,14 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
     // If all chairs are assigned, do nothing
     const unassignedChairs = this.availableChairs.filter((chair) => chair.assignedToNPC === undefined);
     if (unassignedChairs.length == 0) {
-      debugLog(this.props.debugLogging, "All chairs are assigned");
+      debugLog(this.props.debugLogging, "NPCAgentPool: All chairs are assigned");
       return;
     }
 
     // Find a random unassigned client
     const availableClient = this.getAvailableClient();
     if (availableClient === undefined) {
-      debugLog(this.props.debugLogging, "No available clients");
+      debugLog(this.props.debugLogging, "NPCAgentPool: No available clients");
       return;
     }
 
@@ -99,16 +99,16 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
     const randomIndex = Math.floor(Math.random() * unassignedChairs.length);
     const chair = unassignedChairs[randomIndex];
 
-    debugLog(this.props.debugLogging, `Assigning chair: ${chair.chairEntity.name.get()}`);
+    debugLog(this.props.debugLogging, `NPCAgentPool: Assigning chair: ${chair.chairEntity.name.get()}`);
     chair.assignedToNPC = availableClient;
     chair.chairEntity.collidable.set(false);
 
     availableClient.activate(chair);
-    debugLog(this.props.debugLogging, "Activated NPC client " + availableClient.entity.name.get());
+    debugLog(this.props.debugLogging, `NPCAgentPool: Activated NPC client ${availableClient.entity.name.get()}`);
   }
 
   private buildAvailableChairsList() {
-    debugLog(this.props.debugLogging, "Building available chairs list");
+    debugLog(this.props.debugLogging, "NPCAgentPool: Building available chairs list");
     const plotManager = getMgrClass<PlayerPlotManager>(this, ManagerType.PlayerPlotManager, PlayerPlotManager);
     if (plotManager === undefined) {
       console.error("NPCAgentPool: PlayerPlotManager not found");
@@ -118,25 +118,25 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
     for (const player of this.activePlayers) {
       const kitchenManagerEntity = plotManager.getPlayerKitchen(player);
       if (kitchenManagerEntity === undefined) {
-        debugLog(this.props.debugLogging, `No kitchen entity found for player ${player.name.get()}`);
+        debugLog(this.props.debugLogging, `NPCAgentPool: No kitchen entity found for player ${player.name.get()}`);
         continue;
       }
       const kitchenManager = kitchenManagerEntity.getComponents(KitchenManager)[0];
       if (kitchenManager === undefined) {
-        debugLog(this.props.debugLogging, `No KitchenManager component found for player ${player.name.get()}`);
+        debugLog(this.props.debugLogging, `NPCAgentPool: No KitchenManager component found for player ${player.name.get()}`);
         continue;
       }
 
       const chairList = plotManager.getPlayerItemsByTag(player, RestaurantItemTag.chair);
       if (chairList === undefined || chairList.length === 0) {
-        debugLog(this.props.debugLogging, `No chairs found for player ${player.name.get()}`);
+        debugLog(this.props.debugLogging, `NPCAgentPool: No chairs found for player ${player.name.get()}`);
         continue;
       }
 
       for (const chairEntity of chairList) {
-        const tableEntity = plotManager.getTableForChair(chairEntity);
+        const tableEntity = plotManager.getTableForChair(player, chairEntity);
         if (tableEntity === undefined) {
-          debugLog(this.props.debugLogging, `No table found for chair ${chairEntity.name.get()} for player ${player.name.get()}`);
+          debugLog(this.props.debugLogging, `NPCAgentPool: No table found for chair ${chairEntity.name.get()} for player ${player.name.get()}`);
           continue;
         }
         const npcChair: NPCChair = {
@@ -170,7 +170,7 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
             this.npcClients.push(npcAgent);
             break;
           default:
-            console.error(`Unknown state machine name: ${stateMachineName}`);
+            console.error(`NPCAgentPool: Unknown state machine name: ${stateMachineName}`);
         }
       }
     }

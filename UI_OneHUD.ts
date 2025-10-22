@@ -289,9 +289,8 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
           )
         ),
         View({
-          //region btn img bnd text
           children: [
-            //diamond count
+            //region diamond count
             ...this.toNodes(
               btnImgBndText(
                 this,
@@ -303,6 +302,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
                 this.onButtonPressed.bind(this)
               )
             ),
+            //region currency count
             ...this.toNodes(
               btnImgBndText(
                 this,

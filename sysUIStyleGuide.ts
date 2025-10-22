@@ -694,7 +694,7 @@ export const buttonImgWithText = (
   text: string,
   textOffset: Vec3,
   onButtonPressed: (instanceID: string, player: Player) => void,
-  size?: number,
+  size?: number
 ) => {
   const scaleBinding = new Binding<number>(1);
   return Pressable({
@@ -895,4 +895,82 @@ export const menuButton = (
       // bottom: "-20%",
     },
   });
+};
+
+//region btn w/ string text
+export const btnStringText = (
+  component: Component,
+  btnString: string,
+  instanceID: string,
+  onButtonPressed: (instanceID: string, player: Player) => void
+) => {
+  const scaleBinding = new Binding<number>(1);
+
+  return Pressable({
+    children: [
+      View({
+        children: [
+          Text({
+            text: btnString,
+            style: {
+              // width: "100%",
+              // height: "100%",
+              color: "white",
+              fontFamily: "Kallisto",
+              fontSize: 22,
+              // textAlignVertical: "center",
+              textAlign: "center",
+            },
+          }),
+        ],
+        style: {
+          width: "100%",
+          height: "100%",
+          // backgroundColor: "rgba(0, 118, 39, 1)",
+          borderRadius: 20,
+          // alignItems: "center", //by default applies to horizontal axis
+          justifyContent: "center", //by default applies to vertical axis
+        },
+      }),
+    ],
+    //region onPress
+    onPress: (player) => {
+      scaleBinding.set(0.9, [player]);
+      component.async.setTimeout(() => {
+        scaleBinding.set(1, [player]);
+      }, 100);
+      onButtonPressed(instanceID, player);
+    },
+    style: {
+      width: "100%",
+      height: "100%",
+      // apply button scaling changes
+      transform: [{ scale: scaleBinding }],
+      // backgroundColor: "rgba(252, 0, 0, 0.5)",
+      // bottom: "-20%",
+    },
+  });
+};
+
+//region btn w/ text
+export const dailyRewardWindow = (
+  component: Component,
+  instanceID: string,
+  onButtonPressed: (instanceID: string, player: Player) => void
+) => {
+  return [
+    View({
+      children: [],
+      style: {
+        width: 400,
+        height: 300,
+        layoutOrigin: [0.5, 0.5],
+        left: "50%",
+        top: "50%",
+        position: "absolute",
+        borderRadius: 20,
+        backgroundColor: "rgba(255, 255, 255, 1)",
+      },
+    }),
+  ];
 };

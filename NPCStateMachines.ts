@@ -1,5 +1,6 @@
 import { Player, Vec3 } from "horizon/core";
-import { NPCAgent, NPCAnimationID, NPCChair, NPCMovementSpeedID, NPCRecipeAssignment, NPCStateMachine } from "NPCAgent";
+import { OrderTicket } from "KitchenManager";
+import { NPCAgent, NPCAnimationID, NPCChair, NPCMovementSpeedID, NPCStateMachine } from "NPCAgent";
 import { RecipeType } from "RecipeCatalog";
 import { debugLog } from "sysHelper";
 
@@ -117,7 +118,7 @@ enum NPCStates_Client {
 
 export class NPCStateMachine_Client extends NPCStateMachine {
   private chair?: NPCChair;
-  private recipeAssignment?: NPCRecipeAssignment;
+  private orderTicket?: OrderTicket;
 
   public override onAgentReady(agent: NPCAgent, debugLogging: boolean) {
     this.debugLogging = debugLogging;
@@ -157,15 +158,15 @@ export class NPCStateMachine_Client extends NPCStateMachine {
           await this.parentAgent!.moveToPositionUsingNavMesh(chairPosition, NPCMovementSpeedID.Walk);
         } else {
           debugLog(this.debugLogging, `Client NPC walking to chair using direct movement`);
-          await this.parentAgent!.moveToPosition(chairPosition, NPCMovementSpeedID.Walk);
+          await this.parentAgent!.moveToPosition(chairPosition, NPCMovementSpeedID.Walk, 10);
         }
+        this.parentAgent!.teleportToPosition(chairPosition.add(new Vec3(0, 0.5, 0)));
         this.currentState = NPCStates_Client.Sit;
         break;
       }
       case NPCStates_Client.Sit: {
         debugLog(this.debugLogging, `Client NPC sitting down`);
         const chairPosition = this.chair!.chairEntity.position.get();
-        this.parentAgent!.teleportToPosition(chairPosition.add(new Vec3(0, 0.5, 0)));
         await this.parentAgent!.rotateTowardsPosition(chairPosition.add(this.chair!.chairEntity.forward.get()));
         this.parentAgent?.playAvatarAnimation(NPCAnimationID.Sitting);
         this.currentState = NPCStates_Client.OrderFood;
@@ -178,17 +179,13 @@ export class NPCStateMachine_Client extends NPCStateMachine {
         const randomIndex = Math.floor(Math.random() * recipeCount);
         const recipeType = (RecipeType as any)[recipes[randomIndex]];
         // Place order with kitchen manager
-        const orderTicket = this.chair!.kitchenManager.generateNewOrder(this.chair!.parentPlayer, recipeType);
-        this.recipeAssignment = {
-          chair: this.chair!,
-          recipeType: recipeType,
-          orderTicket: orderTicket,
-        };
+        const orderTicket = this.chair!.kitchenManager.generateNewOrder(this.chair!.parentPlayer, recipeType, this.chair?.chairEntity);
+        this.orderTicket = orderTicket;
         this.currentState = NPCStates_Client.WaitToBeServed;
         break;
       }
       case NPCStates_Client.WaitToBeServed: {
-        await this.parentAgent!.showAIConversation(`Waiting to be served ${this.recipeAssignment?.recipeType}`);
+        await this.parentAgent!.showAIConversation(`Waiting to be served ${this.orderTicket?.recipeType}`, "NPC is patiently waiting for their food order");
         this.currentState = NPCStates_Client.ReturningToPortal;
         break;
       }
@@ -202,7 +199,7 @@ export class NPCStateMachine_Client extends NPCStateMachine {
           await this.parentAgent!.moveToPositionUsingNavMesh(spawnPoint, NPCMovementSpeedID.Walk);
         } else {
           debugLog(this.debugLogging, `Client NPC walking to spawnpoint using direct movement`);
-          await this.parentAgent!.moveToPosition(spawnPoint, NPCMovementSpeedID.Walk);
+          await this.parentAgent!.moveToPosition(spawnPoint, NPCMovementSpeedID.Walk, 10);
         }
         this.parentAgent!.teleportToPosition(spawnPoint.add(new Vec3(0, 0.5, 0)));
         debugLog(this.debugLogging, `Releasing chair: ${this.chair!.chairEntity.name.get()}`);

@@ -226,7 +226,6 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
       rotation = rotation.mul(rotAsQuaternion);
       this.spawnItem(player, plotBase, building.iID, assetId, posOffset, rotation, Vec3.one, false);
     });
-    this.rebuildChairToTableMap(player);
   }
 
   //region spawn item
@@ -372,13 +371,16 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
         const quatRot = entity.rotation.get().mul(plotBase!.rotation.get().inverse());
         const rot = quatRot.toEuler(EulerOrder.XYZ);
         building.tform = [
-          Math.round(pos.x * 100) / 100, 
-          Math.round(pos.y * 100) / 100, 
-          Math.round(pos.z * 100) / 100, 
-          Math.round(rot.x * 100) / 100, 
-          Math.round(rot.y * 100) / 100, 
-          Math.round(rot.z * 100) / 100, 
-          1, 1, 1
+          //
+          Math.round(pos.x * 100) / 100,
+          Math.round(pos.y * 100) / 100,
+          Math.round(pos.z * 100) / 100,
+          Math.round(rot.x * 100) / 100,
+          Math.round(rot.y * 100) / 100,
+          Math.round(rot.z * 100) / 100,
+          1,
+          1,
+          1,
         ];
         console.log(`Updated building ${building.iID} transform in plot data.`);
       } else {
@@ -418,13 +420,17 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     }
   }
 
-  public getTableForChair(chair: Entity): Entity | undefined {
+  public getTableForChair(player: Player, chair: Entity): Entity | undefined {
+    if (!this.chairToTableMap.has(chair)) {
+      this.rebuildChairToTableMap(player);
+    }
     return this.chairToTableMap.get(chair);
   }
 
   private rebuildChairToTableMap(player: Player) {
     const chairList = this.getPlayerItemsByTag(player, RestaurantItemTag.chair);
     const tableList = this.getPlayerItemsByTag(player, RestaurantItemTag.table);
+    //console.log(`Rebuilding chair to table map for player ${player.name.get()}. Found ${chairList.length} chairs and ${tableList.length} tables.`);
 
     this.chairToTableMap.clear();
     tableList.forEach((table) => {
@@ -432,12 +438,14 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
       chairList.forEach((chair) => {
         const chairPos = chair.position.get();
         const distance = tablePos.distance(chairPos);
+        //console.log(`Checking chair ${chair.name.get()} at distance ${distance.toFixed(2)} from table ${table.name.get()}.`);
         if (distance < 2) {
           // check if chair is facing the table
           const angle = getAngleTowardsTarget(chairPos, chair.forward.get(), tablePos);
+          //console.log(`Angle between chair ${chair.name.get()} and table ${table.name.get()}: ${angle.toFixed(2)} radians.`);
           if (angle < Math.PI / 4) {
             this.chairToTableMap.set(chair, table);
-            console.log(`Mapping chair ${chair.name.get()} to table ${table.name.get()}`);
+            //console.log(`Mapping chair ${chair.name.get()} to table ${table.name.get()}`);
           }
         }
       });
