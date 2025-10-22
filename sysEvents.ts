@@ -5,56 +5,64 @@ export const sysEvents = {
   //region Save Events
   SavePlayerData: new NetworkEvent<{ player: Player }>("SavePlayerData"),
 
-
   //region Player Stat Events
-  PlayerStatsUpdated: new NetworkEvent<{ 
-    player: Player; playerStats: PlayerStats }>("PlayerStatsUpdated"),
-  UpdatePlayerStat: new NetworkEvent<{ 
-    player: Player; statType: StatType; value: number }>("UpdatePlayerStat"),
+  PlayerStatsUpdated: new NetworkEvent<{
+    player: Player;
+    playerStats: PlayerStats;
+  }>("PlayerStatsUpdated"),
+  UpdatePlayerStat: new NetworkEvent<{
+    player: Player;
+    statType: StatType;
+    value: number;
+  }>("UpdatePlayerStat"),
 
   //region Inventory events
-  PlayerInventoryUpdated: new NetworkEvent<{ 
-    player: Player; playerInventory: PlayerInventory }>("PlayerInventoryUpdated"),
+  PlayerInventoryUpdated: new NetworkEvent<{
+    player: Player;
+    playerInventory: PlayerInventory;
+  }>("PlayerInventoryUpdated"),
   UpdatePlayerInventory: new NetworkEvent<{
-    player: Player; item: InventoryType; quantity: number; sender: Entity | null }>("UpdatePlayerInventory"),
+    player: Player;
+    item: InventoryType;
+    quantity: number;
+    sender: Entity | null;
+  }>("UpdatePlayerInventory"),
 
   //region Camera API events
   OnSetCameraModeThirdPerson: new NetworkEvent("OnSetCameraModeThirdPerson"),
   OnSetCameraModeFirstPerson: new NetworkEvent("OnSetCameraModeFirstPerson"),
-  OnSetCameraModeFixed: new NetworkEvent<{position: Vec3, rotation: Quaternion}>("OnSetCameraModeFixed"),
-  OnSetCameraModeAttached: new NetworkEvent<{target: Entity | Player, positionOffset: Vec3, translationSpeed: number, rotationSpeed: number}>("OnSetCameraModeAttached"),
-  OnSetCameraModeFollow: new NetworkEvent<{target: Entity | Player}>("OnSetCameraModeFollow"),
-  OnSetCameraModePan: new NetworkEvent<{panSpeed: number, positionOffset?: Vec3}>("OnSetCameraModePan"),
-  OnSetCameraModeOrbit: new NetworkEvent<{target: Entity | Player, distance: number, orbitSpeed: number}>("OnSetCameraModeOrbit"),
-  OnSetCameraRoll: new NetworkEvent<{rollAngle: number}>("OnSetCameraRoll"),
-  OnSetCameraFOV: new NetworkEvent<{newFOV: number}>("OnSetCameraFOV"),
+  OnSetCameraModeFixed: new NetworkEvent<{ position: Vec3; rotation: Quaternion }>("OnSetCameraModeFixed"),
+  OnSetCameraModeAttached: new NetworkEvent<{ target: Entity | Player; positionOffset: Vec3; translationSpeed: number; rotationSpeed: number }>("OnSetCameraModeAttached"),
+  OnSetCameraModeFollow: new NetworkEvent<{ target: Entity | Player }>("OnSetCameraModeFollow"),
+  OnSetCameraModePan: new NetworkEvent<{ panSpeed: number; positionOffset?: Vec3 }>("OnSetCameraModePan"),
+  OnSetCameraModeOrbit: new NetworkEvent<{ target: Entity | Player; distance: number; orbitSpeed: number }>("OnSetCameraModeOrbit"),
+  OnSetCameraRoll: new NetworkEvent<{ rollAngle: number }>("OnSetCameraRoll"),
+  OnSetCameraFOV: new NetworkEvent<{ newFOV: number }>("OnSetCameraFOV"),
   OnResetCameraFOV: new NetworkEvent("OnResetCameraFOV"),
-  OnSetCameraPerspectiveSwitchingEnabled: new NetworkEvent<{enabled: boolean}>("OnSetCameraPerspectiveSwitching"),
-  OnSetCameraCollisionEnabled: new NetworkEvent<{enabled: boolean}>("OnSetCameraCollisionEnabled"),
+  OnSetCameraPerspectiveSwitchingEnabled: new NetworkEvent<{ enabled: boolean }>("OnSetCameraPerspectiveSwitching"),
+  OnSetCameraCollisionEnabled: new NetworkEvent<{ enabled: boolean }>("OnSetCameraCollisionEnabled"),
 
   // Focused Interactions events
-  OnStartFocusMode: new NetworkEvent<{requester: Entity, }>("OnStartFocusMode"),
-  OnExitFocusMode: new NetworkEvent<{player: Player}>("OnPlayerExitedExample"),
-  ForceExitFocusMode: new NetworkEvent<{player: Player}>("OnForceExitFocusMode"),
-  OnPlayerEnteredFocusMode: new NetworkEvent<{player: Player}>("OnPlayerEnteredFocusMode"),
-  OnPlayerExitedFocusMode: new NetworkEvent<{player: Player}>("OnPlayerExitedFocusMode"),
-  OnFocusedInteractionInputStarted: new NetworkEvent<{interactionInfo: InteractionInfo}>("OnFocusedInteractionInputStarted"),
-  OnFocusedInteractionInputMoved: new NetworkEvent<{interactionInfo: InteractionInfo}>("OnFocusedInteractionInputMoved"),
-  OnFocusedInteractionInputEnded: new NetworkEvent<{interactionInfo: InteractionInfo}>("OnFocusedInteractionInputEnded"),
+  OnStartFocusMode: new NetworkEvent<{ requester: Entity }>("OnStartFocusMode"),
+  OnExitFocusMode: new NetworkEvent<{ player: Player }>("OnPlayerExitedExample"),
+  ForceExitFocusMode: new NetworkEvent<{ player: Player }>("OnForceExitFocusMode"),
+  OnPlayerEnteredFocusMode: new NetworkEvent<{ player: Player }>("OnPlayerEnteredFocusMode"),
+  OnPlayerExitedFocusMode: new NetworkEvent<{ player: Player }>("OnPlayerExitedFocusMode"),
+  OnFocusedInteractionInputStarted: new NetworkEvent<{ interactionInfo: InteractionInfo }>("OnFocusedInteractionInputStarted"),
+  OnFocusedInteractionInputMoved: new NetworkEvent<{ interactionInfo: InteractionInfo }>("OnFocusedInteractionInputMoved"),
+  OnFocusedInteractionInputEnded: new NetworkEvent<{ interactionInfo: InteractionInfo }>("OnFocusedInteractionInputEnded"),
   OnEntityTapped: new NetworkEvent("OnEntityTapped"),
 
   //region Fint Tap Trail Options
-  OnSetFocusedInteractionTapOptions: new NetworkEvent<{enabled: boolean, tapOptions: Partial<FocusedInteractionTapOptions>}>("OnSetFocusedInteractionTapOptions"),
-  OnSetFocusedInteractionTrailOptions: new NetworkEvent<{enabled: boolean, trailOptions: Partial<FocusedInteractionTrailOptions>}>("OnSetFocusedInteractionTrailOptions"),
+  OnSetFocusedInteractionTapOptions: new NetworkEvent<{ enabled: boolean; tapOptions: Partial<FocusedInteractionTapOptions> }>("OnSetFocusedInteractionTapOptions"),
+  OnSetFocusedInteractionTrailOptions: new NetworkEvent<{ enabled: boolean; trailOptions: Partial<FocusedInteractionTrailOptions> }>("OnSetFocusedInteractionTrailOptions"),
 
   //region Asset String Array
   OnAssetStringArray_Request: new NetworkEvent<{ requester: Entity }>("OnAssetStringArray_Request"),
-  OnAssetStringArray_Response: new NetworkEvent<{ type: string; assetIDArray: string[]; textureIDArray: string[] }>(
-    "OnAssetStringArray_Response"
-  ),
+  OnAssetStringArray_Response: new NetworkEvent<{ type: string; assetIDArray: string[]; textureIDArray: string[] }>("OnAssetStringArray_Response"),
 
   //region Plot Events
-  spawnPlayerPlotRequest: new NetworkEvent<{ requester: Entity, player: Player, plotBaseID: number, kitchenEntity: Entity }>("spawnPlayerPlot"),
+  spawnPlayerPlotRequest: new NetworkEvent<{ requester: Entity; player: Player; plotBaseID: number; kitchenEntity: Entity }>("spawnPlayerPlot"),
   spawnNewAssetEvent: new NetworkEvent<{ player: Player; assetId: string }>("spawnAssetEvent"),
   updatePlayPlotManagers: new NetworkEvent<{ playerManagers: Player[] }>("updatePlayPlotManagers"),
   savePlayerPlot: new NetworkEvent<{ player: Player }>("savePlayerPlot"),
@@ -65,7 +73,7 @@ export const sysEvents = {
   toggleBuildingEvent: new NetworkEvent<{ player: Player; enabled: boolean }>("toggleBuildingEvent"),
 
   //region Menu Events
-  //bottom menu 
+  //bottom menu
   updateMenuContext: new NetworkEvent<{ player: Player; menuContext: string[] }>("updateMenuContext"),
   // toggleBottomMenuEvent: new NetworkEvent<{ player: Player; open: boolean; menuType: string }>("toggleBottomMenuEvent"),
   buildRotateEvent: new NetworkEvent<{ player: Player }>("buildRotateEvent"),
@@ -73,43 +81,41 @@ export const sysEvents = {
   // SubMenuEvent: new NetworkEvent<{ player: Player; buttonType?: string; open: boolean }>("subButtonEvent"),
   announcePlotOwner: new NetworkEvent<{ plotOwner: Player; plotBase: Entity }>("announcePlotOwner"),
 
-
-    //region Jet Events
+  //region Jet Events
   ProgressEvent: new NetworkEvent<{ player: Player; progressPercent: string }>("ProgressEvent"),
   BoostEvent: new NetworkEvent<{ player: Player; boostAmount: number; boostDecay: number }>("BoostEvent"),
 
   // send from ammo box when a player picks it up
-  pickupAmmo: new NetworkEvent<{ ammoType: string, amount: number }>('shardsPickupAmmo'),
+  pickupAmmo: new NetworkEvent<{ ammoType: string; amount: number }>("shardsPickupAmmo"),
   // send from the gun to the target it hit
-  ammoHit: new NetworkEvent<{ player: Player, damage: number }>('shardsAmmoHit'),
+  ammoHit: new NetworkEvent<{ player: Player; damage: number }>("shardsAmmoHit"),
 
+  //region fishing events
+  ListEvent: new NetworkEvent<{ list: Entity[]; listId: number }>("ListEvent"),
 
-  //region fishing events 
-  ListEvent: new NetworkEvent<{ list: Entity[]; listId: number }>(  "ListEvent"),
-
-  AttachEvent: new NetworkEvent<{ playerTarget: Player }>(  "AttachEvent"),
+  AttachEvent: new NetworkEvent<{ playerTarget: Player }>("AttachEvent"),
   DetachEvent: new NetworkEvent("DetachEvent"),
-  NewOwnerEvent: new NetworkEvent<{ newOwner: Player }>(  "NewOwnerEvent"),
-  
-  //fishing data 
+  NewOwnerEvent: new NetworkEvent<{ newOwner: Player }>("NewOwnerEvent"),
+
+  //fishing data
   updateJSONDataSource: new NetworkEvent<{ newDataSource: Entity }>("updateJSONDataSource"),
-  requestForData: new NetworkEvent<{requester: Entity}>("requestForData"),
+  requestForData: new NetworkEvent<{ requester: Entity }>("requestForData"),
   responseWithData: new NetworkEvent<{ responseData: string }>("responseWithData"),
 
-  objectPoolRequest:new LocalEvent<{requesterEntity: Entity, objType: Asset, amount: number}>("objectPoolRequest"),
-  objectPoolResponse: new LocalEvent<{response: Entity[]}>("objectPoolResponse"),
-  returnObjectToPool: new LocalEvent<{obj: Entity}>("returnObjectToPool"),
+  objectPoolRequest: new LocalEvent<{ requesterEntity: Entity; objType: Asset; amount: number }>("objectPoolRequest"),
+  objectPoolResponse: new LocalEvent<{ response: Entity[] }>("objectPoolResponse"),
+  returnObjectToPool: new LocalEvent<{ obj: Entity }>("returnObjectToPool"),
 
-  setupCollectable: new LocalEvent<{objPoolEntity: Entity}>("setupCollectable"),
+  setupCollectable: new LocalEvent<{ objPoolEntity: Entity }>("setupCollectable"),
 
-  onItemCollected: new LocalEvent<{player: Player, itemType: string, amount: number}>("onItemCollected"),
-  updateCollectableUI: new NetworkEvent<{itemType: string, amount: number}>("updateCollectableUI"),
+  onItemCollected: new LocalEvent<{ player: Player; itemType: string; amount: number }>("onItemCollected"),
+  updateCollectableUI: new NetworkEvent<{ itemType: string; amount: number }>("updateCollectableUI"),
 
-  tutorialEnabled: new LocalEvent<{tutorialSettings: {timeTillNibble: number, losingDisabled: boolean}}>("tutorialEnabled"),
+  tutorialEnabled: new LocalEvent<{ tutorialSettings: { timeTillNibble: number; losingDisabled: boolean } }>("tutorialEnabled"),
 
-  diceRoll: new NetworkEvent<{rollResult: number, player: Player}>("diceRoll"),
+  diceRoll: new NetworkEvent<{ rollResult: number; player: Player }>("diceRoll"),
 
-  //fishing rod events 
+  //fishing rod events
   setFishingState: new LocalEvent<{ state: number }>("SetFishingState"),
   fishingStateChanged: new LocalEvent<{ state: number }>("FishingStateChanged"),
   myCastActionEvent: new NetworkEvent<{ active: boolean }>("myCastActionEvent"),
@@ -121,14 +127,14 @@ export const sysEvents = {
 
   //region kitchen
   SetKitchenManager: new NetworkEvent<{ player: Player; kitchenManager: Entity }>("SetKitchenManager"),
-  StartKitchenEvent: new NetworkEvent<{ player: Player, requester: Entity }>("StartKitchenEvent"),
-  OnCompleteTaskEvent: new NetworkEvent<{ player: Player}>("OnCompleteTaskEvent"),
-  ActivateNewOrder: new NetworkEvent<{ player: Player}>("ActivateNewOrder"),
-  UpdateOrderTicketStatus: new NetworkEvent<{player: Player, triggerEntity: Entity | null}>("UpdateOrderTicketStatus"),
+  StartKitchenEvent: new NetworkEvent<{ player: Player; requester: Entity }>("StartKitchenEvent"),
+  OnCompleteTaskEvent: new NetworkEvent<{ player: Player }>("OnCompleteTaskEvent"),
+  ActivateNewOrder: new NetworkEvent<{ player: Player }>("ActivateNewOrder"),
+  UpdateOrderTicketStatus: new NetworkEvent<{ player: Player; triggerEntity: Entity | null }>("UpdateOrderTicketStatus"),
+  OnOrderServed: new NetworkEvent<{ player: Player; chairEntity: Entity; servableFoodEntity: Entity }>("OnOrderServed"),
   // StationActivated: new NetworkEvent<{player: Player, triggerEntity?: Entity}>("StationActivated"),
 
-  setWhoCanTriggerEvent: new NetworkEvent<{whoCanTrigger: Player[] | 'anyone' | []}>("setWhoCanTriggerEvent"),
+  setWhoCanTriggerEvent: new NetworkEvent<{ whoCanTrigger: Player[] | "anyone" | [] }>("setWhoCanTriggerEvent"),
 
-  dailyRewardClaimed: new NetworkEvent<{player: Player, utc: number}>("dailyRewardClaimed")
+  dailyRewardClaimed: new NetworkEvent<{ player: Player; utc: number }>("dailyRewardClaimed"),
 };
-

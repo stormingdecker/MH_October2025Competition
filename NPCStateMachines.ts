@@ -1,4 +1,4 @@
-import { Player, Vec3 } from "horizon/core";
+import { Entity, Player, Vec3 } from "horizon/core";
 import { OrderTicket } from "KitchenManager";
 import { NPCAgent, NPCAnimationID, NPCChair, NPCMovementSpeedID, NPCStateMachine } from "NPCAgent";
 import { RecipeType } from "RecipeCatalog";
@@ -119,6 +119,7 @@ enum NPCStates_Client {
 export class NPCStateMachine_Client extends NPCStateMachine {
   private chair?: NPCChair;
   private orderTicket?: OrderTicket;
+  private servedFoodEntity: Entity | undefined;
 
   public override onAgentReady(agent: NPCAgent, debugLogging: boolean) {
     this.debugLogging = debugLogging;
@@ -136,6 +137,10 @@ export class NPCStateMachine_Client extends NPCStateMachine {
     if (this.currentState === NPCStates_Client.QueuedInPool) {
       this.currentState = NPCStates_Client.WalkToSeat;
     }
+  }
+
+  public override onOrderServed(player: Player, servableFoodEntity: Entity) {
+    this.servedFoodEntity = servableFoodEntity;
   }
 
   public override async updateState() {
@@ -182,11 +187,16 @@ export class NPCStateMachine_Client extends NPCStateMachine {
         const orderTicket = this.chair!.kitchenManager.generateNewOrder(this.chair!.parentPlayer, recipeType, this.chair?.chairEntity);
         this.orderTicket = orderTicket;
         this.currentState = NPCStates_Client.WaitToBeServed;
+        await this.parentAgent!.showAIConversation(`Waiting to be served ${this.orderTicket?.recipeType}`, "NPC is patiently waiting for their food order");
         break;
       }
       case NPCStates_Client.WaitToBeServed: {
-        await this.parentAgent!.showAIConversation(`Waiting to be served ${this.orderTicket?.recipeType}`, "NPC is patiently waiting for their food order");
-        this.currentState = NPCStates_Client.ReturningToPortal;
+        if (this.servedFoodEntity) {
+          await this.parentAgent!.showAIConversation(`Thank you for this ${this.orderTicket?.recipeType}`, "NPC is grateful for their food order");
+          await this.parentAgent!.world.deleteAsset(this.servedFoodEntity, true);
+          this.servedFoodEntity = undefined;
+          this.currentState = NPCStates_Client.ReturningToPortal;
+        }
         break;
       }
       case NPCStates_Client.ReturningToPortal: {

@@ -3,6 +3,7 @@ import { KitchenManager } from "KitchenManager";
 import { NPCAgent, NPCChair } from "NPCAgent";
 import { NPCStateMachine_Client, NPCStateMachine_WorldGreeter } from "NPCStateMachines";
 import { PlayerPlotManager, RestaurantItemTag } from "PlayerPlotManager";
+import { sysEvents } from "sysEvents";
 import { debugLog, ManagerType } from "sysHelper";
 import { getMgrClass } from "sysUtils";
 
@@ -41,13 +42,7 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
   private activePlayers: Player[] = [];
   private availableChairs: NPCChair[] = [];
 
-  override start() {
-    this.registerAgent(this.props.npcClient1);
-    this.registerAgent(this.props.npcClient2);
-    this.registerAgent(this.props.npcClient3);
-    this.registerAgent(this.props.npcClient4);
-    this.registerAgent(this.props.npcGreeter);
-
+  override preStart() {
     this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnPlayerEnterWorld, (player) => {
       if (NPCAgent.isPlayerAnNPC(player)) {
         return;
@@ -63,6 +58,19 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
         this.availableChairs = [];
       }
     });
+
+    this.connectNetworkBroadcastEvent(sysEvents.OnOrderServed, (data) => {
+      const { player, chairEntity, servableFoodEntity } = data;
+      this.onOrderServed(player, chairEntity, servableFoodEntity);
+    });
+  }
+
+  override start() {
+    this.registerAgent(this.props.npcClient1);
+    this.registerAgent(this.props.npcClient2);
+    this.registerAgent(this.props.npcClient3);
+    this.registerAgent(this.props.npcClient4);
+    this.registerAgent(this.props.npcGreeter);
 
     this.async.setInterval(() => {
       if (this.activePlayers.length > 0) {
@@ -183,6 +191,18 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
       }
     }
     return undefined;
+  }
+
+  private onOrderServed(player: Player, chairEntity: Entity, servableFoodEntity: Entity) {
+    debugLog(this.props.debugLogging, `NPCAgentPool: onOrderServed called for player ${player.name.get()} and chair ${chairEntity.name.get()}`);
+    const chair = this.availableChairs.find((c) => c.chairEntity === chairEntity);
+    if (chair === undefined) {
+      console.error(`NPCAgentPool: Chair not found for entity ${chairEntity.name.get()}`);
+      return;
+    }
+    if (chair.assignedToNPC !== undefined) {
+      chair.assignedToNPC.onOrderServed(player, servableFoodEntity);
+    }
   }
 }
 Component.register(NPCAgentPool);

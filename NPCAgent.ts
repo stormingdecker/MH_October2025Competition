@@ -39,6 +39,8 @@ export abstract class NPCStateMachine {
   public abstract isIdle(): boolean;
   public abstract activate(chair: NPCChair): void;
 
+  public onOrderServed(player: Player, servableFoodEntity: Entity): void {}
+
   public async updateState(): Promise<void> {}
 }
 
@@ -113,6 +115,13 @@ export class NPCAgent extends Component<typeof NPCAgent> {
   public activate(chair: NPCChair) {
     if (this.stateMachine !== undefined) {
       this.stateMachine.activate(chair);
+    }
+  }
+
+  public onOrderServed(player: Player, servableFoodEntity: Entity) {
+    debugLog(this.props.debugLogging, `NPCAgent: onOrderServed called for player ${player.name.get()}`);
+    if (this.stateMachine !== undefined) {
+      this.stateMachine.onOrderServed(player, servableFoodEntity);
     }
   }
 

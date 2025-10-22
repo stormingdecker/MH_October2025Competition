@@ -1,6 +1,10 @@
-import { CodeBlockEvents, Component, Player, PropTypes, Vec3 } from "horizon/core";
+import { CodeBlockEvents, Component, Player, PropTypes, Quaternion, Vec3 } from "horizon/core";
 import { OrderTicket } from "KitchenManager";
 import { PlateFoodContainer } from "PlateFoodContainer";
+import { PlayerPlotManager } from "PlayerPlotManager";
+import { sysEvents } from "sysEvents";
+import { ManagerType } from "sysHelper";
+import { getMgrClass } from "sysUtils";
 
 export class ServableFood extends Component<typeof ServableFood> {
   static propsDefinition = {
@@ -40,8 +44,31 @@ export class ServableFood extends Component<typeof ServableFood> {
       return;
     }
 
-    const targetPosition = this.orderTicket.chairEntity?.position.get() ?? Vec3.zero;
-    this.entity.position.set(targetPosition.add(new Vec3(0, 1, 0)));
+    if (this.orderTicket.chairEntity === undefined) {
+      console.error("ServableFood: Order ticket does not have an associated chair entity.");
+      return;
+    }
+
+    const plotManager = getMgrClass<PlayerPlotManager>(this, ManagerType.PlayerPlotManager, PlayerPlotManager);
+    if (!plotManager) {
+      console.error("ServableFood: Unable to get PlayerPlotManager.");
+      return;
+    }
+
+    let targetPosition = this.orderTicket.chairEntity.position.get();
+    const tableEntity = plotManager.getTableForChair(player, this.orderTicket.chairEntity);
+    if (tableEntity) {
+      const tablePosition = tableEntity.position.get();
+      targetPosition = targetPosition.mul(0.25).add(tablePosition.mul(0.75));
+    }
+    this.entity.position.set(targetPosition.add(new Vec3(0, 1.05, 0)));
+    this.entity.rotation.set(Quaternion.zero);
+
+    this.sendNetworkBroadcastEvent(sysEvents.OnOrderServed, {
+      player: player,
+      chairEntity: this.orderTicket.chairEntity,
+      servableFoodEntity: this.entity,
+    });
   }
 
   public switchVisibleGroupToOrder(orderTicket: OrderTicket) {
