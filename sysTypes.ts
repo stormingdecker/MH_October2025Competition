@@ -9,7 +9,6 @@ export enum InventoryType {
   wood = "wood",
   stone = "stone",
   iron = "iron",
-  money = "money",
   currency = "currency",
   diamond = "diamond",
 }
@@ -19,7 +18,6 @@ export const DEFAULT_INVENTORY: PlayerInventory = Object.freeze({
     [InventoryType.wood]: 0,
     [InventoryType.stone]: 0,
     [InventoryType.iron]: 0,
-    [InventoryType.money]: 0,
     [InventoryType.currency]: 10000,
     [InventoryType.diamond]: 0,
   },
@@ -155,17 +153,7 @@ export type Vec3Like = [number, number, number];
 export type EulerLike = [number, number, number];
 export type QuaternionLike = [number, number, number, number];
 
-export type TransformLike = [
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number
-]; // position + euler + scale
+export type TransformLike = [number, number, number, number, number, number, number, number, number]; // position + euler + scale
 
 // Common identifiers
 export type InstanceId = string; // unique per placed entity (e.g., "chair_0001")

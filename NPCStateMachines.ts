@@ -1,3 +1,4 @@
+import { MoneyPool } from "GrabbableMoney";
 import { Entity, Player, Vec3 } from "horizon/core";
 import { OrderTicket } from "KitchenManager";
 import { NPCAgent, NPCAnimationID, NPCChair, NPCMovementSpeedID, NPCStateMachine } from "NPCAgent";
@@ -116,6 +117,8 @@ enum NPCStates_Client {
   ReturningToPortal,
 }
 
+const CURRENCY_REWARD_PER_ORDER = 100;
+
 export class NPCStateMachine_Client extends NPCStateMachine {
   private chair?: NPCChair;
   private orderTicket?: OrderTicket;
@@ -191,10 +194,12 @@ export class NPCStateMachine_Client extends NPCStateMachine {
         break;
       }
       case NPCStates_Client.WaitToBeServed: {
-        if (this.servedFoodEntity) {
+        if (this.servedFoodEntity !== undefined) {
           await this.parentAgent!.showAIConversation(`Thank you for this ${this.orderTicket?.recipeType}`, "NPC is grateful for their food order");
+          const platePosition = this.servedFoodEntity.position.get();
           await this.parentAgent!.world.deleteAsset(this.servedFoodEntity, true);
           this.servedFoodEntity = undefined;
+          MoneyPool.instance.assignMoneyComponent(platePosition, CURRENCY_REWARD_PER_ORDER);
           this.currentState = NPCStates_Client.ReturningToPortal;
         }
         break;
