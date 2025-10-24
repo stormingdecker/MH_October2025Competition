@@ -1,4 +1,5 @@
 import { Component, Player } from "horizon/core";
+import { SaveManager } from "SaveManager";
 import { StatsManager } from "StatsManager";
 import { ManagerType } from "sysHelper";
 import { StatType } from "sysTypes";
@@ -81,12 +82,23 @@ export class DailyRewardManager extends Component<typeof DailyRewardManager> {
         playerStats.type[StatType.dailyCycleDay] = (dailyCycleDay % 7) + 1;
 
         this.statsMgr?.updatePlayerDailyRewards(player, playerStats);
+        const saveMgr = getMgrClass<SaveManager>(this, ManagerType.SaveManager, SaveManager);
+        saveMgr?.savePlayerData(player);
         result = true;
       } else {
         console.log(`Player ${player.name.get()} has already claimed today's reward.`);
       }
     }
     return result;
+  }
+
+  public getDailyRewardInfo(player: Player): { dailyStreak: number } | undefined {
+    const playerStats = this.statsMgr?.getPlayerStats(player);
+    if (playerStats) {
+      const dailyStreak = playerStats.type[StatType.dailyStreak] || 0;
+      return { dailyStreak };
+    }
+    return undefined;
   }
 }
 Component.register(DailyRewardManager);

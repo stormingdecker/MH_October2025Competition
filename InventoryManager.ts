@@ -3,7 +3,8 @@ import { sysEvents } from "sysEvents";
 import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
 import { DEFAULT_INVENTORY, InventoryType, PlayerInventory } from "sysTypes";
 import { getMgrClass } from "sysUtils";
-import { oneHudEvents } from "UI_OneHUD";
+import { oneHudEvents } from "UI_OneHUDEvents";
+// import { oneHudEvents } from "UI_OneHUD";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 
 export class InventoryManager extends Component<typeof InventoryManager> {

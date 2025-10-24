@@ -21,6 +21,7 @@ export class SaveManager extends Component<typeof SaveManager> {
   static propsDefinition = {
     enabled: { type: PropTypes.Boolean, default: true },
     showDebugs: { type: PropTypes.Boolean, default: false },
+    enableSaving : { type: PropTypes.Boolean, default: true },
     enableIntervalSave: { type: PropTypes.Boolean, default: false },
     intervalSeconds: { type: PropTypes.Number, default: 10 },
   };
@@ -117,6 +118,10 @@ export class SaveManager extends Component<typeof SaveManager> {
 
   //region savePlayerData
   public savePlayerData(player: Player) {
+    if(!this.props.enableSaving) {
+      debugLog(this.props.showDebugs, `Saving disabled. Skipping save for ${player.name.get()}.`);
+      return;
+    }
     const playerStats = this.statsMgr?.getPlayerStats(player);
     const playerInventory = this.inventoryMgr?.getPlayerInventory(player);
     const playerPlotData = this.plotMgr?.getPlayerPlot(player);

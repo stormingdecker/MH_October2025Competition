@@ -138,4 +138,7 @@ export const sysEvents = {
   setWhoCanTriggerEvent: new NetworkEvent<{ whoCanTrigger: Player[] | "anyone" | [] }>("setWhoCanTriggerEvent"),
 
   dailyRewardClaimed: new NetworkEvent<{ player: Player; utc: number }>("dailyRewardClaimed"),
+  showDailyRewardUI: new NetworkEvent<{ player: Player; show: boolean; giftBox: Entity }>("showDailyRewardUI"),
+  showDailyRewardToPlayer: new NetworkEvent<{ player: Player; show: boolean; position: Vec3 }>("showDailyRewardToPlayer"),
+  openDailyRewardGiftBox: new NetworkEvent<{ player: Player }>("openDailyRewardGiftBox"),
 };

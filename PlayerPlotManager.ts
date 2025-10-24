@@ -1,3 +1,4 @@
+import { DailyRewardManager } from "DailyRewardManager";
 import { Asset, Component, Entity, EulerOrder, MeshEntity, Player, PropTypes, Quaternion, TextureAsset, Vec3 } from "horizon/core";
 import { MoveableBase } from "MoveableBase";
 import { PerPlotProps } from "PerPlotManager";
@@ -128,9 +129,11 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
 
   //region player join/leave
   onPlayerJoined(player: Player) {
+
     if (this.props.autoAssignPlotOnJoin) {
       this.assignPlayerToOpenPlot(player);
     }
+
   }
 
   onPlayerLeft(player: Player) {

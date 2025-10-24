@@ -1,12 +1,27 @@
-import { CodeBlockEvents, Component, Entity, GrabbableEntity, Player, PropTypes, Quaternion, Vec3 } from "horizon/core";
+import { Asset, CodeBlockEvents, Component, Entity, GrabbableEntity, Player, PropTypes, Quaternion, Vec3 } from "horizon/core";
 import { InventoryManager } from "InventoryManager";
 import { debugLog, ManagerType } from "sysHelper";
 import { InventoryType } from "sysTypes";
 import { getMgrClass } from "sysUtils";
 
-// --- Fruit Tree ---
+// --- Fruit Plant ---
 
-const fruitTypes = [InventoryType.apple, InventoryType.banana, InventoryType.cherry, InventoryType.lemon, InventoryType.orange, InventoryType.peach, InventoryType.pear, InventoryType.pineapple, InventoryType.strawberry];
+interface FruitType {
+  name: InventoryType;
+  asset: Asset;
+}
+
+const fruitTypes: FruitType[] = [
+  { name: InventoryType.apple, asset: new Asset(BigInt("675554712276248")) },
+  { name: InventoryType.banana, asset: new Asset(BigInt("802699452617022")) },
+  { name: InventoryType.cherry, asset: new Asset(BigInt("1356200265862008")) },
+  { name: InventoryType.lemon, asset: new Asset(BigInt("1875920139994203")) },
+  { name: InventoryType.orange, asset: new Asset(BigInt("2212810152541271")) },
+  { name: InventoryType.peach, asset: new Asset(BigInt("1323540752643246")) },
+  { name: InventoryType.pear, asset: new Asset(BigInt("1130401219084123")) },
+  { name: InventoryType.pineapple, asset: new Asset(BigInt("1564733044526612")) },
+  { name: InventoryType.strawberry, asset: new Asset(BigInt("1399989785049780")) },
+];
 
 interface FruitLocation {
   position: Vec3;
@@ -37,7 +52,7 @@ export class FruitPlant extends Component<typeof FruitPlant> {
     }
   }
 
-  public spawnFruit() {
+  public async spawnFruit() {
     debugLog(this.props.debugLogEnabled, "FruitPlant: Attempting to spawn fruit...");
 
     // Find an empty fruit location
@@ -47,24 +62,38 @@ export class FruitPlant extends Component<typeof FruitPlant> {
       return;
     }
 
-    // Get an available fruit from the fruit pool
-    const fruit = FruitPool.instance.findAvailableFruit(this.props.FruitType);
-    if (!fruit) {
-      console.error(`FruitPlant: No available fruit of type ${this.props.FruitType} in the fruit pool.`);
+    const fruitType = fruitTypes.find((fruit) => fruit.name === this.props.FruitType);
+    if (!fruitType) {
+      console.error(`FruitPlant: No fruit type found for ${this.props.FruitType}`);
       return;
     }
 
+    // Find random location on tree
     const locationIndex = Math.floor(Math.random() * emptyLocations.length);
     const selectedLocation = emptyLocations[locationIndex];
 
-    selectedLocation.fruit = fruit;
-    fruit.placeInTree(this, selectedLocation.position, selectedLocation.rotation);
+    // Spawn fruit asset at location
+    const fruitAssets = await this.world.spawnAsset(fruitType.asset, selectedLocation.position, selectedLocation.rotation);
+    if (fruitAssets.length === 0) {
+      console.error("FruitPlant: Failed to spawn fruit asset.");
+      return;
+    }
+
+    const fruitComponent = fruitAssets[0].getComponents(GrabbableFruit)[0];
+    if (!fruitComponent) {
+      console.error("FruitPlant: Spawned fruit asset does not have GrabbableFruit component.");
+      return;
+    }
+
+    selectedLocation.fruit = fruitComponent;
+    fruitComponent.placeInTree(this, selectedLocation.position, selectedLocation.rotation);
     debugLog(this.props.debugLogEnabled, `FruitPlant: Spawned ${this.props.FruitType} at ${selectedLocation.position.toString()}`);
   }
 
-  public releaseFruitFromLocation(fruit: GrabbableFruit) {
+  public async releaseFruitFromLocation(fruit: GrabbableFruit) {
     for (const location of this.fruitLocations) {
       if (location.fruit === fruit) {
+        await this.world.deleteAsset(location.fruit.entity, true);
         location.fruit = undefined;
         debugLog(this.props.debugLogEnabled, `FruitPlant: Released fruit from location at ${location.position.toString()}`);
         return;
@@ -101,10 +130,7 @@ export class GrabbableFruit extends Component<typeof GrabbableFruit> {
     this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnGrabEnd, (player: Player) => this.onRelease(player));
   }
 
-  override start() {
-    this.entity.position.set(POSITION_HIDDEN);
-    this.entity.visible.set(false);
-  }
+  override start() {}
 
   public placeInTree(parentTree: FruitPlant, position: Vec3, rotation: Quaternion) {
     this.parentTree = parentTree;
@@ -145,52 +171,3 @@ export class GrabbableFruit extends Component<typeof GrabbableFruit> {
   private onRelease(player: Player) {}
 }
 Component.register(GrabbableFruit);
-
-// --- Fruit Pool ---
-
-export class FruitPool extends Component<typeof FruitPool> {
-  static propsDefinition = {
-    debugLogEnabled: { type: PropTypes.Boolean, default: false },
-  };
-
-  public static instance: FruitPool;
-
-  private fruitPool: GrabbableFruit[] = [];
-
-  override preStart() {
-    FruitPool.instance = this;
-  }
-
-  override start() {
-    debugLog(this.props.debugLogEnabled, "FruitPool: Initializing fruit pool...");
-    this.discoverFruitChildren(this.entity);
-  }
-
-  private discoverFruitChildren(parent: Entity) {
-    const children = parent.children.get();
-    for (const child of children) {
-      const grabbableFruitComponents = child.getComponents(GrabbableFruit);
-      if (grabbableFruitComponents.length === 0) {
-        this.discoverFruitChildren(child);
-        continue;
-      }
-
-      const grabbableFruit = grabbableFruitComponents[0];
-      debugLog(this.props.debugLogEnabled, `FruitPool: Adding ${child.name.get()} to fruit pool as type ${grabbableFruit.props.FruitType}`);
-      this.fruitPool.push(grabbableFruit);
-    }
-  }
-
-  public findAvailableFruit(fruitType: string) {
-    debugLog(this.props.debugLogEnabled, `FruitPool: Finding available fruit of type ${fruitType}`);
-    for (const fruit of this.fruitPool) {
-      if (fruit.props.FruitType === fruitType && fruit.getParentTree() === undefined) {
-        debugLog(this.props.debugLogEnabled, `FruitPool: Found available fruit ${fruit.entity.name.get()}`);
-        return fruit;
-      }
-    }
-    debugLog(this.props.debugLogEnabled, `FruitPool: No available fruit of type ${fruitType} found`);
-    return undefined;
-  }
-}
-Component.register(FruitPool);

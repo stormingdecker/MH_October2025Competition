@@ -1,5 +1,5 @@
 import { CodeBlockEvents, Component, Entity, Player, PropTypes } from "horizon/core";
-import { oneHudEvents } from "UI_OneHUD";
+import { oneHudEvents } from "UI_OneHUDEvents";
 
 class UI_OneHUD_Demo extends Component<typeof UI_OneHUD_Demo> {
   static propsDefinition = {

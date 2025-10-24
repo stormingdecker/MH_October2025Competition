@@ -1,33 +1,75 @@
-import { DailyRewardManager } from 'DailyRewardManager';
-import { CodeBlockEvents, Component, Entity, EulerOrder, Player, PropTypes, Quaternion, TriggerGizmo, Vec3 } from 'horizon/core';
-import { StatsManager } from 'StatsManager';
-import { sysEvents } from 'sysEvents';
-import { getEntityListByTag, ManagerType } from 'sysHelper';
-import { InventoryType } from 'sysTypes';
-import { getMgrClass } from 'sysUtils';
-import { animateScaleEvent } from 'TweenHandler';
-import { playVFX, PlayVFXAtPosition, VFXLabel } from 'VFXManager';
+import { DailyRewardManager } from "DailyRewardManager";
+import {
+  CodeBlockEvents,
+  Component,
+  Entity,
+  EulerOrder,
+  Player,
+  PropTypes,
+  Quaternion,
+  TriggerGizmo,
+  Vec3,
+} from "horizon/core";
+import { sysEvents } from "sysEvents";
+import { getEntityListByTag, ManagerType, playVFXatPosition } from "sysHelper";
+import { InventoryType } from "sysTypes";
+import { getMgrClass } from "sysUtils";
+import { animateScaleEvent } from "TweenHandler";
+import { playVFX, PlayVFXAtPosition, VFXLabel } from "VFXManager";
 
 class T_DailyReward extends Component<typeof T_DailyReward> {
   static propsDefinition = {
     prizeGFX: { type: PropTypes.Entity },
+    day1Reward: {type: PropTypes.Number, default: 10 },
+    day2Reward: {type: PropTypes.Number, default: 15 },
+    day3Reward: {type: PropTypes.Number, default: 20 },
+    day4Reward: {type: PropTypes.Number, default: 25 },
+    day5Reward: {type: PropTypes.Number, default: 30 },
   };
 
   dailyRewardManager: DailyRewardManager | undefined = undefined;
   activePlayer!: Player;
 
+  private startPos: Vec3 = new Vec3(0, 0, 0);
+
+  //region preStart()
   preStart() {
-    this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnPlayerEnterTrigger, this.OnPlayerEnterTrigger.bind(this));
+    this.startPos = this.entity.position.get();
+
+    this.connectCodeBlockEvent(
+      this.entity,
+      CodeBlockEvents.OnPlayerEnterTrigger,
+      this.OnPlayerEnterTrigger.bind(this)
+    );
     this.connectNetworkEvent(this.entity, sysEvents.setWhoCanTriggerEvent, (data) => {
       this.entity.as(TriggerGizmo).setWhoCanTrigger(data.whoCanTrigger);
     });
+    this.connectNetworkEvent(this.entity, sysEvents.showDailyRewardToPlayer, (data) => {
+      if (data.show) {
+        this.entity.position.set(this.startPos);
+        this.entity.as(TriggerGizmo).setWhoCanTrigger([data.player]);
+      } else {
+        this.entity.as(TriggerGizmo).setWhoCanTrigger([]);
+        this.hidePrize();
+      }
+    });
+
+    this.connectNetworkEvent(this.entity, sysEvents.openDailyRewardGiftBox, (data) => {
+      this.playOpeningVFX();
+    });
   }
 
-  start(){
-    this.dailyRewardManager = getMgrClass<DailyRewardManager>(this, ManagerType.DailyRewardManager, DailyRewardManager);
+  //region start()
+  start() {
+    this.dailyRewardManager = getMgrClass<DailyRewardManager>(
+      this,
+      ManagerType.DailyRewardManager,
+      DailyRewardManager
+    );
     // Initially disable trigger to prevent triggering
-    // this.entity.as(TriggerGizmo).setWhoCanTrigger([]);
-    this.entity.as(TriggerGizmo).setWhoCanTrigger('anyone');
+    this.entity.as(TriggerGizmo).setWhoCanTrigger([]);
+    this.hidePrize();
+    // this.entity.as(TriggerGizmo).setWhoCanTrigger('anyone');
   }
 
   OnPlayerEnterTrigger(player: Player) {
@@ -35,13 +77,21 @@ class T_DailyReward extends Component<typeof T_DailyReward> {
 
     if (this.tryClaimDailyReward() === false) return;
 
+    this.entity.as(TriggerGizmo).setWhoCanTrigger([]);
+
+    //open daily reward on OneHUD
+    const oneHUD = getEntityListByTag(ManagerType.UI_OneHUD, this.world)[0];
+    this.sendNetworkEvent(oneHUD!, sysEvents.showDailyRewardUI, {
+      player: this.activePlayer,
+      show: true,
+      giftBox: this.entity,
+    });
+  }
+
+  //this will be triggered from OneHUD when the player clicks to open the reward
+  private playOpeningVFX() {
     this.shakePrizeRotationForOneSecond();
     this.slowGrowPrizeOverOneSecond();
-
-    this.entity.as(TriggerGizmo).setWhoCanTrigger([]);
-    this.async.setTimeout(() => {
-      this.entity.as(TriggerGizmo).setWhoCanTrigger('anyone');
-    }, 2 * 1000);
   }
 
   async shakePrizeRotationForOneSecond() {
@@ -65,15 +115,14 @@ class T_DailyReward extends Component<typeof T_DailyReward> {
       const offsetQuat = Quaternion.fromEuler(offsetEuler, EulerOrder.XYZ);
 
       prize.rotation.set(originalRot.mul(offsetQuat));
-      await new Promise(resolve => this.async.setTimeout(resolve, interval * 1000));
+      await new Promise((resolve) => this.async.setTimeout(resolve, interval * 1000));
     }
-    
+
     // Reset to original rotation
     prize.rotation.set(originalRot);
 
     const tweenHandler = getEntityListByTag("TweenHandler", this.world)[0];
     this.sendNetworkEvent(tweenHandler!, animateScaleEvent, { targetEntity: this.props.prizeGFX! });
-    this.showAward();
   }
 
   async slowGrowPrizeOverOneSecond() {
@@ -91,13 +140,16 @@ class T_DailyReward extends Component<typeof T_DailyReward> {
       const newScale = Vec3.lerp(originalScale, targetScale, t);
       prize.scale.set(newScale);
       if (i === steps) {
-        this.cleanupPrize();
+        this.showAward();
+        this.async.setTimeout(() => {
+          this.hidePrize();
+        }, 200);
       }
-      await new Promise(resolve => this.async.setTimeout(resolve, interval * 1000));
+      await new Promise((resolve) => this.async.setTimeout(resolve, interval * 1000));
     }
 
     // Ensure final scale is set
-    prize.scale.set(targetScale);   
+    prize.scale.set(targetScale);
   }
 
   tryClaimDailyReward(): boolean {
@@ -106,32 +158,24 @@ class T_DailyReward extends Component<typeof T_DailyReward> {
     if (this.dailyRewardManager?.tryClaimDailyReward(this.activePlayer, utcNow)) {
       console.log("Player claiming daily reward");
       return true;
-    }
-    else{
+    } else {
       console.log("Player already claimed daily reward today");
       return false;
     }
   }
 
   showAward() {
-    // const statsManager = getEntityListByTag(ManagerType.StatsManager, this.world)[0];
-    // this.sendNetworkEvent(statsManager!, sysEvents.dailyRewardClaimed, { player: this.activePlayer, utc: Date.now() });
-
-    playVFX(this, VFXLabel.sparkles, [this.activePlayer], this.entity.position.get(), this.entity.rotation.get());
-    console.log("Award the player!");
-    // Implement award logic here, e.g., give points, items, etc.
-    const inventoryManager = getEntityListByTag(ManagerType.InventoryManager, this.world)[0];
-    this.sendNetworkEvent(inventoryManager!, sysEvents.UpdatePlayerInventory, {
-      player: this.activePlayer,
-      item: InventoryType.currency,
-      quantity: 10,
-      sender: this.entity
-    });
-
+    playVFX(
+      this,
+      VFXLabel.sparkles,
+      [this.activePlayer],
+      this.entity.position.get(),
+      this.entity.rotation.get()
+    );
   }
 
-  cleanupPrize() {
-    // this.entity.position.set(new Vec3(0, -1000, 0));
+  hidePrize() {
+    this.entity.position.set(new Vec3(0, -1000, 0));
   }
 }
 

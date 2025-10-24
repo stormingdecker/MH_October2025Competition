@@ -1,5 +1,6 @@
 // Copyright (c) Dave Mills (uRocketLife). Released under the MIT License.
 
+import { DailyRewardManager } from "DailyRewardManager";
 import { Asset, Color, Entity, NetworkEvent, Player, PropTypes, Vec3 } from "horizon/core";
 import {
   AnimatedBinding,
@@ -16,11 +17,10 @@ import {
 } from "horizon/ui";
 import { ImageSetProps, OnImageSetResponse } from "ImageRegistry";
 import { sysEvents } from "sysEvents";
-import { debugLog } from "sysHelper";
+import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
 import { InventoryType } from "sysTypes";
 import {
   btnImgBndText,
-  buttonImgWithText,
   confirm,
   convertAssetIDToImageSource,
   dailyRewardWindow,
@@ -33,64 +33,11 @@ import {
   progressBar,
   progressionTask,
 } from "sysUIStyleGuide";
+import { getMgrClass } from "sysUtils";
+import { oneHudEvents } from "UI_OneHUDEvents";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 
 export const UI_OneHudTag = "UI_OneHUD";
-
-export const oneHudEvents = {
-  //region Events
-  SetProgressEvent: new NetworkEvent<{ player: Player; amount: string }>("SetProgressEvent"),
-  SetPlayerLevelEvent: new NetworkEvent<{ player: Player; level: string }>("SetPlayerLevelEvent"),
-  SetHealthEvent: new NetworkEvent<{ player: Player; amount: string }>("SetHealthEvent"),
-  SetScoreEvent: new NetworkEvent<{ player: Player; amount: string }>("SetScoreEvent"),
-  // A request/response event pair informs any requesting Entity when the player closes the popup.
-  PopupRequest: new NetworkEvent<{
-    requester: Entity;
-    player: Player;
-    title: string;
-    message: string;
-  }>("PopupRequest"),
-  PopupResponse: new NetworkEvent<{ player: Player }>("PopupResponse"),
-
-  NotificationEvent: new NetworkEvent<{
-    message: string;
-    players: Player[];
-    imageAssetId: string | null;
-  }>("NotificationEvent"),
-
-  ConfirmationPanelRequest: new NetworkEvent<{
-    requester: Entity;
-    player: Player;
-    confirmationMessage: string;
-  }>("ConfirmationPanelRequest"),
-  ConfirmationPanelResponse: new NetworkEvent<{
-    player: Player;
-    message: string;
-    accepted: boolean;
-  }>("ConfirmationPanelResponse"),
-
-  ShowProgressionTask: new NetworkEvent<{
-    players: Player[];
-    header: string;
-    instruction: string;
-    resultImgAssetId: string;
-    instructImgAssetId: string;
-    showProgressBar: boolean;
-  }>("ShowProgressionTask"),
-  HideProgressionTask: new NetworkEvent<{ players: Player[] }>("HideProgressionTask"),
-  UpdateProgressionTask: new NetworkEvent<{ players: Player[]; progressAsString: string }>(
-    "UpdateProgressionTask"
-  ),
-
-  UpdateInventoryUI: new NetworkEvent<{ player: Player; inventoryType: string; newValue: string }>(
-    "UpdateInventoryUI"
-  ),
-
-  ShowDailyRewardUI: new NetworkEvent<{ players: Player[] }>("ShowDailyRewardUI"),
-  UpdateDailyRewardStreak: new NetworkEvent<{ player: Player; newStreak: number }>(
-    "UpdateDailyRewardStreak"
-  ),
-};
 
 export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   //region propsDefs
@@ -233,6 +180,8 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   //daily rewards
   private dailyReward_childrenUINodeArray = new Binding<UINode[]>([]); // Binding to hold child nodes
   private bnd_dailyRewardDisplay = new Binding<string>("none");
+  private playerGiftBoxMap: Map<Player, Entity> = new Map(); //i don't love it but it works
+  private playerDailyStreakMap: Map<Player, number> = new Map();
 
   //food menu
   private foodMenu_childrenUINodeArray = new Binding<UINode[]>([]); // Binding to hold child nodes
@@ -567,6 +516,21 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
 
       this.curMenuContext = data.menuContext ?? [];
     });
+
+    this.connectNetworkEvent(this.entity, sysEvents.showDailyRewardUI, (data) => {
+      // this.bnd_dailyRewardDisplay.set(data.show ? "flex" : "none", [data.player]);
+      this.playerGiftBoxMap.set(data.player, data.giftBox);
+      const dailyRewardMgr = getMgrClass<DailyRewardManager>(
+        this,
+        ManagerType.DailyRewardManager,
+        DailyRewardManager
+      );
+      const dailyStreak = dailyRewardMgr?.getDailyRewardInfo(data.player)?.dailyStreak ?? 0;
+      console.log(
+        `Updating daily reward streak to ${dailyStreak} for player ${data.player.name.get()}`
+      );
+      this.updateDailyRewardStreak([data.player], dailyStreak);
+    });
   }
 
   updateDailyRewardStreak(players: Player[], newStreak: number): void {
@@ -575,6 +539,8 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       for (let i = 0; i < imageSet_wStreak.usePrimaryImage.length; i++) {
         imageSet_wStreak.usePrimaryImage[i] = i <= newStreak;
       }
+      console.log(`Updating daily reward streak to ${newStreak} for player ${players[0].name.get()}`);
+      this.playerDailyStreakMap.set(players[0], newStreak);
       this.setupDailyRewardContainer(players, imageSet_wStreak);
     } else if (this.imageSetMap.has("FoodMenu")) {
       let imageSet_foodMenu = this.imageSetMap.get("FoodMenu")!;
@@ -649,6 +615,29 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       case "claimDailyRewards":
         console.log(`Daily Reward Claim Button Pressed by ${player.name.get()}`);
         this.bnd_dailyRewardDisplay.set("none", [player]);
+        if (this.playerGiftBoxMap.has(player)) {
+          const giftBoxEntity = this.playerGiftBoxMap.get(player)!;
+
+          const dailyStreak = this.playerDailyStreakMap.get(player) || 0; //this is placeholder
+          const rewardAmount = 10 + dailyStreak * 5; //example: base 10 currency + 5 per streak day
+          this.sendNetworkEvent(giftBoxEntity, sysEvents.openDailyRewardGiftBox, {
+            player: player,
+          });
+
+          this.async.setTimeout(() => {
+            // Implement award logic here, e.g., give points, items, etc.
+            const inventoryManager = getEntityListByTag(
+              ManagerType.InventoryManager,
+              this.world
+            )[0];
+            this.sendNetworkEvent(inventoryManager!, sysEvents.UpdatePlayerInventory, {
+              player: player,
+              item: InventoryType.currency,
+              quantity: rewardAmount,
+              sender: this.entity,
+            });
+          }, 2000);
+        }
         break;
       case "exitDailyRewards":
         console.log(`Daily Reward Exit Button Pressed by ${player.name.get()}`);
@@ -788,7 +777,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   private displayNotification(recipients: Player[] | null = null) {
     console.log("Showing notification");
     this.bnd_notifyDisplay.set("flex", recipients ?? undefined);
-    //set the UI alll the way to the right
+    //set the UI all the way to the right
     this.animBnd_translateX.set(1000);
     const defaultSequence = Animation.sequence(
       //Move the UI to the center(0px) over 800ms
@@ -800,7 +789,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       Animation.delay(
         //Notice delay wraps the next animation
         1500,
-        //then move the UI alll the way to the left(-1000px) over 1000ms
+        //then move the UI all the way to the left(-1000px) over 1000ms
         Animation.timing(-1000, {
           duration: 800,
           easing: this.notifyEasing,
@@ -894,7 +883,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
 
     this.bnd_showTaskProgressBar.set(showProgressBar ? "flex" : "none", recipients);
 
-    //then move the UI alll the way to the left(-1000px) over 1000ms
+    //then move the UI all the way to the left(-1000px) over 1000ms
     this.animBnd_ProgTaskTranslateY.set(
       Animation.timing(0, {
         duration: 200,
@@ -909,7 +898,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     let recipients = players.length > 0 ? players : undefined;
     this.animBnd_ProgTaskTranslateY.set(0);
 
-    //then move the UI alll the way to the left(-1000px) over 1000ms
+    //then move the UI all the way to the left(-1000px) over 1000ms
     this.animBnd_ProgTaskTranslateY.set(
       Animation.timing(200, {
         duration: 200,

@@ -1,33 +1,14 @@
 import { OnButtonAssetResponse } from "ButtonAssetRegistry";
 import { ButtonProps, OnButtonRequest, OnButtonResponse } from "ButtonRegistry";
 import { Asset, Entity, NetworkEvent, Player, PropTypes, Vec3 } from "horizon/core";
-import {
-  AnimatedBinding,
-  Animation,
-  Binding,
-  DynamicList,
-  Easing,
-  ImageSource,
-  Text,
-  UIComponent,
-  UINode,
-  View,
-} from "horizon/ui";
+import { AnimatedBinding, Animation, Binding, DynamicList, Easing, ImageSource, Text, UIComponent, UINode, View } from "horizon/ui";
 import { InventoryManager } from "InventoryManager";
 import { sysEvents } from "sysEvents";
 import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
 import { InventoryType } from "sysTypes";
-import {
-  buttonImg,
-  buttonImgWithText,
-  convertAssetIDToImageSource,
-  convertAssetToImageSource,
-  menuButton,
-} from "sysUIStyleGuide";
+import { buttonImg, buttonImgWithText, convertAssetIDToImageSource, convertAssetToImageSource, menuButton } from "sysUIStyleGuide";
 import { getMgrClass } from "sysUtils";
-import { MenuBtnType } from "UI_AccordionMenu";
-import { Detail_Kitchen, Sub_PlotType } from "UI_MenuManager";
-import { oneHudEvents } from "UI_OneHUD";
+import { oneHudEvents } from "UI_OneHUDEvents";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 
 export enum BuildSubMenuTypes {
@@ -54,7 +35,7 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
 
   inventoryMgr: InventoryManager | undefined = undefined;
 
-  animBnd_traslateX = new AnimatedBinding(0);
+  animBnd_translateX = new AnimatedBinding(0);
   isMenuOpen = false;
   closeOffset = 400;
   bnd_backBtnDisplay = new Binding<string>("flex");
@@ -74,7 +55,7 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
   initializeUI(): UINode {
     if (!this.props.enabled) this.entity.visible.set(false);
 
-    this.animBnd_traslateX.set(this.isMenuOpen ? 0 : this.closeOffset);
+    this.animBnd_translateX.set(this.isMenuOpen ? 0 : this.closeOffset);
 
     return View({
       children: [
@@ -112,7 +93,7 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
         alignItems: "center",
         position: "absolute",
         layoutOrigin: [1, 0.5],
-        transform: [{ translateX: this.animBnd_traslateX }],
+        transform: [{ translateX: this.animBnd_translateX }],
       },
     });
   }
@@ -153,9 +134,7 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
       // const curPlayerMenuContext = this.curPlayerMenuContextMap.get(data.player) ?? [];
       let menuType = "";
       let backBtnDisplay = "flex";
-      console.log(
-        `Update Menu Context Received: ${data.menuContext} from ${data.player.name.get()}`
-      );
+      console.log(`Update Menu Context Received: ${data.menuContext} from ${data.player.name.get()}`);
       if (data.menuContext.length <= 1) {
         //close menu
         this.animateMenu(data.player, false);
@@ -193,11 +172,7 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
 
         this.async.setTimeout(() => {
           this.playerMenuContextMap.set(data.player, data.menuContext!);
-          const newUINodeArray = this.convertAssetArrayToUINodeArray(
-            this.buttonPropsMap.get(menuType)?.btnImgAssetIDArray ?? [],
-            this.buttonPropsMap.get(menuType)?.btnInstanceIDArray ?? [],
-            this.buttonPropsMap.get(menuType)?.buttonTextArray ?? []
-          );
+          const newUINodeArray = this.convertAssetArrayToUINodeArray(this.buttonPropsMap.get(menuType)?.btnImgAssetIDArray ?? [], this.buttonPropsMap.get(menuType)?.btnInstanceIDArray ?? [], this.buttonPropsMap.get(menuType)?.buttonTextArray ?? []);
           this.childrenUINodeArray.set(newUINodeArray, [data.player]);
           this.animateMenu(data.player, true);
           this.bnd_backBtnDisplay.set(backBtnDisplay, [data.player]);
@@ -219,34 +194,17 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
     }
 
     this.plotManager = getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0] || null;
-    this.inventoryMgr = getMgrClass<InventoryManager>(
-      this,
-      ManagerType.InventoryManager,
-      InventoryManager
-    );
+    this.inventoryMgr = getMgrClass<InventoryManager>(this, ManagerType.InventoryManager, InventoryManager);
   }
 
   //region Asset[] to UINode[]
-  private convertAssetArrayToUINodeArray(
-    buttonImgAssetIDArray: string[],
-    btnInstanceIDArray: string[],
-    buttonTextArray: string[]
-  ): UINode[] {
+  private convertAssetArrayToUINodeArray(buttonImgAssetIDArray: string[], btnInstanceIDArray: string[], buttonTextArray: string[]): UINode[] {
     try {
       const newUIArray: UINode[] = [];
       const txtOffset = new Vec3(50, 0, 120); //(x%,y%, width%)
 
       buttonImgAssetIDArray.forEach((textureID, index) => {
-        newUIArray.push(
-          buttonImgWithText(
-            this,
-            `${btnInstanceIDArray[index]}`,
-            convertAssetIDToImageSource(buttonImgAssetIDArray[index]),
-            `${buttonTextArray[index]}`,
-            txtOffset,
-            this.onButtonPressed.bind(this)
-          )
-        );
+        newUIArray.push(buttonImgWithText(this, `${btnInstanceIDArray[index]}`, convertAssetIDToImageSource(buttonImgAssetIDArray[index]), `${buttonTextArray[index]}`, txtOffset, this.onButtonPressed.bind(this)));
       });
 
       return newUIArray;
@@ -318,9 +276,7 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
       return;
     }
     if (playerInventory.items.currency < cost) {
-      console.warn(
-        `Player ${player.name.get()} does not have enough currency to purchase asset ${assetId}`
-      );
+      console.warn(`Player ${player.name.get()} does not have enough currency to purchase asset ${assetId}`);
       const oneHUD = getEntityListByTag(ManagerType.UI_OneHUD, this.world)[0];
       const message = "Insufficient funds!";
       this.sendNetworkEvent(oneHUD!, oneHudEvents.NotificationEvent, {
@@ -334,29 +290,26 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
 
     const asset = new Asset(BigInt(assetId));
     console.log(`MenuContext is :${curMenuContext}`);
-    if(curMenuContext[2] === "WallpaperCatalog"){
+    if (curMenuContext[2] === "WallpaperCatalog") {
       console.log("We'd swap wallpaper here");
-          this.sendNetworkEvent(this.plotManager!, sysEvents.changeTaggedEntityTextureEvent, {
-        player: player!,
-        textureAssetId: assetId,
-        tag: "wallpaper"
-      });
-    }
-    else if(curMenuContext[2] === "Wallpaper2Catalog"){
       this.sendNetworkEvent(this.plotManager!, sysEvents.changeTaggedEntityTextureEvent, {
         player: player!,
         textureAssetId: assetId,
-        tag: "wallpaper2"
+        tag: "wallpaper",
       });
-    }
-    else if(curMenuContext[2] === "FloorCatalog"){
+    } else if (curMenuContext[2] === "Wallpaper2Catalog") {
       this.sendNetworkEvent(this.plotManager!, sysEvents.changeTaggedEntityTextureEvent, {
         player: player!,
         textureAssetId: assetId,
-        tag: "floor"
+        tag: "wallpaper2",
       });
-    }
-    else if (asset && this.plotManager) {
+    } else if (curMenuContext[2] === "FloorCatalog") {
+      this.sendNetworkEvent(this.plotManager!, sysEvents.changeTaggedEntityTextureEvent, {
+        player: player!,
+        textureAssetId: assetId,
+        tag: "floor",
+      });
+    } else if (asset && this.plotManager) {
       this.sendNetworkEvent(this.plotManager!, sysEvents.spawnNewAssetEvent, {
         player: player!,
         assetId: assetId,
@@ -370,7 +323,7 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
     this.isMenuOpen = open;
     const moveToOffset = open ? 0 : this.closeOffset;
 
-    this.animBnd_traslateX.set(
+    this.animBnd_translateX.set(
       // notice that -100 will make it go up 100px
       Animation.timing(moveToOffset, {
         // how long it takes to complete in ms

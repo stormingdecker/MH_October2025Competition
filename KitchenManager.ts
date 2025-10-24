@@ -8,7 +8,7 @@ import { sysEvents } from "sysEvents";
 import { assertAllNullablePropsSet, getEntityListByTag, ManagerType } from "sysHelper";
 import { generateSafeID, getMgrClass } from "sysUtils";
 import { TFint_ProgressionTask } from "TFint_ProgressionTask";
-import { oneHudEvents } from "UI_OneHUD";
+import { oneHudEvents } from "UI_OneHUDEvents";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 
 export const KitchenApplianceTag = {

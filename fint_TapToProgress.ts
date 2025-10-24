@@ -12,7 +12,7 @@ import {
 } from "horizon/core";
 import { sysEvents } from "sysEvents";
 import { getEntityListByTag, ManagerType } from "sysHelper";
-import { oneHudEvents } from "UI_OneHUD";
+import { oneHudEvents } from "UI_OneHUDEvents";
 
 class fint_TapToProgress extends Component<typeof fint_TapToProgress> {
   static propsDefinition = {};

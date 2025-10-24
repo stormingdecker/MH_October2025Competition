@@ -132,28 +132,33 @@ export type PlayerPlot = {
 
 export const DEFAULT_PLOT_LAYOUT: PlayerPlot = Object.freeze({
   buildings: [
-    { iID: "-5kplbx", aID36: "ozftgznw5a", tform: [0.5, 0, 0.5, 0, 0, 0, 1, 1, 1] as TransformLike },
-    { iID: "-4nkpp5", aID36: "diwxy7mwec", tform: [0.5, 0, -5.5, 0, 0, 0, 1, 1, 1] as TransformLike },
-    { iID: "5flgen", aID36: "ejusyuheg3", tform: [0.5, 0, 6.5, -180, 0, -180, 1, 1, 1] as TransformLike },
-    { iID: "-xf3suq", aID36: "8glf4zwaqd", tform: [-5.5, 0, 0.5, 0, 90, 0, 1, 1, 1] as TransformLike },
-    { iID: "4bjnlv", aID36: "8glf4zwaqd", tform: [6.5, 0, 0.5, 0, -90, 0, 1, 1, 1] as TransformLike },
-    { iID: "-7vy5fl", aID36: "n2nidr86xx", tform: [5.5, 0, -1.5, 0, -90, 0, 1, 1, 1] as TransformLike },
-    { iID: "-o3m24a", aID36: "d8be9toj77", tform: [5.5, 0, 1.5, 0, -90, 0, 1, 1, 1] as TransformLike },
-    { iID: "76oxu2", aID36: "b53pcsxz0f", tform: [5.5, 0, 0.5, 0, -90, 0, 1, 1, 1] as TransformLike },
-    { iID: "-so61zj", aID36: "b53pcsxz0f", tform: [5.5, 0, -0.5, 0, -90, 0, 1, 1, 1] as TransformLike },
-    { iID: "-9n67b8", aID36: "7o8mmsi30a", tform: [5.5, 0, 2.5, 0, 90, 0, 1, 1, 1] as TransformLike },
-    { iID: "4352ms", aID36: "77wxpssf11", tform: [-3.5, 0, 5.5, 0, 90, 0, 1, 1, 1] as TransformLike },
-    { iID: "6hw369", aID36: "77wxpssf11", tform: [-1.5, 0, 5.5, 0, -90, 0, 1, 1, 1] as TransformLike },
-    { iID: "qoqtlf", aID36: "eyk0kpps3w", tform: [0.5, 0, 0.5, 0, 90, 0, 1, 1, 1] as TransformLike },
-    { iID: "efcuo6", aID36: "77wxpssf11", tform: [2.5, 0, 5.5, 0, 90, 0, 1, 1, 1] as TransformLike },
-    { iID: "-5or3r7", aID36: "77wxpssf11", tform: [4.5, 0, 5.5, 0, -90, 0, 1, 1, 1] as TransformLike },
-    { iID: "-dpz3qf", aID36: "beginasth0", tform: [3.5, 0, 5.5, 0, 0, 0, 1, 1, 1] as TransformLike },
-    { iID: "wpea0h", aID36: "beginasth0", tform: [-2.5, 0, 5.5, 0, 0, 0, 1, 1, 1] as TransformLike },
+    { iID: "-1u4g66", aID36: "ozftgznw5a", tform: [0.5, 0, 0.5, 0, 0, 0, 1, 1, 1] as TransformLike },
+    { iID: "-6sgg7s", aID36: "diwxy7mwec", tform: [0.5, 0, -5.5, 0, 0, 0, 1, 1, 1] as TransformLike },
+    { iID: "me0fs4", aID36: "ejusyuheg3", tform: [0.5, 0, 6.5, -180, 0, -180, 1, 1, 1] as TransformLike },
+    { iID: "-bav9l7", aID36: "8glf4zwaqd", tform: [-5.5, 0, 0.5, 0, 90, 0, 1, 1, 1] as TransformLike },
+    { iID: "-kx8ytw", aID36: "8glf4zwaqd", tform: [6.5, 0, 0.5, 0, -90, 0, 1, 1, 1] as TransformLike },
+    { iID: "-8hf8bj", aID36: "eyk0kpps3w", tform: [0.5, 0, 0.5, 0, 0, 0, 1, 1, 1] as TransformLike },
+    { iID: "-tc06ht", aID36: "7qk8vsm2sh", tform: [-3.5, 0, 5.5, 0, 90, 0, 1, 1, 1] as TransformLike },
+    { iID: "-jbe9yq", aID36: "7qk8vsm2sh", tform: [-1.5, 0, 5.5, 0, -90, 0, 1, 1, 1] as TransformLike },
+    { iID: "-yviz1o", aID36: "7qk8vsm2sh", tform: [4.5, 0, 5.5, 0, -90, 0, 1, 1, 1] as TransformLike },
+    { iID: "-uekamg", aID36: "7qk8vsm2sh", tform: [2.5, 0, 5.5, 0, 90, 0, 1, 1, 1] as TransformLike },
+    { iID: "ht3mxo", aID36: "exdsgwidbx", tform: [-2.5, 0, 5.5, 0, 0, 0, 1, 1, 1] as TransformLike },
+    { iID: "dkxhih", aID36: "exdsgwidbx", tform: [3.5, 0, 5.5, 0, 0, 0, 1, 1, 1] as TransformLike },
+    { iID: "fykhc1", aID36: "d8be9toj77", tform: [5.5, 0, 1.5, 0, -90, 0, 1, 1, 1] as TransformLike },
+    { iID: "kwrpzf", aID36: "7o8mmsi30a", tform: [5.5, 0, 2.5, 0, 90, 0, 1, 1, 1] as TransformLike },
+    { iID: "x84gcs", aID36: "b53pcsxz0f", tform: [5.5, 0, 0.5, 0, -90, 0, 1, 1, 1] as TransformLike },
+    { iID: "-t1jh3x", aID36: "b53pcsxz0f", tform: [5.5, 0, -0.5, 0, -90, 0, 1, 1, 1] as TransformLike },
+    { iID: "-1dd5xt", aID36: "n2nidr86xx", tform: [5.5, 0, -1.5, 0, -90, 0, 1, 1, 1] as TransformLike },
+    { iID: "t27odl", aID36: "en1ptw6v3c", tform: [-4.5, 0, -4.5, 0, 0, 0, 1, 1, 1] as TransformLike },
+    { iID: "-e3ho03", aID36: "en1ptw6v3c", tform: [5.5, 0, -4.5, 0, 90, 0, 1, 1, 1] as TransformLike },
+    { iID: "iovpnp", aID36: "h6fl0qu4xw", tform: [-8.5, 0, -5.5, 0, 0, 0, 1, 1, 1] as TransformLike },
+    { iID: "-3g8t21", aID36: "db1rsa5cof", tform: [2.5, 0, -5.5, 0, 0, 0, 1, 1, 1] as TransformLike },
+    { iID: "-duydpj", aID36: "80177tstf1", tform: [5.5, 0, -5.5, 0, 0, 0, 1, 1, 1] as TransformLike },
+    { iID: "46y88j", aID36: "80177tstf1", tform: [-4.5, 0, -5.5, 0, 0, 0, 1, 1, 1] as TransformLike },
   ],
-  // buildings: [],
   wallpaper: "839419135274839",
   wallpaper2: "1153086442945098",
-  floor: "1544459116565355",
+  floor: "1734321830396833",
 });
 
 // ================================
@@ -173,7 +178,17 @@ export type Vec3Like = [number, number, number];
 export type EulerLike = [number, number, number];
 export type QuaternionLike = [number, number, number, number];
 
-export type TransformLike = [number, number, number, number, number, number, number, number, number]; // position + euler + scale
+export type TransformLike = [
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number
+]; // position + euler + scale
 
 // Common identifiers
 export type InstanceId = string; // unique per placed entity (e.g., "chair_0001")

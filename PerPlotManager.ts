@@ -76,9 +76,7 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
         this.plotOwner = player;
 
         //spawn player at plot spawn point
-     console.log(
-          `Spawning player ${player.name.get()} at plot ${this.props.PlotBaseID}`
-        );
+        console.log(`Spawning player ${player.name.get()} at plot ${this.props.PlotBaseID}`);
         const plotManager = getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0];
         this.sendNetworkEvent(plotManager!, sysEvents.spawnPlayerPlotRequest, {
           requester: this.entity,
@@ -97,6 +95,28 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
           const show = !claimed;
           this.props.dailyRewardEntity!.visible.set(show);
         } else {
+          this.props.dailyRewardEntity!.visible.set(false);
+        }
+
+        //daily reward logic
+        //determine if daily reward claimed
+        const dailyRewardManager = getMgrClass<DailyRewardManager>(
+          this,
+          ManagerType.DailyRewardManager,
+          DailyRewardManager
+        );
+        if (!dailyRewardManager?.hasClaimedDailyReward(player, Date.now())) {
+          // Player has not claimed daily reward
+          const spawnPoint = this.props.SpawnPoint;
+          if (!spawnPoint) return;
+          const forwardOffset = spawnPoint.forward.get().normalize().mul(2);
+          const rightOffset = spawnPoint.right.get().normalize().mul(-2);
+          const prizeOffset = spawnPoint.position.get().add(forwardOffset).add(rightOffset);
+          this.sendNetworkEvent(this.props.dailyRewardEntity!, sysEvents.showDailyRewardToPlayer, {
+            player: player,
+            show: true,
+            position: prizeOffset,
+          });
         }
       } else {
         this.plotOwner = undefined;
@@ -129,7 +149,7 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
       ManagerType.DailyRewardManager,
       DailyRewardManager
     );
-    
+
     this.plotProps = {
       perPlotManager: this.entity,
       plotId: this.props.PlotBaseID,
@@ -149,9 +169,7 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
 
     if (player.id > 10000) {
       //player is an NPC
-      
-    }
-    else{
+    } else {
       //player is a real player
       //FUTURE NOTE: currently we'll send an event to whomever enters the trigger but in the future we'll filter by player ownership of the plot
       this.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
@@ -159,11 +177,11 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
         menuContext: [Primary_MenuType.PlotMenu],
       });
 
-      if (this.plotOwner){
-        this.sendNetworkEvent(player, sysEvents.announcePlotOwner,{
+      if (this.plotOwner) {
+        this.sendNetworkEvent(player, sysEvents.announcePlotOwner, {
           plotOwner: this.plotOwner,
           plotBase: this.props.PlotBase!,
-        })
+        });
       }
     }
   }

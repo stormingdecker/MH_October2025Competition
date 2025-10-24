@@ -14,7 +14,7 @@ import {
 import { ProgTaskType } from "RecipeCatalog";
 import { sysEvents } from "sysEvents";
 import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
-import { oneHudEvents } from "UI_OneHUD";
+import { oneHudEvents } from "UI_OneHUDEvents";
 
 //T=Trigger Fint=FocusedInteraction
 export class TFint_ProgressionTask extends Component<typeof TFint_ProgressionTask> {
