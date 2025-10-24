@@ -2,41 +2,16 @@
 
 import { AudioLabel, playAudio } from "AudioManager";
 import LocalCamera, { CameraTransitionOptions, Easing } from "horizon/camera";
-import {
-  Component,
-  PropTypes,
-  Entity,
-  Vec3,
-  PlayerControls,
-  InteractionInfo,
-  RaycastTargetType,
-  RaycastGizmo,
-  Player,
-  PlayerDeviceType,
-  PlayerInput,
-  FocusedInteractionTapOptions,
-  FocusedInteractionTrailOptions,
-  DefaultFocusedInteractionTapOptions,
-  DefaultFocusedInteractionTrailOptions,
-  NetworkEvent,
-  Quaternion,
-  CodeBlockEvents,
-} from "horizon/core";
-import { KitchenApplianceTag } from "KitchenManager";
-import { buildModeEvent } from "MoveableBase";
-import { PlayerPlotManager } from "PlayerPlotManager";
+import { Component, PropTypes, Entity, Vec3, PlayerControls, InteractionInfo, RaycastTargetType, RaycastGizmo, Player, PlayerDeviceType, PlayerInput, FocusedInteractionTapOptions, FocusedInteractionTrailOptions, DefaultFocusedInteractionTapOptions, DefaultFocusedInteractionTrailOptions, NetworkEvent, Quaternion, CodeBlockEvents } from "horizon/core";
 import { sysEvents } from "sysEvents";
 import { getEntityListByTag, getPlayerType, ManagerType } from "sysHelper";
-import { getMgrClass } from "sysUtils";
 import { animateScaleEvent } from "TweenHandler";
 import { Primary_MenuType, Sub_PlotType } from "UI_MenuManager";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 import { playVFX, VFXLabel } from "VFXManager";
 
 export const damageEvent = new NetworkEvent<{ player: Player; damage: number }>("damageEvent");
-export const tryDeleteSelectedItemEvent = new NetworkEvent<{ player: Player }>(
-  "tryDeleteSelectedItemEvent"
-);
+export const tryDeleteSelectedItemEvent = new NetworkEvent<{ player: Player }>("tryDeleteSelectedItemEvent");
 /**
  *
  */
@@ -58,8 +33,7 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
 
   //tap and trail options
   private currentTapOptions: FocusedInteractionTapOptions = DefaultFocusedInteractionTapOptions;
-  private currentTrailOptions: FocusedInteractionTrailOptions =
-    DefaultFocusedInteractionTrailOptions;
+  private currentTrailOptions: FocusedInteractionTrailOptions = DefaultFocusedInteractionTrailOptions;
 
   //custom input variables
   private swapInput?: PlayerInput;
@@ -89,6 +63,8 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
 
   private activePlot: Entity | undefined = undefined;
 
+  private useWholeNumberSnapping: boolean = false;
+
   //region preStart()
   preStart(): void {
     if (!this.props.enabled) return;
@@ -116,7 +92,10 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
 
     this.connectNetworkBroadcastEvent(sysEvents.assignSelectedItem, (data) => {
       console.log("Assign selected item event received");
-      if (data.player !== this.playerOwner) return;
+      if (data.player !== this.playerOwner) {
+        console.log("Ignoring select event from non-owner player");
+        return;
+      }
       this.selectedItem = data.selected;
     });
 
@@ -159,13 +138,9 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
       const isDetailMenu = data.menuContext.length == 3;
       const isSubMenu = data.menuContext.length == 2;
 
-      if (
-        data.menuContext[0] === Primary_MenuType.PlotMenu &&
-        data.menuContext[1] === Sub_PlotType.BuildMode &&
-        !this.isBuildMode
-      ) {
+      if (data.menuContext[0] === Primary_MenuType.PlotMenu && data.menuContext[1] === Sub_PlotType.BuildMode && !this.isBuildMode) {
         //Enter build mode
-        this.sendNetworkBroadcastEvent(buildModeEvent, {
+        this.sendNetworkBroadcastEvent(sysEvents.buildModeEvent, {
           player: this.playerOwner!,
           inBuildMode: true,
         });
@@ -173,26 +148,21 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
         const cameraRootPos = this.activePlot!.position.get();
         // const playerOffset = this.playerOwner!.position.get().add(new Vec3(-3, 0, 3));
         this.props.camOffsetRoot!.position.set(cameraRootPos);
-   
+
         LocalCamera.setCameraModeAttach(this.props.camAttachTarget!, {});
 
         this.playerOwner?.enterFocusedInteractionMode();
         this.subscribedToFintEvents = true;
         this.inFocusMode = true;
         playAudio(this, AudioLabel.open);
-      } else if (
-        this.isBuildMode &&
-        !isDetailMenu &&
-        data.menuContext[1] !== Sub_PlotType.BuildMode
-      ) {
+      } else if (this.isBuildMode && !isDetailMenu && data.menuContext[1] !== Sub_PlotType.BuildMode) {
         //End build mode
         //save placements
-        this.sendNetworkBroadcastEvent(buildModeEvent, {
+        this.sendNetworkBroadcastEvent(sysEvents.buildModeEvent, {
           player: this.playerOwner!,
           inBuildMode: false,
         });
-        const plotManager =
-          getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0] || null;
+        const plotManager = getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0] || null;
         this.sendNetworkEvent(plotManager!, sysEvents.savePlayerPlot, {
           player: this.playerOwner!,
         });
@@ -211,31 +181,36 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
       this.isBuildMode = !this.isBuildMode;
 
       const plotManager = getEntityListByTag(ManagerType.PlayerPlotManager, this.world)[0] || null;
-      this.sendNetworkEvent(plotManager!, sysEvents.toggleBuildingEvent, {
-        player: this.playerOwner!,
-        enabled: this.isBuildMode,
-      });
     });
 
     this.connectNetworkBroadcastEvent(sysEvents.buildRotateEvent, (data) => {
-      if (data.player !== this.playerOwner) return;
+      if (data.player !== this.playerOwner) {
+        console.log("Not the owner, ignoring rotate event");
+        return;
+      }
 
       if (this.playerOwner?.deviceType.get() === PlayerDeviceType.VR) {
         console.error("VR not supported for camera switching");
         return;
       }
 
-      if (this.selectedItem) {
-        let currentRotation = this.selectedItem.rotation.get();
-        const addRotation = Quaternion.fromEuler(new Vec3(0, 90, 0));
-        const newRotation = Quaternion.mul(currentRotation, addRotation);
-        this.selectedItem.rotation.set(newRotation);
-        playAudio(this, AudioLabel.button);
+      if (!this.selectedItem) {
+        console.log("No selected item to rotate");
+        return;
       }
+
+      let currentRotation = this.selectedItem.rotation.get();
+      const addRotation = Quaternion.fromEuler(new Vec3(0, 90, 0));
+      const newRotation = Quaternion.mul(currentRotation, addRotation);
+      this.selectedItem.rotation.set(newRotation);
+      playAudio(this, AudioLabel.button);
     });
 
     this.connectNetworkBroadcastEvent(tryDeleteSelectedItemEvent, (data) => {
-      if (data.player !== this.playerOwner) return;
+      if (data.player !== this.playerOwner) {
+        console.log("Ignoring delete event from non-owner player");
+        return;
+      }
 
       if (this.playerOwner?.deviceType.get() === PlayerDeviceType.VR) {
         console.error("VR not supported for camera switching");
@@ -278,12 +253,7 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
 
     const hitEntity = this.raycastHitTarget(this.selectionRaycastGizmo!, touchInfo);
     const hitPoint = this.raycastHitPoint(this.selectionRaycastGizmo!, touchInfo);
-    debugLog(
-      this.props.showDebugs,
-      `Hit slot: ${hitEntity ? hitEntity.name.get() : "None"}, Hit point: ${
-        hitPoint ? hitPoint.toString() : "None"
-      }`
-    );
+    debugLog(this.props.showDebugs, `Hit slot: ${hitEntity ? hitEntity.name.get() : "None"}, Hit point: ${hitPoint ? hitPoint.toString() : "None"}`);
     //Entity must have tag "item" to be considered in hit
     if (hitEntity) {
       const tags = hitEntity.tags.get();
@@ -304,6 +274,12 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
       } else {
         debugLog(this.props.showDebugs, "Clearing selected item");
         this.selectedItem = null;
+      }
+
+      if (tags.includes("togglable") || tags.includes("floor")) {
+        this.useWholeNumberSnapping = false;
+      } else {
+        this.useWholeNumberSnapping = false;
       }
     } else {
       this.selectedItem = null;
@@ -327,12 +303,10 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
     const touchInfo = data.interactionInfo[0];
     if (this.selectedItem) {
       const hitPoint = this.raycastHitPoint(this.planeRaycastGizmo!, touchInfo);
+      const hitPointX = this.useWholeNumberSnapping ? this.snapToWhole(hitPoint!.x) : this.snapToHalfNoWhole(hitPoint!.x);
+      const hitPointZ = this.useWholeNumberSnapping ? this.snapToWhole(hitPoint!.z) : this.snapToHalfNoWhole(hitPoint!.z);
       if (hitPoint) {
-        let hitPointRounded = new Vec3(
-          this.snapToHalfNoWhole(hitPoint.x),
-          this.heightOffset,
-          this.snapToHalfNoWhole(hitPoint.z)
-        );
+        let hitPointRounded = new Vec3(hitPointX, this.heightOffset, hitPointZ);
         if (this.prevHitPointRounded && !hitPointRounded.equals(this.prevHitPointRounded)) {
           this.selectedItem.position.set(hitPointRounded.add(this.moveableOffset));
         }

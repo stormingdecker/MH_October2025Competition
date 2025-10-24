@@ -14,13 +14,19 @@ import {
   UINode,
   View,
 } from "horizon/ui";
+import { ImageSetProps, OnImageSetResponse } from "ImageRegistry";
+import { sysEvents } from "sysEvents";
+import { debugLog } from "sysHelper";
 import { InventoryType } from "sysTypes";
 import {
   btnImgBndText,
   buttonImgWithText,
   confirm,
   convertAssetIDToImageSource,
+  dailyRewardWindow,
   DefaultBlankImgAssetID,
+  foodMenuWindow,
+  ImgSetUIwStrings,
   notification,
   numberUp,
   popup,
@@ -38,7 +44,12 @@ export const oneHudEvents = {
   SetHealthEvent: new NetworkEvent<{ player: Player; amount: string }>("SetHealthEvent"),
   SetScoreEvent: new NetworkEvent<{ player: Player; amount: string }>("SetScoreEvent"),
   // A request/response event pair informs any requesting Entity when the player closes the popup.
-  PopupRequest: new NetworkEvent<{ requester: Entity; player: Player; title: string; message: string }>("PopupRequest"),
+  PopupRequest: new NetworkEvent<{
+    requester: Entity;
+    player: Player;
+    title: string;
+    message: string;
+  }>("PopupRequest"),
   PopupResponse: new NetworkEvent<{ player: Player }>("PopupResponse"),
 
   NotificationEvent: new NetworkEvent<{
@@ -52,9 +63,11 @@ export const oneHudEvents = {
     player: Player;
     confirmationMessage: string;
   }>("ConfirmationPanelRequest"),
-  ConfirmationPanelResponse: new NetworkEvent<{ player: Player; message: string; accepted: boolean }>(
-    "ConfirmationPanelResponse"
-  ),
+  ConfirmationPanelResponse: new NetworkEvent<{
+    player: Player;
+    message: string;
+    accepted: boolean;
+  }>("ConfirmationPanelResponse"),
 
   ShowProgressionTask: new NetworkEvent<{
     players: Player[];
@@ -65,14 +78,24 @@ export const oneHudEvents = {
     showProgressBar: boolean;
   }>("ShowProgressionTask"),
   HideProgressionTask: new NetworkEvent<{ players: Player[] }>("HideProgressionTask"),
-  UpdateProgressionTask: new NetworkEvent<{ players: Player[]; progressAsString: string }>("UpdateProgressionTask"),
+  UpdateProgressionTask: new NetworkEvent<{ players: Player[]; progressAsString: string }>(
+    "UpdateProgressionTask"
+  ),
 
-  UpdateInventoryUI: new NetworkEvent<{ player: Player; inventoryType: string; newValue: string }>("UpdateInventoryUI"),
+  UpdateInventoryUI: new NetworkEvent<{ player: Player; inventoryType: string; newValue: string }>(
+    "UpdateInventoryUI"
+  ),
+
+  ShowDailyRewardUI: new NetworkEvent<{ players: Player[] }>("ShowDailyRewardUI"),
+  UpdateDailyRewardStreak: new NetworkEvent<{ player: Player; newStreak: number }>(
+    "UpdateDailyRewardStreak"
+  ),
 };
 
 export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   //region propsDefs
   static propsDefinition = {
+    showDebugs: { type: PropTypes.Boolean, default: false },
     enabled: { type: PropTypes.Boolean, default: true },
     //progress bar vars
     PROGRESS_BAR_HEADER: { type: PropTypes.String, default: "ProgressBar" },
@@ -139,29 +162,29 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   //progressBar Variables
   bnd_progressBar = new Binding<string>("0%");
   bnd_showLvlProgress = new Binding<string>("none");
-  
+
   //lvlUp Variables
   bnd_lvlNumber = new Binding<string>("0");
   animBnd_lvlScale = new AnimatedBinding(1);
-  
+
   //healthBar Variables
   //this is just visual, default value is set in setHealth()
   bnd_healthBar = new Binding<string>("50");
   bnd_showHealthBar = new Binding<string>("none");
   playerHealthMap: Map<Player, number> = new Map();
-  
+
   //score Variables
   bnd_score = new Binding<string>("0");
   animBnd_scoreScale = new AnimatedBinding(1);
-  
+
   //currency Variables
   bnd_currencyCount = new Binding<string>("0");
   animBnd_currencyScale = new AnimatedBinding(1);
-  
+
   //diamond Variables
   bnd_diamondCount = new Binding<string>("0");
   animBnd_diamondScale = new AnimatedBinding(1);
-  
+
   //popup Variables
   bnd_popupDisplay = new Binding<string>("flex");
   bnd_popupTitle = new Binding<string>("New Popup!");
@@ -171,14 +194,14 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   bnd_popupBtnScale = new Binding<number>(1);
   //keeps track of which entity by which player requested the popup, so we can respond to the right entity when they close it
   popupRequestResponseMap = new Map<Player, Entity>();
-  
+
   //notification variables
   bnd_notifyDisplay = new Binding<string>("flex");
   bndAlertImg = new Binding<ImageSource>("");
   bndAlertMsg = new Binding<string>("Looking good today!");
   animBnd_translateX = new AnimatedBinding(0);
   private notifyEasing!: Easing;
-  
+
   //confirmation variables
   bnd_confirmDisplay = new Binding<string>("flex");
   bndHeaderText = new Binding<string>("Are you sure you want to proceed?");
@@ -186,19 +209,36 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   playerMessageMap: Map<Player, { entity: Entity; message: string }> = new Map();
   bndConfirm_Scale = new Binding<number>(1);
   bndCancel_Scale = new Binding<number>(1);
-  
+
   //prog task
   bnd_progTaskHeader = new Binding<string>("Progression Task");
   bnd_progTaskContent = new Binding<string>("Complete the task to earn rewards!");
-  bnd_progTaskResultImg = new Binding<ImageSource>(convertAssetIDToImageSource(DefaultBlankImgAssetID));
-  bnd_progTaskInstructImg = new Binding<ImageSource>(convertAssetIDToImageSource(DefaultBlankImgAssetID));
+  bnd_progTaskResultImg = new Binding<ImageSource>(
+    convertAssetIDToImageSource(DefaultBlankImgAssetID)
+  );
+  bnd_progTaskInstructImg = new Binding<ImageSource>(
+    convertAssetIDToImageSource(DefaultBlankImgAssetID)
+  );
   bnd_progTaskProgressAsString = new Binding<string>("0");
   animBnd_ProgTaskTranslateY = new AnimatedBinding(0);
   openProgTaskOnStart = false;
   bnd_showTaskProgressBar = new Binding<string>("flex");
-  
+
   //currency ui nodes
   private currencyUINodeArray = new Binding<UINode[]>([]); // Binding to hold currency nodes
+
+  //image set map for multi-image sets
+  private imageSetMap = new Map<string, ImageSetProps>();
+
+  //daily rewards
+  private dailyReward_childrenUINodeArray = new Binding<UINode[]>([]); // Binding to hold child nodes
+  private bnd_dailyRewardDisplay = new Binding<string>("none");
+
+  //food menu
+  private foodMenu_childrenUINodeArray = new Binding<UINode[]>([]); // Binding to hold child nodes
+  private bnd_foodMenuDisplay = new Binding<string>("none");
+
+  private curMenuContext: string[] = [];
 
   //region initializeUI()
   initializeUI(): UINode {
@@ -216,15 +256,18 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     const lvlImgAssetId = this.props.lvlImgAsset?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
     const scoreImgAssetId = this.props.scoreImgAsset?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
 
-    const currencyImgAssetId = this.props.currencyImgAsset?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
+    const currencyImgAssetId =
+      this.props.currencyImgAsset?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
     const diamondImgAssetId = this.props.diamondImgAsset?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
     const plusImgAssetId = this.props.currencyPlusImg?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
     this.animBnd_currencyScale.set(1);
     this.animBnd_diamondScale.set(1);
 
-    const progTaskResultImgId = this.props.progTaskResultImg?.id?.toString() ?? DefaultBlankImgAssetID;
+    const progTaskResultImgId =
+      this.props.progTaskResultImg?.id?.toString() ?? DefaultBlankImgAssetID;
     this.bnd_progTaskResultImg.set(convertAssetIDToImageSource(progTaskResultImgId));
-    const progTaskInstructImgId = this.props.progTaskInstructImg?.id?.toString() ?? DefaultBlankImgAssetID;
+    const progTaskInstructImgId =
+      this.props.progTaskInstructImg?.id?.toString() ?? DefaultBlankImgAssetID;
     this.bnd_progTaskInstructImg.set(convertAssetIDToImageSource(progTaskInstructImgId));
     this.animBnd_ProgTaskTranslateY.set(this.openProgTaskOnStart ? 0 : 200);
 
@@ -345,7 +388,14 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         ),
         //notification
         ...this.toNodes(
-          notification(this.bnd_notifyDisplay, this.bndAlertImg, this.bndAlertMsg, this.animBnd_translateX, 400, 100)
+          notification(
+            this.bnd_notifyDisplay,
+            this.bndAlertImg,
+            this.bndAlertMsg,
+            this.animBnd_translateX,
+            400,
+            100
+          )
         ),
         //confirmation panel
         ...this.toNodes(
@@ -370,7 +420,23 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
             this.props.progTaskSize,
             this.props.progTaskScreenPosition,
             this.animBnd_ProgTaskTranslateY,
-            this.bnd_showTaskProgressBar,
+            this.bnd_showTaskProgressBar
+          )
+        ), //region daily reward window
+        ...this.toNodes(
+          dailyRewardWindow(
+            this,
+            this.onButtonPressed.bind(this),
+            this.dailyReward_childrenUINodeArray,
+            this.bnd_dailyRewardDisplay
+          )
+        ),
+        ...this.toNodes(
+          foodMenuWindow(
+            this,
+            this.onButtonPressed.bind(this),
+            this.foodMenu_childrenUINodeArray,
+            this.bnd_foodMenuDisplay
           )
         ),
       ],
@@ -396,7 +462,9 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     // this.setupCurrencyContainer();
 
     this.connectNetworkEvent(this.entity, simpleButtonEvent, (data) => {
-      console.log(`Simple button called on ${this.entity.name.get()} pressed by ${data.player.name.get()}`);
+      console.log(
+        `Simple button called on ${this.entity.name.get()} pressed by ${data.player.name.get()}`
+      );
       if (this.progTaskIsHidden) {
         this.showProgTask([data.player], "Task In Progress", "Tap rapidly", "", "");
         this.progTaskIsHidden = false;
@@ -442,7 +510,14 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
 
     // prog task subscriptions
     this.connectNetworkEvent(this.entity, oneHudEvents.ShowProgressionTask, (data) => {
-      this.showProgTask(data.players, data.header, data.instruction, data.resultImgAssetId, data.instructImgAssetId, data.showProgressBar);
+      this.showProgTask(
+        data.players,
+        data.header,
+        data.instruction,
+        data.resultImgAssetId,
+        data.instructImgAssetId,
+        data.showProgressBar
+      );
     });
     this.connectNetworkEvent(this.entity, oneHudEvents.HideProgressionTask, (data) => {
       this.hideProgTask(data.players);
@@ -453,8 +528,62 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     this.connectNetworkEvent(this.entity, oneHudEvents.UpdateInventoryUI, (data) => {
       this.updateInventoryUI(data.player, data.inventoryType, data.newValue);
     });
+
+    this.connectNetworkEvent(this.entity, OnImageSetResponse, (data) => {
+      this.imageSetMap.set(data.imageSetType, {
+        imageSetType: data.imageSetType,
+        primaryTextArray: data.primaryTextArray,
+        secondaryTextArray: data.secondaryTextArray,
+        usePrimaryImage: data.usePrimaryImage,
+        primaryImageAssetIDArray: data.primaryImageAssetIDArray,
+        secondaryImageAssetIDArray: data.secondaryImageAssetIDArray,
+      });
+
+      if (data.imageSetType === "DailyRewards") {
+        this.setupDailyRewardContainer([], this.imageSetMap.get("DailyRewards")!);
+      } else if (data.imageSetType === "FoodMenu") {
+        this.setupFoodMenuContainer([], this.imageSetMap.get("FoodMenu")!);
+      }
+    });
+
+    this.connectNetworkEvent(this.entity, oneHudEvents.ShowDailyRewardUI, (data) => {
+      this.bnd_dailyRewardDisplay.set("flex", data.players);
+    });
+    this.connectNetworkEvent(this.entity, oneHudEvents.UpdateDailyRewardStreak, (data) => {
+      this.updateDailyRewardStreak([data.player], data.newStreak);
+    });
+
+    //region context menu updates
+    this.connectNetworkBroadcastEvent(sysEvents.updateMenuContext, (data) => {
+      const newContextMenuLength = data.menuContext.length;
+      const isSubMenu = data.menuContext.length == 2;
+      const isDetailMenu = data.menuContext.length == 3;
+
+      if (isSubMenu && data.menuContext[1] === "FoodMenu") {
+        this.bnd_foodMenuDisplay.set("flex", [data.player]);
+      } else {
+        this.bnd_foodMenuDisplay.set("none", [data.player]);
+      }
+
+      this.curMenuContext = data.menuContext ?? [];
+    });
   }
 
+  updateDailyRewardStreak(players: Player[], newStreak: number): void {
+    if (this.imageSetMap.has("DailyRewards")) {
+      let imageSet_wStreak = this.imageSetMap.get("DailyRewards")!;
+      for (let i = 0; i < imageSet_wStreak.usePrimaryImage.length; i++) {
+        imageSet_wStreak.usePrimaryImage[i] = i <= newStreak;
+      }
+      this.setupDailyRewardContainer(players, imageSet_wStreak);
+    } else if (this.imageSetMap.has("FoodMenu")) {
+      let imageSet_foodMenu = this.imageSetMap.get("FoodMenu")!;
+      for (let i = 0; i < imageSet_foodMenu.usePrimaryImage.length; i++) {
+        imageSet_foodMenu.usePrimaryImage[i] = i <= newStreak;
+      }
+      this.setupFoodMenuContainer(players, imageSet_foodMenu);
+    }
+  }
 
   //region start()
   start() {
@@ -484,46 +613,29 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     }
   }
 
-  // setupCurrencyContainer(): void {
-  //   const btnImgAssetIDArray = [
-  //     this.props.currencyImgAsset?.id?.toString() ?? DefaultBlankImgAssetID,
-  //     this.props.diamondImgAsset?.id?.toString() ?? DefaultBlankImgAssetID,
-  //   ];
-  //   const btnInstanceIDArray = ["currencyBtn", "diamondBtn"];
-  //   const buttonTextArray = [this.bnd_currencyCount, this.bnd_diamondCount];
-  //   const newUINodeArray = this.convertAssetArrayToUINodeArray(btnImgAssetIDArray, btnInstanceIDArray, buttonTextArray);
-  //   this.currencyUINodeArray.set(newUINodeArray);
-  // }
+  setupDailyRewardContainer(players: Player[], imageSet: ImageSetProps): void {
+    if (!this.imageSetMap.has("DailyRewards")) {
+      console.warn("No daily reward child nodes to setup.");
+      return;
+    }
+    const recipients = players.length > 0 ? players : undefined;
+    const imageSetType = "DailyRewards";
+    const newUINodeArray = this.convertImageSetToUINodeArray(this.imageSetMap.get(imageSetType)!);
+    this.dailyReward_childrenUINodeArray.set(newUINodeArray, recipients);
+    // Assuming you want to do something with newUINodeArray here
+  }
 
-  // //region Asset[] to UINode[]
-  // private convertAssetArrayToUINodeArray(
-  //   buttonImgAssetIDArray: string[],
-  //   btnInstanceIDArray: string[],
-  //   buttonTextArray: Binding<string>[]
-  // ): UINode[] {
-  //   try {
-  //     const newUIArray: UINode[] = [];
-  //     const txtOffset = new Vec3(50, 0, 120); //(x%,y%, width%)
-
-  //     buttonImgAssetIDArray.forEach((textureID, index) => {
-  //       newUIArray.push(
-  //         btnImgBndText(
-  //           this,
-  //           `${btnInstanceIDArray[index]}`,
-  //           convertAssetIDToImageSource(buttonImgAssetIDArray[index]),
-  //           buttonTextArray[index],
-  //           convertAssetIDToImageSource(this.props.currencyPlusImg?.id?.toString() ?? DefaultBlankImgAssetID),
-  //           this.onButtonPressed.bind(this),
-  //         )
-  //       );
-  //     });
-
-  //     return newUIArray;
-  //   } catch (error) {
-  //     console.error(`Error fetching texture assets`, error);
-  //     return []; // Skip this iteration if texture asset is not found
-  //   }
-  // }
+  setupFoodMenuContainer(players: Player[], imageSet: ImageSetProps): void {
+    if (!this.imageSetMap.has("FoodMenu")) {
+      console.warn("No food menu child nodes to setup.");
+      return;
+    }
+    const recipients = players.length > 0 ? players : undefined;
+    const imageSetType = "FoodMenu";
+    const newUINodeArray = this.convertImageSetToUINodeArray(this.imageSetMap.get(imageSetType)!);
+    this.foodMenu_childrenUINodeArray.set(newUINodeArray, recipients);
+    // Assuming you want to do something with newUINodeArray here
+  }
 
   //region onButtonPressed()
   onButtonPressed(instanceId: string, player: Player) {
@@ -533,6 +645,18 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         break;
       case "diamondBtn":
         console.log("Diamond Button Pressed");
+        break;
+      case "claimDailyRewards":
+        console.log(`Daily Reward Claim Button Pressed by ${player.name.get()}`);
+        this.bnd_dailyRewardDisplay.set("none", [player]);
+        break;
+      case "exitDailyRewards":
+        console.log(`Daily Reward Exit Button Pressed by ${player.name.get()}`);
+        this.bnd_dailyRewardDisplay.set("none", [player]);
+        break;
+      case "exitFoodMenu":
+        console.log(`Food Menu Exit Button Pressed by ${player.name.get()}`);
+        this.bnd_foodMenuDisplay.set("none", [player]);
         break;
       default:
         console.warn(`Unhandled button press for instanceId: ${instanceId}`);
@@ -697,7 +821,11 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   }
 
   //region confirm Request()
-  public showConfirmationPanel(requester: Entity, player: Player, confirmationMessage: string): void {
+  public showConfirmationPanel(
+    requester: Entity,
+    player: Player,
+    confirmationMessage: string
+  ): void {
     //set up confirmation message
     console.log(`Confirmation request received`);
     this.bndHeaderText.set(confirmationMessage);
@@ -739,14 +867,18 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     header: string,
     instruction: string,
     imgResultId: string | undefined,
-    imgInstructId: string | undefined, 
+    imgInstructId: string | undefined,
     showProgressBar: boolean = true
   ): void {
     const resultImgAsset =
-      imgResultId && imgResultId !== "" ? new Asset(BigInt(imgResultId)) : this.props.notificationImg!;
+      imgResultId && imgResultId !== ""
+        ? new Asset(BigInt(imgResultId))
+        : this.props.notificationImg!;
     const resultImgSrc = ImageSource.fromTextureAsset(resultImgAsset);
     const instructImgAsset =
-      imgInstructId && imgInstructId !== "" ? new Asset(BigInt(imgInstructId)) : this.props.notificationImg!;
+      imgInstructId && imgInstructId !== ""
+        ? new Asset(BigInt(imgInstructId))
+        : this.props.notificationImg!;
     const instructImgSrc = ImageSource.fromTextureAsset(instructImgAsset);
 
     //populate or leave undefined to appeal to bind.set second param
@@ -861,6 +993,33 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         [player]
       );
     }
-  } 
+  }
+
+  //region Asset[] to UINode[]
+  private convertImageSetToUINodeArray(imageSetProps: ImageSetProps): UINode[] {
+    try {
+      const newUIArray: UINode[] = [];
+      const txtOffset = new Vec3(50, 0, 120); //(x%,y%, width%)
+
+      imageSetProps.primaryTextArray.forEach((text, index) => {
+        const imgIDToUse = imageSetProps.usePrimaryImage[index]
+          ? imageSetProps.primaryImageAssetIDArray[index]
+          : imageSetProps.secondaryImageAssetIDArray[index];
+
+        newUIArray.push(
+          ImgSetUIwStrings(
+            convertAssetIDToImageSource(imgIDToUse),
+            imageSetProps.primaryTextArray[index],
+            imageSetProps.secondaryTextArray[index]
+          )
+        );
+      });
+
+      return newUIArray;
+    } catch (error) {
+      console.error(`Error fetching texture assets`, error);
+      return []; // Skip this iteration if texture asset is not found
+    }
+  }
 }
 UIComponent.register(UI_OneHUD);

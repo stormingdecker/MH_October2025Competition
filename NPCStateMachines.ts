@@ -109,7 +109,9 @@ export class NPCStateMachine_WorldGreeter extends NPCStateMachine {
 
 enum NPCStates_Client {
   Initializing,
+  TeleportUnderground,
   QueuedInPool,
+  TeleportToPlayerPlot,
   WalkToSeat,
   Sit,
   OrderFood,
@@ -128,7 +130,7 @@ export class NPCStateMachine_Client extends NPCStateMachine {
     this.debugLogging = debugLogging;
     debugLog(this.debugLogging, "StateMachine_Client: onAgentReady");
     this.parentAgent = agent;
-    this.currentState = NPCStates_Client.QueuedInPool;
+    this.currentState = NPCStates_Client.TeleportUnderground;
   }
 
   public isIdle() {
@@ -138,7 +140,7 @@ export class NPCStateMachine_Client extends NPCStateMachine {
   public activate(chair: NPCChair) {
     this.chair = chair;
     if (this.currentState === NPCStates_Client.QueuedInPool) {
-      this.currentState = NPCStates_Client.WalkToSeat;
+      this.currentState = NPCStates_Client.TeleportToPlayerPlot;
     }
   }
 
@@ -151,31 +153,40 @@ export class NPCStateMachine_Client extends NPCStateMachine {
       case NPCStates_Client.Initializing: {
         break;
       }
-      case NPCStates_Client.QueuedInPool: {
+      case NPCStates_Client.TeleportUnderground: {
         this.parentAgent!.teleportToPosition(new Vec3(0, -1000, 0));
+        this.currentState = NPCStates_Client.QueuedInPool;
+        break;
+      }
+      case NPCStates_Client.QueuedInPool: {
+        break;
+      }
+      case NPCStates_Client.TeleportToPlayerPlot: {
+        debugLog(this.debugLogging, `Client NPC teleporting to player plot base: ${this.chair!.plotBaseEntity.name.get()}`);
+        this.parentAgent!.teleportToPosition(this.chair!.plotBaseEntity.position.get().add(new Vec3(0, 0.5, 0)));
+        this.currentState = NPCStates_Client.WalkToSeat;
         break;
       }
       case NPCStates_Client.WalkToSeat: {
         debugLog(this.debugLogging, `Client NPC walking to chair`);
-        const chairPosition = this.chair!.chairEntity.position.get();
-        this.parentAgent!.teleportToPosition(this.parentAgent!.getSpawnPoint()?.position.get() ?? Vec3.zero);
-        await this.parentAgent!.rotateTowardsPosition(chairPosition);
-        const isPathPossibleAlongNavMesh = this.parentAgent!.isPathPossibleAlongNavMesh(chairPosition);
+        const seatPosition = this.chair!.seatPosition;
+        await this.parentAgent!.rotateTowardsPosition(seatPosition);
+        const isPathPossibleAlongNavMesh = this.parentAgent!.isPathPossibleAlongNavMesh(seatPosition);
         if (isPathPossibleAlongNavMesh) {
           debugLog(this.debugLogging, `Client NPC walking to chair using NavMesh`);
-          await this.parentAgent!.moveToPositionUsingNavMesh(chairPosition, NPCMovementSpeedID.Walk);
+          await this.parentAgent!.moveToPositionUsingNavMesh(seatPosition, NPCMovementSpeedID.Walk);
         } else {
           debugLog(this.debugLogging, `Client NPC walking to chair using direct movement`);
-          await this.parentAgent!.moveToPosition(chairPosition, NPCMovementSpeedID.Walk, 10);
+          await this.parentAgent!.moveToPosition(seatPosition, NPCMovementSpeedID.Walk, 10);
         }
-        this.parentAgent!.teleportToPosition(chairPosition.add(new Vec3(0, 0.5, 0)));
+        this.parentAgent!.teleportToPosition(seatPosition);
         this.currentState = NPCStates_Client.Sit;
         break;
       }
       case NPCStates_Client.Sit: {
         debugLog(this.debugLogging, `Client NPC sitting down`);
-        const chairPosition = this.chair!.chairEntity.position.get();
-        await this.parentAgent!.rotateTowardsPosition(chairPosition.add(this.chair!.chairEntity.forward.get()));
+        const seatPosition = this.chair!.seatPosition;
+        await this.parentAgent!.rotateTowardsPosition(seatPosition.add(this.chair!.chairEntity.forward.get().mul(2)));
         this.parentAgent?.playAvatarAnimation(NPCAnimationID.Sitting);
         this.currentState = NPCStates_Client.OrderFood;
         break;
@@ -199,29 +210,27 @@ export class NPCStateMachine_Client extends NPCStateMachine {
           const platePosition = this.servedFoodEntity.position.get();
           await this.parentAgent!.world.deleteAsset(this.servedFoodEntity, true);
           this.servedFoodEntity = undefined;
-          MoneyPool.instance.assignMoneyComponent(platePosition, CURRENCY_REWARD_PER_ORDER);
+          MoneyPool.instance.assignMoneyComponent(platePosition.add(new Vec3(0, -0.05, 0)), CURRENCY_REWARD_PER_ORDER);
           this.currentState = NPCStates_Client.ReturningToPortal;
         }
         break;
       }
       case NPCStates_Client.ReturningToPortal: {
         this.parentAgent?.playAvatarAnimation(NPCAnimationID.None);
-        const spawnPoint = this.parentAgent!.getSpawnPoint()!.position.get();
-        await this.parentAgent!.rotateTowardsPosition(spawnPoint);
-        const isPathPossibleAlongNavMesh = this.parentAgent!.isPathPossibleAlongNavMesh(spawnPoint);
+        const plotBasePosition = this.chair!.plotBaseEntity.position.get();
+        await this.parentAgent!.rotateTowardsPosition(plotBasePosition);
+        debugLog(this.debugLogging, `Releasing chair: ${this.chair!.chairEntity.name.get()}`);
+        this.parentAgent!.releaseChair(this.chair!);
+        this.chair = undefined;
+        const isPathPossibleAlongNavMesh = this.parentAgent!.isPathPossibleAlongNavMesh(plotBasePosition);
         if (isPathPossibleAlongNavMesh) {
           debugLog(this.debugLogging, `Client NPC walking to spawnpoint using NavMesh`);
-          await this.parentAgent!.moveToPositionUsingNavMesh(spawnPoint, NPCMovementSpeedID.Walk);
+          await this.parentAgent!.moveToPositionUsingNavMesh(plotBasePosition, NPCMovementSpeedID.Walk);
         } else {
           debugLog(this.debugLogging, `Client NPC walking to spawnpoint using direct movement`);
-          await this.parentAgent!.moveToPosition(spawnPoint, NPCMovementSpeedID.Walk, 10);
+          await this.parentAgent!.moveToPosition(plotBasePosition, NPCMovementSpeedID.Walk, 10);
         }
-        this.parentAgent!.teleportToPosition(spawnPoint.add(new Vec3(0, 0.5, 0)));
-        debugLog(this.debugLogging, `Releasing chair: ${this.chair!.chairEntity.name.get()}`);
-        this.chair!.chairEntity.collidable.set(true);
-        this.chair!.assignedToNPC = undefined;
-        this.chair = undefined;
-        this.currentState = NPCStates_Client.QueuedInPool;
+        this.currentState = NPCStates_Client.TeleportUnderground;
         break;
       }
     }

@@ -4,7 +4,6 @@ import { sysEvents } from "sysEvents";
 import { debugLog } from "sysHelper";
 import { BuildingComponent } from "sysTypes";
 
-export const buildModeEvent = new NetworkEvent<{ player: Player; inBuildMode: boolean }>("buildMoveEvent");
 export const registerBuildingComponent = new NetworkEvent<{ player: Player; buildingComponent: BuildingComponent }>(
   "registerBuildingComponent"
 );
@@ -14,6 +13,9 @@ export class MoveableBase extends Component<typeof MoveableBase> {
     showDebug: { type: PropTypes.Boolean, default: false },
     collidableBox: { type: PropTypes.Entity },
     optionalTFint: { type: PropTypes.Entity }, //TFint = Trigger FocusedInteraction
+    optionalWallpaper: { type: PropTypes.Entity},
+    optionalWallpaper2: { type: PropTypes.Entity},
+    optionalFloor: { type: PropTypes.Entity},
   };
 
   private kitchenManagerEntity: Entity | null = null;
@@ -59,24 +61,28 @@ export class MoveableBase extends Component<typeof MoveableBase> {
   }
 
   start() {
-    this.collidableEnabled(true);
-
     this.entityTags = this.entity.tags.get();
+    
+    this.collidableEnabled(true);
+    if (this.entityTags.includes("chair")){
+      if (this.props.collidableBox){
+        this.props.collidableBox!.collidable.set(false);
+      }
+    }
 
     if (this.props.optionalTFint) {
       const test = this.props.optionalTFint.as(TriggerGizmo).setWhoCanTrigger([]);
     }
-
-    this.connectNetworkBroadcastEvent(buildModeEvent, (data) => {
-      console.log("Build Mode Event Received: " + data.inBuildMode);
-      this.collidableEnabled(data.inBuildMode);
-    });
   }
 
-  collidableEnabled(inBuildMode: boolean) {
+  public collidableEnabled(inBuildMode: boolean) {
     if (this.props.collidableBox) {
-      this.props.collidableBox!.collidable.set(inBuildMode ? true : false);
-      // this.props.collidableBox.visible.set(inBuildMode ? true : false);
+      if (inBuildMode){
+        this.props.collidableBox!.collidable.set(true);
+      }
+      else if (!inBuildMode && this.entityTags.includes("chair")){
+        this.props.collidableBox!.collidable.set(false);
+      }
     }
   }
 
@@ -85,6 +91,25 @@ export class MoveableBase extends Component<typeof MoveableBase> {
       console.warn("No optionalTFint set for MoveableBase entity: " + this.entity.name.get());
     }
     return this.props.optionalTFint ?? undefined;
+  }
+
+  public getOptionalWallpaper(): Entity | undefined {
+    if (!this.props.optionalWallpaper) {
+      console.warn("No optionalWallpaper set for MoveableBase entity: " + this.entity.name.get());
+    }
+    return this.props.optionalWallpaper ?? undefined;
+  }
+  public getOptionalWallpaper2(): Entity | undefined {
+    if (!this.props.optionalWallpaper2) {
+      console.warn("No optionalWallpaper2 set for MoveableBase entity: " + this.entity.name.get());
+    }
+    return this.props.optionalWallpaper2 ?? undefined;
+  }
+  public getOptionalFloor(): Entity | undefined {
+    if (!this.props.optionalFloor) {
+      console.warn("No optionalFloor set for MoveableBase entity: " + this.entity.name.get());
+    }
+    return this.props.optionalFloor ?? undefined;
   }
 
   public setWhoCanTrigger(players: Player[] | "anyone" | []) {

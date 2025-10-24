@@ -197,21 +197,46 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
           updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.BuildMode];
         }
         break;
-      case Sub_PlotType.MenuEdit:
-        updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.MenuEdit];
+      case Sub_PlotType.FoodMenu:
+        if (curMenuContext[1] === Sub_PlotType.FoodMenu) {
+          updatedMenuContext = [Primary_MenuType.PlotMenu];
+        } else {
+          updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.FoodMenu];
+        }
         break;
       case Sub_PlotType.Staff:
         console.log("Button 3 Pressed");
-        updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.Staff];
+        if (curMenuContext[1] === Sub_PlotType.Staff) {
+          updatedMenuContext = [Primary_MenuType.PlotMenu];
+        } else {
+          updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.Staff];
+        }
+
         break;
       case Sub_PlotType.Upgrades:
-        updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.Upgrades];
+        if (curMenuContext[1] === Sub_PlotType.Upgrades) {
+          updatedMenuContext = [Primary_MenuType.PlotMenu];
+        } else {
+          updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.Upgrades];
+        }
+
         console.log("Button 4 Pressed");
         break;
       case Sub_PlotType.Shop:
-        updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.Shop];
+        if (curMenuContext[1] === Sub_PlotType.Shop) {
+          updatedMenuContext = [Primary_MenuType.PlotMenu];
+        } else {
+          updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.Shop];
+        }
         console.log("Button 5 Pressed");
         break;
+        case Sub_PlotType.Decor:
+        if (curMenuContext[1] === Sub_PlotType.Decor) {
+          updatedMenuContext = [Primary_MenuType.PlotMenu];
+        } else {
+          updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.Decor];
+        }
+          break;
       default:
         break;
     }

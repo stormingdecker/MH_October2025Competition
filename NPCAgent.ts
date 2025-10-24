@@ -1,4 +1,4 @@
-import { Asset, AttachableEntity, AttachablePlayerAnchor, AvatarGripPose, Color, Component, Entity, Handedness, Player, PropTypes, Vec3 } from "horizon/core";
+import { Asset, AttachableEntity, AttachablePlayerAnchor, AvatarGripPose, AvatarPoseGizmo, AvatarPoseUseMode, Color, Component, Entity, Handedness, Player, PropTypes, Vec3 } from "horizon/core";
 import { Npc, NpcPlayer } from "horizon/npc";
 import { KitchenManager } from "KitchenManager";
 import { NavMeshController } from "NavMeshController";
@@ -23,7 +23,11 @@ export const sittingAnimationAsset = new Asset(BigInt("1280729506637777"));
 export interface NPCChair {
   chairEntity: Entity;
   tableEntity: Entity;
+  seatPosition: Vec3;
+  avatarPose?: AvatarPoseGizmo;
   parentPlayer: Player;
+  inUseByPlayer: Player | undefined;
+  plotBaseEntity: Entity;
   kitchenManager: KitchenManager;
   assignedToNPC: NPCAgent | undefined;
 }
@@ -56,7 +60,6 @@ export class NPCAgent extends Component<typeof NPCAgent> {
   private npcPlayer?: NpcPlayer;
   private stateMachine?: NPCStateMachine;
   private startPosition = Vec3.zero;
-  private spawnPoint?: Entity;
 
   async start() {
     this.async.setTimeout(() => {
@@ -112,10 +115,25 @@ export class NPCAgent extends Component<typeof NPCAgent> {
     return false;
   }
 
-  public activate(chair: NPCChair) {
+  public activate(chair: NPCChair, activePlayers: Player[]) {
     if (this.stateMachine !== undefined) {
+      this.assignChair(chair, activePlayers);
       this.stateMachine.activate(chair);
     }
+  }
+
+  public assignChair(chair: NPCChair, activePlayers: Player[]) {
+    chair.assignedToNPC = this;
+    if (chair.avatarPose !== undefined) {
+      chair.avatarPose.setCanUseForPlayers(activePlayers, AvatarPoseUseMode.DisallowUse);
+    }
+  }
+
+  public releaseChair(chair: NPCChair) {
+    if (chair.avatarPose !== undefined) {
+      chair.avatarPose.resetCanUseForPlayers();
+    }
+    chair.assignedToNPC = undefined;
   }
 
   public onOrderServed(player: Player, servableFoodEntity: Entity) {
@@ -127,14 +145,6 @@ export class NPCAgent extends Component<typeof NPCAgent> {
 
   public getStartPosition() {
     return this.startPosition;
-  }
-
-  public setSpawnPoint(spawnPoint: Entity) {
-    this.spawnPoint = spawnPoint;
-  }
-
-  public getSpawnPoint() {
-    return this.spawnPoint;
   }
 
   public getNpcPlayer() {

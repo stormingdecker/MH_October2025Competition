@@ -70,7 +70,7 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
 
   // private curPlayerMenuContextMap: Map<Player, string[]> = new Map();
 
-  //region initioalizeUI()
+  //region initializeUI()
   initializeUI(): UINode {
     if (!this.props.enabled) this.entity.visible.set(false);
 
@@ -309,7 +309,9 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
     }
   }
 
+  //region tryPurchaseAsset()
   tryPurchaseAsset(player: Player, assetId: string, cost: number) {
+    const curMenuContext = this.playerMenuContextMap.get(player) ?? []; //[0] Primary, [1] Sub, [2] Detail
     const playerInventory = this.inventoryMgr?.getPlayerInventory(player);
     if (!playerInventory) {
       console.error(`No inventory found for player ${player.name.get()}`);
@@ -331,7 +333,30 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
     this.inventoryMgr?.updatePlayerInventory(player, InventoryType.currency, -cost, this.entity);
 
     const asset = new Asset(BigInt(assetId));
-    if (asset && this.plotManager) {
+    console.log(`MenuContext is :${curMenuContext}`);
+    if(curMenuContext[2] === "WallpaperCatalog"){
+      console.log("We'd swap wallpaper here");
+          this.sendNetworkEvent(this.plotManager!, sysEvents.changeTaggedEntityTextureEvent, {
+        player: player!,
+        textureAssetId: assetId,
+        tag: "wallpaper"
+      });
+    }
+    else if(curMenuContext[2] === "Wallpaper2Catalog"){
+      this.sendNetworkEvent(this.plotManager!, sysEvents.changeTaggedEntityTextureEvent, {
+        player: player!,
+        textureAssetId: assetId,
+        tag: "wallpaper2"
+      });
+    }
+    else if(curMenuContext[2] === "FloorCatalog"){
+      this.sendNetworkEvent(this.plotManager!, sysEvents.changeTaggedEntityTextureEvent, {
+        player: player!,
+        textureAssetId: assetId,
+        tag: "floor"
+      });
+    }
+    else if (asset && this.plotManager) {
       this.sendNetworkEvent(this.plotManager!, sysEvents.spawnNewAssetEvent, {
         player: player!,
         assetId: assetId,

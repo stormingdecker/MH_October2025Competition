@@ -1,4 +1,4 @@
-import { CodeBlockEvents, Component, Entity, Player, PropTypes, Vec3 } from "horizon/core";
+import { CodeBlockEvents, Component, Entity, GrabbableEntity, Player, PropTypes, Vec3 } from "horizon/core";
 import { InventoryManager } from "InventoryManager";
 import { ManagerType } from "sysHelper";
 import { InventoryType } from "sysTypes";
@@ -30,13 +30,14 @@ export class MoneyPool extends Component<typeof MoneyPool> {
 
     const moneyComponents = entity.getComponents(GrabbableMoney);
     if (moneyComponents.length === 0) {
-      console.warn("MoneyPool: Entity does not have GrabbableMoney component");
+      console.error("MoneyPool: Entity does not have GrabbableMoney component");
       return;
     }
 
     const moneyComponent = moneyComponents[0];
     this.availableMoneyComponents.add(moneyComponent);
-    //moneyComponent.entity.visible.set(false);
+    moneyComponent.entity.visible.set(false);
+    moneyComponent.entity.simulated.set(false);
   }
 
   public assignMoneyComponent(position: Vec3, currencyValue: number) {
@@ -52,6 +53,7 @@ export class MoneyPool extends Component<typeof MoneyPool> {
     moneyComponent.setCurrencyValue(currencyValue);
     moneyComponent.entity.position.set(position);
     moneyComponent.entity.visible.set(true);
+    moneyComponent.entity.simulated.set(true);
   }
 
   public releaseMoneyComponent(moneyComponent: GrabbableMoney) {
@@ -62,6 +64,7 @@ export class MoneyPool extends Component<typeof MoneyPool> {
     this.assignedMoneyComponents.delete(moneyComponent);
     this.availableMoneyComponents.add(moneyComponent);
     moneyComponent.entity.visible.set(false);
+    moneyComponent.entity.simulated.set(false);
   }
 
   override preStart() {
@@ -86,9 +89,12 @@ Component.register(MoneyPool);
 export class GrabbableMoney extends Component<typeof GrabbableMoney> {
   static propsDefinition = {};
 
+  private money?: GrabbableEntity;
   private currencyValue = 0;
 
   override preStart() {
+    this.money = this.entity.as(GrabbableEntity);
+
     this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnGrabStart, (isRightHand: boolean, player: Player) => this.onGrab(player));
     this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnGrabEnd, (player: Player) => this.onRelease(player));
   }
@@ -100,6 +106,8 @@ export class GrabbableMoney extends Component<typeof GrabbableMoney> {
   }
 
   private onGrab(player: Player) {
+    this.money?.forceRelease();
+
     const inventoryManager = getMgrClass<InventoryManager>(this, ManagerType.InventoryManager, InventoryManager);
     if (inventoryManager === undefined) {
       console.error("GrabbableMoney: InventoryManager not found");

@@ -63,6 +63,7 @@ export class ServableFood extends Component<typeof ServableFood> {
     }
     this.entity.position.set(targetPosition.add(new Vec3(0, 1.05, 0)));
     this.entity.rotation.set(Quaternion.zero);
+    this.entity.simulated.set(false);
 
     this.sendNetworkBroadcastEvent(sysEvents.OnOrderServed, {
       player: player,

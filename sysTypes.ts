@@ -11,6 +11,15 @@ export enum InventoryType {
   iron = "iron",
   currency = "currency",
   diamond = "diamond",
+  apple = "apple",
+  banana = "banana",
+  cherry = "cherry",
+  lemon = "lemon",
+  orange = "orange",
+  peach = "peach",
+  pear = "pear",
+  pineapple = "pineapple",
+  strawberry = "strawberry",
 }
 
 export const DEFAULT_INVENTORY: PlayerInventory = Object.freeze({
@@ -20,6 +29,15 @@ export const DEFAULT_INVENTORY: PlayerInventory = Object.freeze({
     [InventoryType.iron]: 0,
     [InventoryType.currency]: 10000,
     [InventoryType.diamond]: 0,
+    [InventoryType.apple]: 0,
+    [InventoryType.banana]: 0,
+    [InventoryType.cherry]: 0,
+    [InventoryType.lemon]: 0,
+    [InventoryType.orange]: 0,
+    [InventoryType.peach]: 0,
+    [InventoryType.pear]: 0,
+    [InventoryType.pineapple]: 0,
+    [InventoryType.strawberry]: 0,
   },
 });
 
@@ -107,33 +125,35 @@ export const DEFAULT_STATS: PlayerStats = Object.freeze({
 export type PlayerPlot = {
   // Focused on spatial/placed things
   buildings: PlacedEntityBase[]; // walls, tables, chairs, etc.
+  wallpaper: string; // wallpapers
+  wallpaper2: string; // wallpapers
+  floor: string; // floorings
 };
 
 export const DEFAULT_PLOT_LAYOUT: PlayerPlot = Object.freeze({
   buildings: [
-    { iID: "xk2sfd", aID36: "6kapw1bmeq", tform: [0, 0, -5, 0, 0, 0, 1, 1, 1] },
-    { iID: "-kl2usl", aID36: "k5fr1o4z02", tform: [-5, 0, 0, 0, 0, 0, 1, 1, 1] },
-    { iID: "-7cglc", aID36: "k5fr1o4z02", tform: [5, 0, 0, 0, 0, 0, 1, 1, 1] },
-    { iID: "1d25y0", aID36: "pluz2j832u", tform: [0, 0, 0, 0, 0, 0, 1, 1, 1] },
-    { iID: "-8j45b6", aID36: "emj03kdclc", tform: [0, 0, 0, 0, 0, 0, 1, 1, 1] },
-    { iID: "hya1t5", aID36: "k8yzc0qj38", tform: [4.5, 0, 1.5, 0, 0, 0, 1, 1, 1] },
-    { iID: "18evk9", aID36: "beginasth0", tform: [-4.5, 0, 1.5, 0, 0, 0, 1, 1, 1] },
-    { iID: "cw65w5", aID36: "d0ki8y156d", tform: [4.5, 0, 2.5, -180, 0, -180, 1, 1, 1] },
-    { iID: "jl9lc6", aID36: "86j4s0dmll", tform: [-4.5, 0, 2.5, -180, 0, -180, 1, 1, 1] },
-    { iID: "-mt4ou9", aID36: "86j4s0dmll", tform: [-4.5, 0, 0.5, 0, 0, 0, 1, 1, 1] },
-    { iID: "-k109j", aID36: "d0ki8y156d", tform: [3.5, 0, 1.5, 0, 90, 0, 1, 1, 1] },
-    { iID: "-c4fa6k", aID36: "d0ki8y156d", tform: [4.5, 0, 0.5, 0, 0, 0, 1, 1, 1] },
-    { iID: "bmex6b", aID36: "exdsgwidbx", tform: [-2.5, 0, -4.5, 0, 0, 0, 1, 1, 1] },
-    { iID: "-4uu49z", aID36: "77wxpssf11", tform: [-3.5, 0, -4.5, 0, 90, 0, 1, 1, 1] },
-    { iID: "70ne6y", aID36: "77wxpssf11", tform: [-1.5, 0, -4.5, 0, -90, 0, 1, 1, 1] },
-    { iID: "-v3iwl8", aID36: "b53pcsxz0f", tform: [-0.5, 0, 4.5, -180, 0, -180, 1, 1, 1] },
-    { iID: "-y0j75p", aID36: "d8be9toj77", tform: [-1.5, 0, 4.5, -180, 0, -180, 1, 1, 1] },
-    { iID: "y25gvg", aID36: "7o8mmsi30a", tform: [2.5, 0, 4.5, 0, 0, 0, 1, 1, 1] },
-    { iID: "-vonugw", aID36: "n2nidr86xx", tform: [0.5, 0, 4.5, -180, 0, -180, 1, 1, 1] },
-    { iID: "rq9ul7", aID36: "qc0t78d56f", tform: [0, 0, 5, -180, 0, -180, 1, 1, 1] },
+    { iID: "-5kplbx", aID36: "ozftgznw5a", tform: [0.5, 0, 0.5, 0, 0, 0, 1, 1, 1] as TransformLike },
+    { iID: "-4nkpp5", aID36: "diwxy7mwec", tform: [0.5, 0, -5.5, 0, 0, 0, 1, 1, 1] as TransformLike },
+    { iID: "5flgen", aID36: "ejusyuheg3", tform: [0.5, 0, 6.5, -180, 0, -180, 1, 1, 1] as TransformLike },
+    { iID: "-xf3suq", aID36: "8glf4zwaqd", tform: [-5.5, 0, 0.5, 0, 90, 0, 1, 1, 1] as TransformLike },
+    { iID: "4bjnlv", aID36: "8glf4zwaqd", tform: [6.5, 0, 0.5, 0, -90, 0, 1, 1, 1] as TransformLike },
+    { iID: "-7vy5fl", aID36: "n2nidr86xx", tform: [5.5, 0, -1.5, 0, -90, 0, 1, 1, 1] as TransformLike },
+    { iID: "-o3m24a", aID36: "d8be9toj77", tform: [5.5, 0, 1.5, 0, -90, 0, 1, 1, 1] as TransformLike },
+    { iID: "76oxu2", aID36: "b53pcsxz0f", tform: [5.5, 0, 0.5, 0, -90, 0, 1, 1, 1] as TransformLike },
+    { iID: "-so61zj", aID36: "b53pcsxz0f", tform: [5.5, 0, -0.5, 0, -90, 0, 1, 1, 1] as TransformLike },
+    { iID: "-9n67b8", aID36: "7o8mmsi30a", tform: [5.5, 0, 2.5, 0, 90, 0, 1, 1, 1] as TransformLike },
+    { iID: "4352ms", aID36: "77wxpssf11", tform: [-3.5, 0, 5.5, 0, 90, 0, 1, 1, 1] as TransformLike },
+    { iID: "6hw369", aID36: "77wxpssf11", tform: [-1.5, 0, 5.5, 0, -90, 0, 1, 1, 1] as TransformLike },
+    { iID: "qoqtlf", aID36: "eyk0kpps3w", tform: [0.5, 0, 0.5, 0, 90, 0, 1, 1, 1] as TransformLike },
+    { iID: "efcuo6", aID36: "77wxpssf11", tform: [2.5, 0, 5.5, 0, 90, 0, 1, 1, 1] as TransformLike },
+    { iID: "-5or3r7", aID36: "77wxpssf11", tform: [4.5, 0, 5.5, 0, -90, 0, 1, 1, 1] as TransformLike },
+    { iID: "-dpz3qf", aID36: "beginasth0", tform: [3.5, 0, 5.5, 0, 0, 0, 1, 1, 1] as TransformLike },
+    { iID: "wpea0h", aID36: "beginasth0", tform: [-2.5, 0, 5.5, 0, 0, 0, 1, 1, 1] as TransformLike },
   ],
-
   // buildings: [],
+  wallpaper: "839419135274839",
+  wallpaper2: "1153086442945098",
+  floor: "1544459116565355",
 });
 
 // ================================

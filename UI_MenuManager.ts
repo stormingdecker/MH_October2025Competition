@@ -19,10 +19,11 @@ export enum Primary_MenuType {
 
 export enum Sub_PlotType {
   BuildMode = "BuildMode",
-  MenuEdit = "MenuEdit",
+  FoodMenu = "FoodMenu",
   Staff = "StaffMenu",
   Upgrades = "UpgradesMenu",
   Shop = "ShopMenu",
+  Decor = "DecorMenu",
 }
 
 export enum Detail_Kitchen {

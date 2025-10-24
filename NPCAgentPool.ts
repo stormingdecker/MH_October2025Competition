@@ -1,4 +1,4 @@
-import { Asset, CodeBlockEvents, Component, Entity, Player, PropTypes } from "horizon/core";
+import { AvatarPoseGizmo, CodeBlockEvents, Component, Entity, Player, PropTypes } from "horizon/core";
 import { KitchenManager } from "KitchenManager";
 import { NPCAgent, NPCChair } from "NPCAgent";
 import { NPCStateMachine_Client, NPCStateMachine_WorldGreeter } from "NPCStateMachines";
@@ -7,35 +7,26 @@ import { sysEvents } from "sysEvents";
 import { debugLog, ManagerType } from "sysHelper";
 import { getMgrClass } from "sysUtils";
 
-export enum NPCMovementSpeedID {
-  Casual,
-  Walk,
-  Run,
-  DebugSuperFast,
-}
-
-export const NPCMovementSpeed: number[] = [1, 2, 4.5, 10];
-
-export enum NPCAnimationID {
-  None,
-  Sitting,
-}
-
-export const sittingAnimationAsset = new Asset(BigInt("1280729506637777"));
-
 // --- NPC Agent Pool ---
 
 export class NPCAgentPool extends Component<typeof NPCAgentPool> {
   static propsDefinition = {
     spawnRateInSeconds: { type: PropTypes.Number, default: 30 },
-    spawnPoint: { type: PropTypes.Entity },
+    npcClient0: { type: PropTypes.Entity },
     npcClient1: { type: PropTypes.Entity },
     npcClient2: { type: PropTypes.Entity },
     npcClient3: { type: PropTypes.Entity },
     npcClient4: { type: PropTypes.Entity },
+    npcClient5: { type: PropTypes.Entity },
+    npcClient6: { type: PropTypes.Entity },
+    npcClient7: { type: PropTypes.Entity },
+    npcClient8: { type: PropTypes.Entity },
+    npcClient9: { type: PropTypes.Entity },
     npcGreeter: { type: PropTypes.Entity },
     debugLogging: { type: PropTypes.Boolean, default: false },
   };
+
+  public static instance: NPCAgentPool;
 
   private npcGreeters: NPCAgent[] = [];
   private npcClients: NPCAgent[] = [];
@@ -43,6 +34,8 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
   private availableChairs: NPCChair[] = [];
 
   override preStart() {
+    NPCAgentPool.instance = this;
+
     this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnPlayerEnterWorld, (player) => {
       if (NPCAgent.isPlayerAnNPC(player)) {
         return;
@@ -66,10 +59,16 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
   }
 
   override start() {
+    this.registerAgent(this.props.npcClient0);
     this.registerAgent(this.props.npcClient1);
     this.registerAgent(this.props.npcClient2);
     this.registerAgent(this.props.npcClient3);
     this.registerAgent(this.props.npcClient4);
+    this.registerAgent(this.props.npcClient5);
+    this.registerAgent(this.props.npcClient6);
+    this.registerAgent(this.props.npcClient7);
+    this.registerAgent(this.props.npcClient8);
+    this.registerAgent(this.props.npcClient9);
     this.registerAgent(this.props.npcGreeter);
 
     this.async.setInterval(() => {
@@ -90,7 +89,7 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
     }
 
     // If all chairs are assigned, do nothing
-    const unassignedChairs = this.availableChairs.filter((chair) => chair.assignedToNPC === undefined);
+    const unassignedChairs = this.availableChairs.filter((chair) => chair.assignedToNPC === undefined && chair.inUseByPlayer === undefined);
     if (unassignedChairs.length == 0) {
       debugLog(this.props.debugLogging, "NPCAgentPool: All chairs are assigned");
       return;
@@ -108,11 +107,7 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
     const chair = unassignedChairs[randomIndex];
 
     debugLog(this.props.debugLogging, `NPCAgentPool: Assigning chair: ${chair.chairEntity.name.get()}`);
-    chair.assignedToNPC = availableClient;
-    chair.chairEntity.collidable.set(false);
-
-    availableClient.activate(chair);
-    debugLog(this.props.debugLogging, `NPCAgentPool: Activated NPC client ${availableClient.entity.name.get()}`);
+    availableClient.activate(chair, this.activePlayers);
   }
 
   private buildAvailableChairsList() {
@@ -141,16 +136,38 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
         continue;
       }
 
+      const plotBaseEntity = plotManager.getPlayerPlotBase(player);
+      if (plotBaseEntity === undefined) {
+        debugLog(this.props.debugLogging, `NPCAgentPool: No plot base found for player ${player.name.get()}`);
+        continue;
+      }
+
       for (const chairEntity of chairList) {
         const tableEntity = plotManager.getTableForChair(player, chairEntity);
         if (tableEntity === undefined) {
           debugLog(this.props.debugLogging, `NPCAgentPool: No table found for chair ${chairEntity.name.get()} for player ${player.name.get()}`);
           continue;
         }
+
+        let avatarPose: AvatarPoseGizmo | undefined = undefined;
+        const childEntities = chairEntity.children.get();
+        childEntities.forEach((child) => {
+          console.log(`Checking child entity ${child.name.get()}`);
+          if (child.name.get() === "AvatarPose") {
+            console.log(`Found AvatarPose in chair ${chairEntity.name.get()}`);
+            avatarPose = child.as(AvatarPoseGizmo);
+          }
+        });
+
+        const seatPosition = chairEntity.position.get().add(chairEntity.forward.get().mul(0.2)).add(chairEntity.up.get().mul(0.5));
         const npcChair: NPCChair = {
           parentPlayer: player,
+          inUseByPlayer: undefined,
           chairEntity: chairEntity,
           tableEntity: tableEntity,
+          seatPosition: seatPosition,
+          avatarPose: avatarPose,
+          plotBaseEntity: plotBaseEntity,
           kitchenManager: kitchenManager,
           assignedToNPC: undefined,
         };
@@ -163,10 +180,6 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
     if (agentEntity !== undefined) {
       const npcAgent = agentEntity.getComponents(NPCAgent)[0];
       if (npcAgent !== undefined) {
-        if (this.props.spawnPoint !== undefined) {
-          npcAgent.setSpawnPoint(this.props.spawnPoint);
-        }
-
         const stateMachineName = npcAgent.getStateMachineName();
         switch (stateMachineName) {
           case "Greeter":
@@ -203,6 +216,26 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
     if (chair.assignedToNPC !== undefined) {
       chair.assignedToNPC.onOrderServed(player, servableFoodEntity);
     }
+  }
+
+  public onPlayerEnterChair(player: Player, avatarPoseEntity: Entity) {
+    debugLog(this.props.debugLogging, `NPCAgentPool: onPlayerEnterChair called for player ${player.name.get()} and avatarPose ${avatarPoseEntity.name.get()}`);
+    const chair = this.availableChairs.find((c) => c.avatarPose === avatarPoseEntity.as(AvatarPoseGizmo));
+    if (chair === undefined) {
+      console.error(`NPCAgentPool: Chair not found for avatarPose ${avatarPoseEntity.name.get()}`);
+      return;
+    }
+    chair.inUseByPlayer = player;
+  }
+
+  public onPlayerExitChair(player: Player, avatarPoseEntity: Entity) {
+    debugLog(this.props.debugLogging, `NPCAgentPool: onPlayerExitChair called for player ${player.name.get()} and avatarPose ${avatarPoseEntity.name.get()}`);
+    const chair = this.availableChairs.find((c) => c.avatarPose === avatarPoseEntity.as(AvatarPoseGizmo));
+    if (chair === undefined) {
+      console.error(`NPCAgentPool: Chair not found for avatarPose ${avatarPoseEntity.name.get()}`);
+      return;
+    }
+    chair.inUseByPlayer = undefined;
   }
 }
 Component.register(NPCAgentPool);

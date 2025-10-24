@@ -70,7 +70,8 @@ export const sysEvents = {
   deleteSelectedItemEvent: new NetworkEvent<{ player: Player; selected: Entity; alsoSave: boolean }>("deleteSelectedItemEvent"),
   assignPlotOwner: new NetworkEvent<{ player?: Player }>("assignPlotOwner"),
   assignSelectedItem: new NetworkEvent<{ player: Player; selected: Entity | null }>("assignSelectedItem"),
-  toggleBuildingEvent: new NetworkEvent<{ player: Player; enabled: boolean }>("toggleBuildingEvent"),
+  buildModeEvent: new NetworkEvent<{ player: Player; inBuildMode: boolean }>("buildModeEvent"),
+  changeTaggedEntityTextureEvent: new NetworkEvent<{ player: Player; textureAssetId: string; tag: string }>("changeTaggedEntityTextureEvent"),
 
   //region Menu Events
   //bottom menu

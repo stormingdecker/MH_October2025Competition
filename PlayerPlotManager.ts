@@ -1,4 +1,5 @@
-import { Asset, Component, Entity, EulerOrder, Player, PropTypes, Quaternion, Vec3 } from "horizon/core";
+import { Asset, Component, Entity, EulerOrder, MeshEntity, Player, PropTypes, Quaternion, TextureAsset, Vec3 } from "horizon/core";
+import { MoveableBase } from "MoveableBase";
 import { PerPlotProps } from "PerPlotManager";
 import { FilterType, PlayerManager, PlayerMgrEvents } from "PlayerManager";
 import { sysEvents } from "sysEvents";
@@ -101,8 +102,14 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
       this.savePlayerPlot(data.player);
     });
 
-    this.connectNetworkEvent(this.entity, sysEvents.toggleBuildingEvent, (data) => {
-      this.togglePlayerBuildingVisibility(data.player, data.enabled);
+    this.connectNetworkBroadcastEvent(sysEvents.buildModeEvent, (data) => {
+      console.log(`Build Mode Event Received for player ${data.player.name.get()}: ${data.inBuildMode}`);
+      this.togglePlayerBuildingVisibility(data.player, data.inBuildMode);
+      this.togglePlayerChairCollidability(data.player, data.inBuildMode);
+    });
+
+    this.connectNetworkEvent(this.entity, sysEvents.changeTaggedEntityTextureEvent, (data) => {
+      this.applyTextureToPlotEntityByTag(data.player, data.textureAssetId, data.tag);
     });
   }
 
@@ -196,6 +203,10 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     return this.playerPlotMap.get(player) ?? DEFAULT_PLOT_LAYOUT;
   }
 
+  public getPlayerPlotBase(player: Player) {
+    return this.player_PlotBaseMap.get(player);
+  }
+
   public getPlayerItemsByTag(player: Player, tag: string): Entity[] {
     // Retrieve entities for a given player and tag
     const tagMap = this.player_TagTypeToEntityMap.get(player);
@@ -238,7 +249,11 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     }
 
     let plotPos = plotBase.transform.position.get();
-    const newpos = plotPos.add(position);
+    let newSpawnOffset = new Vec3(0, 0, 0);
+    if (isNew) {
+      newSpawnOffset = new Vec3(0.5, 0, 0.5);
+    }
+    const newpos = plotPos.add(position).add(newSpawnOffset); //slightly above to avoid z-fighting
     let plotRot = plotBase.transform.rotation.get();
     const newrot = plotRot.mul(rotation);
 
@@ -271,6 +286,9 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
           debugLog(this.props.showDebugs, `New building added to plot data: ${JSON.stringify(newBuildings[newBuildings.length - 1])}`);
           this.playerPlotMap.set(player, {
             buildings: newBuildings,
+            wallpaper: plotData.wallpaper,
+            wallpaper2: plotData.wallpaper2,
+            floor: plotData.floor,
           });
           debugLog(this.props.showDebugs, `Added new building to ${player.name.get()}'s plot data.`);
         }
@@ -291,6 +309,13 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
             //after processing all tags, set the player map
             this.player_TagTypeToEntityMap.set(player, tagMap);
           }
+
+          //force setting collidable for chairs to make selectable
+          if (spawnedEntity.tags.get().includes(RestaurantItemTag.chair)) {
+            spawnedEntity.getComponents<MoveableBase>(MoveableBase).forEach((moveable) => {
+              moveable.collidableEnabled(true);
+            });
+          }
         }
 
         //region player map gen
@@ -301,6 +326,21 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
         EntityToInstanceID.set(spawnedEntity, curInstanceID);
         this.player_InstanceIDToEntityMap.set(player, InstanceIDToEntity);
         this.player_EntityToInstanceIDMap.set(player, EntityToInstanceID);
+
+        const playerPlotData = this.playerPlotMap.get(player) ?? DEFAULT_PLOT_LAYOUT;
+        const tags = spawnedEntity.tags.get();
+        const tagToProperty: Record<string, string> = {
+          wallpaper: playerPlotData.wallpaper,
+          wallpaper2: playerPlotData.wallpaper2,
+          floor: playerPlotData.floor,
+        };
+
+        for (const [tag, assetId] of Object.entries(tagToProperty)) {
+          if (tags.includes(tag) && assetId) {
+            this.applyTextureToPlotEntityByTag(player, assetId, tag);
+            break;
+          }
+        }
       }
 
       if (isNew) {
@@ -420,6 +460,21 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     }
   }
 
+  private togglePlayerChairCollidability(player: Player, inBuildMode: boolean) {
+    const chairList = this.getPlayerItemsByTag(player, RestaurantItemTag.chair) ?? [];
+    if (chairList.length === 0) {
+      console.warn("No chair entities found.");
+      return;
+    }
+
+    chairList.forEach((chair: Entity) => {
+      chair.getComponents<MoveableBase>(MoveableBase).forEach((moveable) => {
+        moveable.collidableEnabled(inBuildMode);
+      });
+      //
+    });
+  }
+
   public getTableForChair(player: Player, chair: Entity): Entity | undefined {
     if (!this.chairToTableMap.has(chair)) {
       this.rebuildChairToTableMap(player);
@@ -450,6 +505,56 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
         }
       });
     });
+  }
+
+  //region texture to entity tag
+  private applyTextureToPlotEntityByTag(player: Player, textureAssetId: string, tag: string) {
+    const wallpaperMoveableBase = this.getPlayerItemsByTag(player, tag);
+    console.log(`Found ${wallpaperMoveableBase.length} wallpaper items for player ${player.name.get()}`);
+    wallpaperMoveableBase.forEach((entity) => {
+      const MoveableBaseComp = entity.getComponents<MoveableBase>(MoveableBase)[0];
+      let entityTextureTarget = undefined;
+      if (tag === "wallpaper") {
+        entityTextureTarget = MoveableBaseComp.getOptionalWallpaper();
+      } else if (tag === "wallpaper2") {
+        entityTextureTarget = MoveableBaseComp.getOptionalWallpaper2();
+      } else if (tag === "floor") {
+        entityTextureTarget = MoveableBaseComp.getOptionalFloor();
+      }
+      if (!entityTextureTarget) {
+        console.warn(`No wallpaper entity found on MoveableBase for ${entity.name.get()}`);
+        return;
+      }
+      const wallPaperMesh = entityTextureTarget.as(MeshEntity);
+      const textureAsset = new Asset(BigInt(textureAssetId));
+      const texture = textureAsset.as(TextureAsset);
+      if (wallPaperMesh) {
+        wallPaperMesh.setTexture(texture);
+      } else {
+        console.error(`Entity is not a MeshEntity. Cannot change wallpaper.`);
+      }
+    });
+
+    let plotData = this.playerPlotMap.get(player);
+    if (!plotData) {
+      console.warn(`No plot data found for player ${player.name.get()}.`);
+      return;
+    }
+
+    const propertyMap: Record<string, keyof PlayerPlot> = {
+      wallpaper: "wallpaper",
+      wallpaper2: "wallpaper2",
+      floor: "floor",
+    };
+
+    const property = propertyMap[tag];
+    if (property) {
+      this.playerPlotMap.set(player, {
+        ...plotData,
+        [property]: textureAssetId,
+      });
+    }
+    //FUTURE NOTE: might want to save wallpaper choice to player data
   }
 }
 Component.register(PlayerPlotManager);
