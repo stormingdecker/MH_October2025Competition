@@ -1,4 +1,4 @@
-import { Asset, CodeBlockEvents, Component, Entity, GrabbableEntity, Player, PropTypes, Quaternion, Vec3 } from "horizon/core";
+import { Asset, CodeBlockEvents, Component, GrabbableEntity, Player, PropTypes, Quaternion, Vec3 } from "horizon/core";
 import { InventoryManager } from "InventoryManager";
 import { debugLog, ManagerType } from "sysHelper";
 import { InventoryType } from "sysTypes";
@@ -8,19 +8,20 @@ import { getMgrClass } from "sysUtils";
 
 interface FruitType {
   name: InventoryType;
-  asset: Asset;
+  fruitAsset: Asset;
+  plantAsset: Asset;
 }
 
 const fruitTypes: FruitType[] = [
-  { name: InventoryType.apple, asset: new Asset(BigInt("675554712276248")) },
-  { name: InventoryType.banana, asset: new Asset(BigInt("802699452617022")) },
-  { name: InventoryType.cherry, asset: new Asset(BigInt("1356200265862008")) },
-  { name: InventoryType.lemon, asset: new Asset(BigInt("1875920139994203")) },
-  { name: InventoryType.orange, asset: new Asset(BigInt("2212810152541271")) },
-  { name: InventoryType.peach, asset: new Asset(BigInt("1323540752643246")) },
-  { name: InventoryType.pear, asset: new Asset(BigInt("1130401219084123")) },
-  { name: InventoryType.pineapple, asset: new Asset(BigInt("1564733044526612")) },
-  { name: InventoryType.strawberry, asset: new Asset(BigInt("1399989785049780")) },
+  { name: InventoryType.apple, fruitAsset: new Asset(BigInt("675554712276248")), plantAsset: new Asset(BigInt("700804415798066")) },
+  { name: InventoryType.banana, fruitAsset: new Asset(BigInt("802699452617022")), plantAsset: new Asset(BigInt("629827613429447")) },
+  { name: InventoryType.cherry, fruitAsset: new Asset(BigInt("1356200265862008")), plantAsset: new Asset(BigInt("679792775174918")) },
+  { name: InventoryType.lemon, fruitAsset: new Asset(BigInt("1875920139994203")), plantAsset: new Asset(BigInt("798918259588944")) },
+  { name: InventoryType.orange, fruitAsset: new Asset(BigInt("2212810152541271")), plantAsset: new Asset(BigInt("1176010237201656")) },
+  { name: InventoryType.peach, fruitAsset: new Asset(BigInt("1323540752643246")), plantAsset: new Asset(BigInt("2595919130785066")) },
+  { name: InventoryType.pear, fruitAsset: new Asset(BigInt("1130401219084123")), plantAsset: new Asset(BigInt("1219440613570381")) },
+  { name: InventoryType.pineapple, fruitAsset: new Asset(BigInt("1564733044526612")), plantAsset: new Asset(BigInt("701845545715954")) },
+  { name: InventoryType.strawberry, fruitAsset: new Asset(BigInt("1399989785049780")), plantAsset: new Asset(BigInt("661703750123463")) },
 ];
 
 interface FruitLocation {
@@ -32,8 +33,6 @@ interface FruitLocation {
 export class FruitPlant extends Component<typeof FruitPlant> {
   static propsDefinition = {
     FruitType: { type: PropTypes.String, default: "" },
-    RandomFruitType: { type: PropTypes.Boolean, default: false },
-    CalendarDayBasedFruit: { type: PropTypes.Boolean, default: false },
     SpawnRateInSeconds: { type: PropTypes.Number, default: 60 },
     debugLogEnabled: { type: PropTypes.Boolean, default: false },
   };
@@ -73,7 +72,7 @@ export class FruitPlant extends Component<typeof FruitPlant> {
     const selectedLocation = emptyLocations[locationIndex];
 
     // Spawn fruit asset at location
-    const fruitAssets = await this.world.spawnAsset(fruitType.asset, selectedLocation.position, selectedLocation.rotation);
+    const fruitAssets = await this.world.spawnAsset(fruitType.fruitAsset, selectedLocation.position, selectedLocation.rotation);
     if (fruitAssets.length === 0) {
       console.error("FruitPlant: Failed to spawn fruit asset.");
       return;
@@ -171,3 +170,45 @@ export class GrabbableFruit extends Component<typeof GrabbableFruit> {
   private onRelease(player: Player) {}
 }
 Component.register(GrabbableFruit);
+
+// --- FruitOfTheDayPlant ---
+
+const fruitTypeOfTheDay = [
+  InventoryType.apple, // Sunday
+  InventoryType.banana, // Monday
+  InventoryType.cherry, // Tuesday
+  InventoryType.lemon, // Wednesday
+  InventoryType.orange, // Thursday
+  InventoryType.peach, // Friday
+  InventoryType.pear, // Saturday
+];
+
+export class FruitOfTheDayPlant extends Component<typeof FruitOfTheDayPlant> {
+  static propsDefinition = {
+    debugLogEnabled: { type: PropTypes.Boolean, default: false },
+  };
+
+  public async spawnFruitPlant(plantAsset: Asset) {
+    debugLog(this.props.debugLogEnabled, "FruitOfTheDayPlant: Attempting to spawn fruit plant...");
+
+    // Spawn fruitPlant asset at location
+    const fruitPlantAssets = await this.world.spawnAsset(plantAsset, this.entity.position.get(), this.entity.rotation.get());
+    if (fruitPlantAssets.length === 0) {
+      console.error("FruitOfTheDayPlant: Failed to spawn fruit plant asset.");
+      return;
+    }
+  }
+
+  override start() {
+    const now = new Date();
+    const inventoryType = fruitTypeOfTheDay[now.getDay()];
+    const fruitType = fruitTypes.find((fruit) => fruit.name === inventoryType);
+    if (!fruitType) {
+      console.error(`FruitOfTheDayPlant: No fruit type found for ${inventoryType}`);
+      return;
+    }
+
+    this.spawnFruitPlant(fruitType.plantAsset);
+  }
+}
+Component.register(FruitOfTheDayPlant);

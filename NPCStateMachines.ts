@@ -1,4 +1,4 @@
-import { MoneyPool } from "GrabbableMoney";
+import { GrabbableMoney } from "GrabbableMoney";
 import { Entity, Player, Vec3 } from "horizon/core";
 import { OrderTicket } from "KitchenManager";
 import { NPCAgent, NPCAnimationID, NPCChair, NPCMovementSpeedID, NPCStateMachine } from "NPCAgent";
@@ -49,7 +49,7 @@ export class NPCStateMachine_WorldGreeter extends NPCStateMachine {
       case NPCStates_WorldGreeter.WaitingForPlayerToApproach: {
         const players = this.parentAgent!.world.getPlayers();
         for (const player of players) {
-          if (this.alreadyGreetedPlayers.includes(player)) {
+          if (NPCAgent.isPlayerAnNPC(player) || this.alreadyGreetedPlayers.includes(player)) {
             continue;
           }
           const playerDistance = player.position.get().distance(this.parentAgent!.entity.position.get());
@@ -210,7 +210,7 @@ export class NPCStateMachine_Client extends NPCStateMachine {
           const platePosition = this.servedFoodEntity.position.get();
           await this.parentAgent!.world.deleteAsset(this.servedFoodEntity, true);
           this.servedFoodEntity = undefined;
-          MoneyPool.instance.assignMoneyComponent(platePosition.add(new Vec3(0, -0.05, 0)), CURRENCY_REWARD_PER_ORDER);
+          GrabbableMoney.spawnMoney(this.parentAgent!.world, platePosition.add(new Vec3(0, -0.05, 0)), CURRENCY_REWARD_PER_ORDER);
           this.currentState = NPCStates_Client.ReturningToPortal;
         }
         break;

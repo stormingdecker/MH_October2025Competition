@@ -20,11 +20,11 @@ import { playVFX, PlayVFXAtPosition, VFXLabel } from "VFXManager";
 class T_DailyReward extends Component<typeof T_DailyReward> {
   static propsDefinition = {
     prizeGFX: { type: PropTypes.Entity },
-    day1Reward: {type: PropTypes.Number, default: 10 },
-    day2Reward: {type: PropTypes.Number, default: 15 },
-    day3Reward: {type: PropTypes.Number, default: 20 },
-    day4Reward: {type: PropTypes.Number, default: 25 },
-    day5Reward: {type: PropTypes.Number, default: 30 },
+    day1Reward: { type: PropTypes.Number, default: 10 },
+    day2Reward: { type: PropTypes.Number, default: 15 },
+    day3Reward: { type: PropTypes.Number, default: 20 },
+    day4Reward: { type: PropTypes.Number, default: 25 },
+    day5Reward: { type: PropTypes.Number, default: 30 },
   };
 
   dailyRewardManager: DailyRewardManager | undefined = undefined;
@@ -74,8 +74,10 @@ class T_DailyReward extends Component<typeof T_DailyReward> {
 
   OnPlayerEnterTrigger(player: Player) {
     this.activePlayer = player;
-
-    if (this.tryClaimDailyReward() === false) return;
+    const utcNow = Date.now();
+    if (this.dailyRewardManager?.hasClaimedDailyReward(this.activePlayer, utcNow)) {
+      return;
+    }
 
     this.entity.as(TriggerGizmo).setWhoCanTrigger([]);
 
@@ -144,24 +146,14 @@ class T_DailyReward extends Component<typeof T_DailyReward> {
         this.async.setTimeout(() => {
           this.hidePrize();
         }, 200);
+
+        this.entity.as(TriggerGizmo).setWhoCanTrigger([this.activePlayer]);
       }
       await new Promise((resolve) => this.async.setTimeout(resolve, interval * 1000));
     }
 
     // Ensure final scale is set
     prize.scale.set(targetScale);
-  }
-
-  tryClaimDailyReward(): boolean {
-    //get daily
-    const utcNow = Date.now();
-    if (this.dailyRewardManager?.tryClaimDailyReward(this.activePlayer, utcNow)) {
-      console.log("Player claiming daily reward");
-      return true;
-    } else {
-      console.log("Player already claimed daily reward today");
-      return false;
-    }
   }
 
   showAward() {

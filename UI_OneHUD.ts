@@ -499,7 +499,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       this.bnd_dailyRewardDisplay.set("flex", data.players);
     });
     this.connectNetworkEvent(this.entity, oneHudEvents.UpdateDailyRewardStreak, (data) => {
-      this.updateDailyRewardStreak([data.player], data.newStreak);
+      this.updateDailyRewardVisuals([data.player], data.newStreak);
     });
 
     //region context menu updates
@@ -526,28 +526,30 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         DailyRewardManager
       );
       const dailyStreak = dailyRewardMgr?.getDailyRewardInfo(data.player)?.dailyStreak ?? 0;
-      console.log(
-        `Updating daily reward streak to ${dailyStreak} for player ${data.player.name.get()}`
-      );
-      this.updateDailyRewardStreak([data.player], dailyStreak);
+      this.updateDailyRewardVisuals([data.player], dailyStreak);
     });
   }
 
-  updateDailyRewardStreak(players: Player[], newStreak: number): void {
+  updateDailyRewardVisuals(players: Player[], curDaysClaimed: number): void {
     if (this.imageSetMap.has("DailyRewards")) {
       let imageSet_wStreak = this.imageSetMap.get("DailyRewards")!;
+      //which images show vs which show locked
       for (let i = 0; i < imageSet_wStreak.usePrimaryImage.length; i++) {
-        imageSet_wStreak.usePrimaryImage[i] = i <= newStreak;
+        imageSet_wStreak.usePrimaryImage[i] = i <= curDaysClaimed;
       }
-      console.log(`Updating daily reward streak to ${newStreak} for player ${players[0].name.get()}`);
-      this.playerDailyStreakMap.set(players[0], newStreak);
+      this.playerDailyStreakMap.set(players[0], curDaysClaimed);
       this.setupDailyRewardContainer(players, imageSet_wStreak);
-    } else if (this.imageSetMap.has("FoodMenu")) {
-      let imageSet_foodMenu = this.imageSetMap.get("FoodMenu")!;
-      for (let i = 0; i < imageSet_foodMenu.usePrimaryImage.length; i++) {
-        imageSet_foodMenu.usePrimaryImage[i] = i <= newStreak;
-      }
-      this.setupFoodMenuContainer(players, imageSet_foodMenu);
+    }
+  }
+
+  updatedFoodMenuVisuals(players: Player[]): void {
+    if (this.imageSetMap.has("FoodMenu")) {
+      //migrate this to new function
+      // let imageSet_foodMenu = this.imageSetMap.get("FoodMenu")!;
+      // for (let i = 0; i < imageSet_foodMenu.usePrimaryImage.length; i++) {
+      //   imageSet_foodMenu.usePrimaryImage[i] = i <= curDaysClaimed;
+      // }
+      // this.setupFoodMenuContainer(players, imageSet_foodMenu);
     }
   }
 
@@ -585,8 +587,8 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       return;
     }
     const recipients = players.length > 0 ? players : undefined;
-    const imageSetType = "DailyRewards";
-    const newUINodeArray = this.convertImageSetToUINodeArray(this.imageSetMap.get(imageSetType)!);
+
+    const newUINodeArray = this.convertImageSetToUINodeArray(imageSet!);
     this.dailyReward_childrenUINodeArray.set(newUINodeArray, recipients);
     // Assuming you want to do something with newUINodeArray here
   }
@@ -614,15 +616,21 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         break;
       case "claimDailyRewards":
         console.log(`Daily Reward Claim Button Pressed by ${player.name.get()}`);
-        this.bnd_dailyRewardDisplay.set("none", [player]);
         if (this.playerGiftBoxMap.has(player)) {
           const giftBoxEntity = this.playerGiftBoxMap.get(player)!;
-
-          const dailyStreak = this.playerDailyStreakMap.get(player) || 0; //this is placeholder
-          const rewardAmount = 10 + dailyStreak * 5; //example: base 10 currency + 5 per streak day
           this.sendNetworkEvent(giftBoxEntity, sysEvents.openDailyRewardGiftBox, {
             player: player,
           });
+
+          const dailyRewardMgr = getMgrClass<DailyRewardManager>(
+            this,
+            ManagerType.DailyRewardManager,
+            DailyRewardManager
+          );
+          dailyRewardMgr?.tryClaimDailyReward(player, Date.now());
+
+          const dailyStreak = this.playerDailyStreakMap.get(player) || 0; //this is placeholder
+          const rewardAmount = 10 + dailyStreak * 5; //example: base 10 currency + 5 per streak day
 
           this.async.setTimeout(() => {
             // Implement award logic here, e.g., give points, items, etc.
@@ -637,11 +645,17 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
               sender: this.entity,
             });
           }, 2000);
+
+          this.async.setTimeout(() => {
+            this.bnd_dailyRewardDisplay.set("none", [player]);
+          }, 200);
         }
         break;
       case "exitDailyRewards":
         console.log(`Daily Reward Exit Button Pressed by ${player.name.get()}`);
-        this.bnd_dailyRewardDisplay.set("none", [player]);
+        this.async.setTimeout(() => {
+          this.bnd_dailyRewardDisplay.set("none", [player]);
+        }, 200);
         break;
       case "exitFoodMenu":
         console.log(`Food Menu Exit Button Pressed by ${player.name.get()}`);

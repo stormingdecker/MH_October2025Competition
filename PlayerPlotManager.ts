@@ -513,7 +513,7 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
   //region texture to entity tag
   private applyTextureToPlotEntityByTag(player: Player, textureAssetId: string, tag: string) {
     const wallpaperMoveableBase = this.getPlayerItemsByTag(player, tag);
-    console.log(`Found ${wallpaperMoveableBase.length} wallpaper items for player ${player.name.get()}`);
+    debugLog(this.props.showDebugs,`Found ${wallpaperMoveableBase.length} wallpaper items for player ${player.name.get()}`);
     wallpaperMoveableBase.forEach((entity) => {
       const MoveableBaseComp = entity.getComponents<MoveableBase>(MoveableBase)[0];
       let entityTextureTarget = undefined;
