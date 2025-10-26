@@ -13,6 +13,8 @@ enum MenuLevel {
 
 export enum Primary_MenuType {
   PlotMenu = "PlotMenu",
+  InventoryMenu = "InventoryMenu",
+  MerchantMenu = "MerchantMenu",
   FishingMenu = "FishingMenu",
   FarmMenu = "FarmMenu",
 }
@@ -24,6 +26,27 @@ export enum Sub_PlotType {
   Upgrades = "UpgradesMenu",
   Shop = "ShopMenu",
   Decor = "DecorMenu",
+}
+
+export enum Sub_MerchantType{
+  Buy = "BuyMenu",
+  Sell = "SellMenu",
+}
+
+export enum Sub_InventoryType {
+  Fruit = "Fruit",
+}
+
+export enum Detail_Fruit{
+  Apple = "Apple",
+  Banana = "Banana",
+  Cherry = "Cherry",
+  Lemon = "Lemon",
+  Orange = "Orange",
+  Peach = "Peach",
+  Pear = "Pear",
+  Pineapple = "Pineapple",
+  Strawberry = "Strawberry",
 }
 
 export enum Detail_Kitchen {

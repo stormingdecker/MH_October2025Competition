@@ -21,12 +21,17 @@ import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
 import { InventoryType } from "sysTypes";
 import {
   btnImgBndText,
+  buttonImg,
+  buttonImgWithText,
   confirm,
   convertAssetIDToImageSource,
   dailyRewardWindow,
   DefaultBlankImgAssetID,
   foodMenuWindow,
   ImgSetUIwStrings,
+  inventoryDetailWindow,
+  inventoryMenuWindow,
+  inventorySlotButton,
   notification,
   numberUp,
   popup,
@@ -34,6 +39,7 @@ import {
   progressionTask,
 } from "sysUIStyleGuide";
 import { getMgrClass } from "sysUtils";
+import { Detail_Fruit, Primary_MenuType, Sub_InventoryType, Sub_PlotType } from "UI_MenuManager";
 import { oneHudEvents } from "UI_OneHUDEvents";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 
@@ -103,6 +109,10 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     progTaskScreenPosition: { type: PropTypes.Vec3, default: new Vec3(50, 60, 11) }, //x%, y%, z-index
     progTaskResultImg: { type: PropTypes.Asset },
     progTaskInstructImg: { type: PropTypes.Asset },
+    //inventory menu
+    INVENTORY_MENU_HEADER: { type: PropTypes.String, default: "Inventory Menu" },
+    inventoryImgAsset: { type: PropTypes.Asset },
+    inventoryScreenPosition: { type: PropTypes.Vec3, default: new Vec3(50, 50, 10) }, //x%, y%, z-index
   };
 
   //region private var
@@ -131,6 +141,10 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   //diamond Variables
   bnd_diamondCount = new Binding<string>("0");
   animBnd_diamondScale = new AnimatedBinding(1);
+
+  //inventory Variables
+  bnd_inventoryCount = new Binding<string>("0");
+  animBnd_inventoryScale = new AnimatedBinding(1);
 
   //popup Variables
   bnd_popupDisplay = new Binding<string>("flex");
@@ -187,7 +201,16 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   private foodMenu_childrenUINodeArray = new Binding<UINode[]>([]); // Binding to hold child nodes
   private bnd_foodMenuDisplay = new Binding<string>("none");
 
-  private curMenuContext: string[] = [];
+  //inventory menu
+  private inventory_childrenUINodeArray = new Binding<UINode[]>([]); // Binding to hold child nodes
+  private bnd_inventoryDisplay = new Binding<string>("none");
+
+  //inventory detail window
+  private bnd_inventoryDetailDisplay = new Binding<string>("none");
+
+  //multiplayer variables
+  private playerMenuContextMap = new Map<Player, string[]>();
+  private prevPlayerMenuContextMap = new Map<Player, string[]>();
 
   //region initializeUI()
   initializeUI(): UINode {
@@ -205,9 +228,11 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     const lvlImgAssetId = this.props.lvlImgAsset?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
     const scoreImgAssetId = this.props.scoreImgAsset?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
 
+    const inventoryImgAssetId =
+      this.props.inventoryImgAsset?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
+    const diamondImgAssetId = this.props.diamondImgAsset?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
     const currencyImgAssetId =
       this.props.currencyImgAsset?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
-    const diamondImgAssetId = this.props.diamondImgAsset?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
     const plusImgAssetId = this.props.currencyPlusImg?.id?.toString() ?? DefaultBlankImgAssetID; // default to blank image asset
     this.animBnd_currencyScale.set(1);
     this.animBnd_diamondScale.set(1);
@@ -282,18 +307,39 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         ),
         View({
           children: [
-            //region diamond count
+            //region inventory count
             ...this.toNodes(
-              btnImgBndText(
+              buttonImg(
                 this,
-                "diamondBtn",
-                convertAssetIDToImageSource(diamondImgAssetId),
-                this.bnd_diamondCount,
-                convertAssetIDToImageSource(plusImgAssetId),
-                this.animBnd_diamondScale,
-                this.onButtonPressed.bind(this)
+                "inventoryBtn",
+                convertAssetIDToImageSource(inventoryImgAssetId),
+                this.onButtonPressed.bind(this),
+                150
               )
             ),
+          ],
+          style: {
+            position: "absolute",
+            layoutOrigin: [0.5, 0.5],
+            left: `${this.props.inventoryScreenPosition.x!}%`,
+            top: `${100 - this.props.inventoryScreenPosition.y!}%`,
+            zIndex: this.props.inventoryScreenPosition.z!,
+          },
+        }),
+        View({
+          children: [
+            // //region diamond count
+            // ...this.toNodes(
+            //   btnImgBndText(
+            //     this,
+            //     "diamondBtn",
+            //     convertAssetIDToImageSource(diamondImgAssetId),
+            //     this.bnd_diamondCount,
+            //     convertAssetIDToImageSource(plusImgAssetId),
+            //     this.animBnd_diamondScale,
+            //     this.onButtonPressed.bind(this)
+            //   )
+            // ),
             //region currency count
             ...this.toNodes(
               btnImgBndText(
@@ -386,6 +432,22 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
             this.onButtonPressed.bind(this),
             this.foodMenu_childrenUINodeArray,
             this.bnd_foodMenuDisplay
+          )
+        ),
+        ...this.toNodes(
+          inventoryMenuWindow(
+            //FUTURE NOTE: make Menu for inventoryWindow
+            this,
+            this.onButtonPressed.bind(this),
+            this.inventory_childrenUINodeArray,
+            this.bnd_inventoryDisplay
+          )
+        ),
+        ...this.toNodes(
+          inventoryDetailWindow(
+            this,
+            this.onButtonPressed.bind(this),
+            this.bnd_inventoryDetailDisplay
           )
         ),
       ],
@@ -492,6 +554,8 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         this.setupDailyRewardContainer([], this.imageSetMap.get("DailyRewards")!);
       } else if (data.imageSetType === "FoodMenu") {
         this.setupFoodMenuContainer([], this.imageSetMap.get("FoodMenu")!);
+      } else if (data.imageSetType === "InventoryMenu") {
+        this.setupInventoryMenuContainer([], this.imageSetMap.get("InventoryMenu")!);
       }
     });
 
@@ -505,6 +569,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     //region context menu updates
     this.connectNetworkBroadcastEvent(sysEvents.updateMenuContext, (data) => {
       const newContextMenuLength = data.menuContext.length;
+      const isPrimaryMenu = newContextMenuLength == 1;
       const isSubMenu = data.menuContext.length == 2;
       const isDetailMenu = data.menuContext.length == 3;
 
@@ -514,7 +579,23 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         this.bnd_foodMenuDisplay.set("none", [data.player]);
       }
 
-      this.curMenuContext = data.menuContext ?? [];
+      if (data.menuContext[0] === "InventoryMenu") {
+        this.bnd_inventoryDisplay.set("flex", [data.player]);
+      } else {
+        this.bnd_inventoryDisplay.set("none", [data.player]);
+      }
+
+      if (
+        data.menuContext[0] === "InventoryMenu" &&
+        data.menuContext[1] === "Fruit" &&
+        isDetailMenu
+      ) {
+        this.bnd_inventoryDetailDisplay.set("flex", [data.player]);
+      } else {
+        this.bnd_inventoryDetailDisplay.set("none", [data.player]);
+      }
+
+      this.playerMenuContextMap.set(data.player, data.menuContext);
     });
 
     this.connectNetworkEvent(this.entity, sysEvents.showDailyRewardUI, (data) => {
@@ -605,14 +686,60 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     // Assuming you want to do something with newUINodeArray here
   }
 
+  setupInventoryMenuContainer(players: Player[], imageSet: ImageSetProps): void {
+    if (!this.imageSetMap.has("InventoryMenu")) {
+      console.warn("No inventory menu child nodes to setup.");
+      return;
+    }
+    const recipients = players.length > 0 ? players : undefined;
+    const imageSetType = "InventoryMenu";
+    const newUINodeArray = this.convertInventoryToUINodeArray(this.imageSetMap.get(imageSetType)!);
+    this.inventory_childrenUINodeArray.set(newUINodeArray, recipients);
+    // Assuming you want to do something with newUINodeArray here
+  }
+
   //region onButtonPressed()
   onButtonPressed(instanceId: string, player: Player) {
-    switch (instanceId) {
+    let curInstanceId = instanceId;
+    const curMenuContext = this.playerMenuContextMap.get(player) || [];
+    let updatedMenuContext: string[] = [];
+    let sendContextMenuUpdate = false;
+
+    let inventoryItemIndex = -1;
+
+    // Handle inventory item button presses
+    if (instanceId.startsWith("inventoryItemBtn_")) {
+      const indexStr = instanceId.split("_")[1];
+      const index = parseInt(indexStr, 10);
+      inventoryItemIndex = index;
+      if (!isNaN(index)) {
+        console.log(`Inventory item button ${index} pressed by ${player.name.get()}`);
+        // Handle the inventory item button press with the specific index
+        // Add your inventory item logic here
+      } else {
+        console.warn(`Invalid index in instanceId: ${instanceId}`);
+      }
+      curInstanceId = "inventoryItemBtn";
+    }
+
+    switch (curInstanceId) {
       case "currencyBtn":
         console.log("Currency Button Pressed");
         break;
       case "diamondBtn":
         console.log("Diamond Button Pressed");
+        break;
+      case "inventoryBtn":
+        console.log("Inventory Button Pressed");
+        if (curMenuContext[0] === Primary_MenuType.InventoryMenu) {
+          updatedMenuContext = this.prevPlayerMenuContextMap.get(player) || [];
+        } else {
+          this.prevPlayerMenuContextMap.set(player, curMenuContext);
+          updatedMenuContext = [Primary_MenuType.InventoryMenu];
+        }
+        this.playerMenuContextMap.set(player, updatedMenuContext);
+
+        sendContextMenuUpdate = true;
         break;
       case "claimDailyRewards":
         console.log(`Daily Reward Claim Button Pressed by ${player.name.get()}`);
@@ -661,9 +788,35 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         console.log(`Food Menu Exit Button Pressed by ${player.name.get()}`);
         this.bnd_foodMenuDisplay.set("none", [player]);
         break;
+      case "exitInventory":
+        console.log(`Inventory Menu Exit Button Pressed by ${player.name.get()}`);
+        updatedMenuContext = this.prevPlayerMenuContextMap.get(player) || [];
+        sendContextMenuUpdate = true;
+        break;
+      case "inventoryItemBtn":
+        // if(curMenuContext[1] ===)
+        console.log(
+          `Inventory Item Button Pressed by ${player.name.get()} for item index ${inventoryItemIndex}`
+        );
+        // Handle inventory item button press logic here
+        updatedMenuContext = [
+          Primary_MenuType.InventoryMenu,
+          Sub_InventoryType.Fruit,
+          Detail_Fruit.Apple,
+        ]; // Example of navigating to a detail view
+
+        sendContextMenuUpdate = true;
+        break;
       default:
         console.warn(`Unhandled button press for instanceId: ${instanceId}`);
         break;
+    }
+
+    if (sendContextMenuUpdate) {
+      this.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
+        player: player,
+        menuContext: updatedMenuContext,
+      });
     }
   }
 
@@ -1014,6 +1167,37 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
             convertAssetIDToImageSource(imgIDToUse),
             imageSetProps.primaryTextArray[index],
             imageSetProps.secondaryTextArray[index]
+          )
+        );
+      });
+
+      return newUIArray;
+    } catch (error) {
+      console.error(`Error fetching texture assets`, error);
+      return []; // Skip this iteration if texture asset is not found
+    }
+  }
+
+  //region UI Inventory to UINode[]
+  private convertInventoryToUINodeArray(inventoryProps: ImageSetProps): UINode[] {
+    try {
+      const newUIArray: UINode[] = [];
+      const txtOffset = new Vec3(0, 0, 120); //(x%,y%, width%)
+
+      inventoryProps.primaryTextArray.forEach((text, index) => {
+        const imgIDToUse = inventoryProps.usePrimaryImage[index]
+          ? inventoryProps.primaryImageAssetIDArray[index]
+          : inventoryProps.secondaryImageAssetIDArray[index];
+
+        newUIArray.push(
+          inventorySlotButton(
+            this,
+            `inventoryItemBtn_${index}`,
+            convertAssetIDToImageSource(imgIDToUse),
+            inventoryProps.primaryTextArray[index],
+            txtOffset,
+            this.onButtonPressed.bind(this),
+            70 //button size
           )
         );
       });

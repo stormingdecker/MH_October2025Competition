@@ -1,12 +1,29 @@
 // Copyright (c) Dave Mills (uRocketLife). Released under the MIT License.
 
 import { Asset, Color, Component, Player, TextureAsset, Vec3 } from "horizon/core";
-import { AnimatedBinding, Binding, DynamicList, Image, ImageSource, Pressable, Text, UINode, View } from "horizon/ui";
+import {
+  AnimatedBinding,
+  Binding,
+  DynamicList,
+  Image,
+  ImageSource,
+  Pressable,
+  Text,
+  UINode,
+  View,
+} from "horizon/ui";
 
 export const DefaultBlankImgAssetID = "2223510544837679"; // blank image asset
 
 //region confirm UI def
-export const confirm = (component: Component, bndHeaderText: Binding<string>, bndConfirm_Scale: Binding<number>, bndCancel_Scale: Binding<number>, bndDisplay: Binding<string>, onConfirmBtnPressed: (accepted: boolean, player: Player) => void) => {
+export const confirm = (
+  component: Component,
+  bndHeaderText: Binding<string>,
+  bndConfirm_Scale: Binding<number>,
+  bndCancel_Scale: Binding<number>,
+  bndDisplay: Binding<string>,
+  onConfirmBtnPressed: (accepted: boolean, player: Player) => void
+) => {
   return View({
     children: [
       // Header Text
@@ -29,7 +46,13 @@ export const confirm = (component: Component, bndHeaderText: Binding<string>, bn
         children: [
           // Cancel Btn
           Pressable({
-            children: [...confirmButton(new Binding<string>("Cancel"), new Binding<number>(30), bndCancel_Scale)],
+            children: [
+              ...confirmButton(
+                new Binding<string>("Cancel"),
+                new Binding<number>(30),
+                bndCancel_Scale
+              ),
+            ],
             onPress: (player) => {
               bndCancel_Scale.set(0.9, [player]);
               component.async.setTimeout(() => {
@@ -44,7 +67,13 @@ export const confirm = (component: Component, bndHeaderText: Binding<string>, bn
           }),
           // Confirm Btn
           Pressable({
-            children: [...confirmButton(new Binding<string>("Confirm"), new Binding<number>(30), bndConfirm_Scale)],
+            children: [
+              ...confirmButton(
+                new Binding<string>("Confirm"),
+                new Binding<number>(30),
+                bndConfirm_Scale
+              ),
+            ],
             onPress: (player) => {
               bndConfirm_Scale.set(0.9, [player]);
               component.async.setTimeout(() => {
@@ -145,7 +174,17 @@ export const notification = (
 };
 
 //region popup UI def
-export const popup = (bndTitle: Binding<string>, bndContent: Binding<string>, bndWatermark: Binding<ImageSource>, bndDisplay: Binding<string>, animBnd_posY: AnimatedBinding, panelWidth: number, panelHeight: number, bndBtnScale: Binding<number>, onPopupBtnPressed: (player: Player) => void) => {
+export const popup = (
+  bndTitle: Binding<string>,
+  bndContent: Binding<string>,
+  bndWatermark: Binding<ImageSource>,
+  bndDisplay: Binding<string>,
+  animBnd_posY: AnimatedBinding,
+  panelWidth: number,
+  panelHeight: number,
+  bndBtnScale: Binding<number>,
+  onPopupBtnPressed: (player: Player) => void
+) => {
   return View({
     children: [
       Image({
@@ -196,7 +235,9 @@ export const popup = (bndTitle: Binding<string>, bndContent: Binding<string>, bn
       }),
       // Pressable
       Pressable({
-        children: [...popupButton(new Binding<string>("OK!"), new Binding<number>(24), bndBtnScale)],
+        children: [
+          ...popupButton(new Binding<string>("OK!"), new Binding<number>(24), bndBtnScale),
+        ],
         //Cancel
         onPress: (player: Player) => {
           bndBtnScale.set(0.9, [player]);
@@ -231,7 +272,17 @@ export const popup = (bndTitle: Binding<string>, bndContent: Binding<string>, bn
 };
 
 //region numUp UI def
-export const numberUp = (numValue: Binding<string>, showNumberUp: boolean, screenPosition: { x: number; y: number; z: number }, scale: number, backgroundOn: boolean, backgroundColor: Color, numberColor: Color, animBnd_Scale: AnimatedBinding, imgID: string) => {
+export const numberUp = (
+  numValue: Binding<string>,
+  showNumberUp: boolean,
+  screenPosition: { x: number; y: number; z: number },
+  scale: number,
+  backgroundOn: boolean,
+  backgroundColor: Color,
+  numberColor: Color,
+  animBnd_Scale: AnimatedBinding,
+  imgID: string
+) => {
   return [
     View({
       children: [
@@ -414,7 +465,17 @@ export const progressionTask = (
             layoutOrigin: [0.5, 0.5],
           },
         }),
-        ...progressBar(bnd_ProgressAsString, bnd_ShowProgressBar, new Vec3(300, 30, 1), new Vec3(50, 20, 11), 0, "grey", "rgba(4, 150, 255, 1)", false, "black"),
+        ...progressBar(
+          bnd_ProgressAsString,
+          bnd_ShowProgressBar,
+          new Vec3(300, 30, 1),
+          new Vec3(50, 20, 11),
+          0,
+          "grey",
+          "rgba(4, 150, 255, 1)",
+          false,
+          "black"
+        ),
         Image({
           source: resultImgId,
           style: {
@@ -468,7 +529,11 @@ export const progressionTask = (
 };
 
 //region popupBtn def
-export const popupButton = (bndHeaderText: Binding<string>, bndFontSize: Binding<number>, bndBtnScale: Binding<number>) => {
+export const popupButton = (
+  bndHeaderText: Binding<string>,
+  bndFontSize: Binding<number>,
+  bndBtnScale: Binding<number>
+) => {
   return [
     Text({
       text: bndHeaderText,
@@ -492,7 +557,11 @@ export const popupButton = (bndHeaderText: Binding<string>, bndFontSize: Binding
 };
 
 //region confirmBtn def
-export const confirmButton = (bndHeaderText: Binding<string>, bndFontSize: Binding<number>, bndBtnScale: Binding<number>) => {
+export const confirmButton = (
+  bndHeaderText: Binding<string>,
+  bndFontSize: Binding<number>,
+  bndBtnScale: Binding<number>
+) => {
   return [
     Text({
       text: bndHeaderText,
@@ -529,7 +598,9 @@ export const FONT_MAIN = "Roboto"; //Kallisto, Anton, Bangers, Optimistic, Oswal
 export function convertAssetToImageSource(asset: Asset): ImageSource {
   const textureAsset = asset?.as(TextureAsset);
   if (!textureAsset) {
-    throw new Error(`convertAssetToImageSource: Provided asset (id: ${asset?.id}) is not a TextureAsset`);
+    throw new Error(
+      `convertAssetToImageSource: Provided asset (id: ${asset?.id}) is not a TextureAsset`
+    );
   }
   return ImageSource.fromTextureAsset(textureAsset);
 }
@@ -542,14 +613,20 @@ export function convertAssetIDToImageSource(assetID: string): ImageSource {
   const asset = new Asset(BigInt(assetID));
   const textureAsset = asset?.as(TextureAsset);
   if (!textureAsset) {
-    throw new Error(`convertAssetIDToImageSource: Provided assetID (${assetID}) is not a valid TextureAsset`);
+    throw new Error(
+      `convertAssetIDToImageSource: Provided assetID (${assetID}) is not a valid TextureAsset`
+    );
   }
   return ImageSource.fromTextureAsset(textureAsset);
 }
 //endregion Asset Conversion
 
 //region btn w/ text
-export const button = (bndHeaderText: Binding<string>, bndFontSize: Binding<number>, bndBtnScale: Binding<number>) => {
+export const button = (
+  bndHeaderText: Binding<string>,
+  bndFontSize: Binding<number>,
+  bndBtnScale: Binding<number>
+) => {
   return [
     Text({
       text: bndHeaderText,
@@ -573,7 +650,13 @@ export const button = (bndHeaderText: Binding<string>, bndFontSize: Binding<numb
 };
 
 //region btn w/ img
-export const buttonImg = (component: Component, instanceId: string, img: ImageSource, onButtonPressed: (instanceID: string, player: Player) => void) => {
+export const buttonImg = (
+  component: Component,
+  instanceId: string,
+  img: ImageSource,
+  onButtonPressed: (instanceID: string, player: Player) => void, 
+  size?: number
+) => {
   const scaleBinding = new Binding<number>(1);
   return Pressable({
     children: [
@@ -603,8 +686,8 @@ export const buttonImg = (component: Component, instanceId: string, img: ImageSo
     onRelease: (player) => {},
     style: {
       // backgroundColor: "rgba(0, 255, 60, 0.73)",
-      width: 75,
-      height: 75,
+      width: size ? size : 75,
+      height: size ? size : 75,
       alignSelf: "center",
       justifyContent: "center",
       borderRadius: 5,
@@ -615,7 +698,15 @@ export const buttonImg = (component: Component, instanceId: string, img: ImageSo
 };
 
 //region btn w/ img & text
-export const buttonImgWithText = (component: Component, instanceId: string, img: ImageSource, text: string, textOffset: Vec3, onButtonPressed: (instanceID: string, player: Player) => void, size?: number) => {
+export const buttonImgWithText = (//used for bottom, side and top menu buttons 
+  component: Component,
+  instanceId: string,
+  img: ImageSource,
+  text: string,
+  textOffset: Vec3,
+  onButtonPressed: (instanceID: string, player: Player) => void,
+  size?: number
+) => {
   const scaleBinding = new Binding<number>(1);
   return Pressable({
     children: [
@@ -633,20 +724,20 @@ export const buttonImgWithText = (component: Component, instanceId: string, img:
             style: {
               fontFamily: FONT_MAIN,
               fontWeight: "bold",
-              color: "rgba(0, 0, 0, 1)",
-              fontSize: 15,
+              color: "rgba(255, 255, 255, 1)",
+              textShadowColor: "rgba(0, 0, 0, 1)",
+              textShadowOffset: [2, 2],
+              fontSize: 18,
               layoutOrigin: [0.5, 0.5],
-              // left: `${textOffset.x}%`,
-              // top: `${100 - textOffset.y}%`,
               left: `${textOffset.x}%`,
               top: `${100 - textOffset.y}%`,
               position: "absolute",
-              width: `${textOffset.z}%`,
               textAlign: "center",
               textAlignVertical: "center",
-              backgroundColor: "rgba(255, 255, 255, 1)",
+              // backgroundColor: "rgba(5, 218, 255, 1)",
               // padding: 5,
               borderRadius: 5,
+              width: `${textOffset.z}%`,
               height: "30%",
             },
           }),
@@ -681,7 +772,16 @@ export const buttonImgWithText = (component: Component, instanceId: string, img:
 };
 
 //region btn img bnd text
-export const btnImgBndText = (component: Component, instanceId: string, currencyImg: ImageSource, bndAmount: Binding<string>, plusImg: ImageSource, animScale: AnimatedBinding, onButtonPressed: (instanceID: string, player: Player) => void) => {
+export const btnImgBndText = ( 
+  component: Component,
+  instanceId: string,
+  currencyImg: ImageSource,
+  bndAmount: Binding<string>,
+  plusImg: ImageSource,
+  animScale: AnimatedBinding,
+  onButtonPressed: (instanceID: string, player: Player) => void,
+  size?: number
+) => {
   const scaleBinding = new Binding<number>(1);
   return Pressable({
     children: [
@@ -746,7 +846,7 @@ export const btnImgBndText = (component: Component, instanceId: string, currency
       width: "100%",
       // height: "100%",
       // width: 100,
-      height: 50,
+      height: size ? size : 50,
       // alignSelf: "center",
       justifyContent: "center",
       borderRadius: 5,
@@ -757,7 +857,12 @@ export const btnImgBndText = (component: Component, instanceId: string, currency
 };
 
 //region menu button
-export const menuButton = (component: Component, instanceID: string, text: string, onButtonPressed: (instanceID: string, player: Player) => void) => {
+export const menuButton = (
+  component: Component,
+  instanceID: string,
+  text: string,
+  onButtonPressed: (instanceID: string, player: Player) => void
+) => {
   const scaleBinding = new Binding<number>(1);
 
   return Pressable({
@@ -817,7 +922,13 @@ export type UI_ButtonStyleGuide = {
 };
 
 //region btn w/ string text
-export const btnStringText = (component: Component, btnString: string, instanceID: string, buttonStyleGuide: UI_ButtonStyleGuide, onButtonPressed: (instanceID: string, player: Player) => void) => {
+export const btnStringText = (
+  component: Component,
+  btnString: string,
+  instanceID: string,
+  buttonStyleGuide: UI_ButtonStyleGuide,
+  onButtonPressed: (instanceID: string, player: Player) => void
+) => {
   const scaleBinding = new Binding<number>(1);
 
   return Pressable({
@@ -864,7 +975,12 @@ export const btnStringText = (component: Component, btnString: string, instanceI
 };
 
 //region daily reward window
-export const dailyRewardWindow = (component: Component, onButtonPressed: (instanceID: string, player: Player) => void, childrenUINodeArray: Binding<UINode[]>, bnd_dailyRewardDisplay: Binding<string>) => {
+export const dailyRewardWindow = (
+  component: Component,
+  onButtonPressed: (instanceID: string, player: Player) => void,
+  childrenUINodeArray: Binding<UINode[]>,
+  bnd_dailyRewardDisplay: Binding<string>
+) => {
   const exitButtonStyle: UI_ButtonStyleGuide = {
     font: FONT_MAIN,
     fontSize: 46,
@@ -903,7 +1019,9 @@ export const dailyRewardWindow = (component: Component, onButtonPressed: (instan
         }),
         View({
           // Exit Button
-          children: [btnStringText(component, "x", "exitDailyRewards", exitButtonStyle, onButtonPressed)],
+          children: [
+            btnStringText(component, "x", "exitDailyRewards", exitButtonStyle, onButtonPressed),
+          ],
           style: {
             width: 50,
             height: 50,
@@ -942,7 +1060,9 @@ export const dailyRewardWindow = (component: Component, onButtonPressed: (instan
         }),
         View({
           // Claim Button
-          children: [btnStringText(component, "Claim", "claimDailyRewards", uiButtonStyle, onButtonPressed)],
+          children: [
+            btnStringText(component, "Claim", "claimDailyRewards", uiButtonStyle, onButtonPressed),
+          ],
           style: {
             width: 150,
             height: 50,
@@ -969,7 +1089,12 @@ export const dailyRewardWindow = (component: Component, onButtonPressed: (instan
   ];
 };
 
-export const ImgSetUIwStrings = (img: ImageSource, primaryString: string, secondaryString: string) => {
+//region img set w/ 2 strings
+export const ImgSetUIwStrings = (
+  img: ImageSource,
+  primaryString: string,
+  secondaryString: string
+) => {
   return View({
     children: [
       Image({
@@ -1011,7 +1136,12 @@ export const ImgSetUIwStrings = (img: ImageSource, primaryString: string, second
 };
 
 //region food menu window
-export const foodMenuWindow = (component: Component, onButtonPressed: (instanceID: string, player: Player) => void, childrenUINodeArray: Binding<UINode[]>, bnd_dailyRewardDisplay: Binding<string>) => {
+export const foodMenuWindow = (
+  component: Component,
+  onButtonPressed: (instanceID: string, player: Player) => void,
+  childrenUINodeArray: Binding<UINode[]>,
+  bnd_dailyRewardDisplay: Binding<string>
+) => {
   const exitButtonStyle: UI_ButtonStyleGuide = {
     font: FONT_MAIN,
     fontSize: 46,
@@ -1043,7 +1173,9 @@ export const foodMenuWindow = (component: Component, onButtonPressed: (instanceI
         }),
         View({
           // Exit Button
-          children: [btnStringText(component, "x", "exitFoodMenu", exitButtonStyle, onButtonPressed)],
+          children: [
+            btnStringText(component, "x", "exitFoodMenu", exitButtonStyle, onButtonPressed),
+          ],
           style: {
             width: 50,
             height: 50,
@@ -1080,7 +1212,6 @@ export const foodMenuWindow = (component: Component, onButtonPressed: (instanceI
             // zIndex: 11,
           },
         }),
-
       ],
       style: {
         width: 700,
@@ -1097,3 +1228,209 @@ export const foodMenuWindow = (component: Component, onButtonPressed: (instanceI
     }),
   ];
 };
+
+//region inventory slot btn
+export const inventorySlotButton = (
+  component: Component,
+  instanceId: string,
+  img: ImageSource,
+  text: string,
+  textOffset: Vec3,
+  onButtonPressed: (instanceID: string, player: Player) => void,
+  size?: number
+) => {
+  const scaleBinding = new Binding<number>(1);
+  return Pressable({
+    children: [
+      View({
+        children: [
+          Image({
+            source: img,
+            style: {
+              // position: "absolute",
+              // layoutOrigin: [0.5, 0.5],
+              // left: "50%",
+              // top: "50%",
+              width: "100%",
+              height: "100%",
+            },
+          }),
+          Text({
+            text: text,
+            style: {
+              fontFamily: FONT_MAIN,
+              fontWeight: "bold",
+              color: "rgba(255, 217, 0, 1)",
+              textShadowColor: "rgba(0, 0, 0, 1)",
+              textShadowOffset: [2, 2],
+              fontSize: 20,
+              layoutOrigin: [0, 1],
+              left: `${textOffset.x}%`,
+              top: `${100 - textOffset.y}%`,
+              position: "absolute",
+              width: `${textOffset.z}%`,
+              textAlign: "left",
+              textAlignVertical: "bottom",
+              // backgroundColor: "rgba(255, 255, 255, 1)",
+              // padding: 5,
+              // borderRadius: 0,
+              height: "100%",
+            },
+          }),
+        ],
+        style: {
+          // backgroundColor: "rgba(251, 0, 0, 0.87)",
+          alignItems: "center",
+        },
+      }),
+    ],
+    onPress: (player) => {
+      scaleBinding.set(0.9, [player]);
+      component.async.setTimeout(() => {
+        scaleBinding.set(1, [player]);
+      }, 100);
+      onButtonPressed(instanceId, player);
+    },
+    onRelease: (player) => {},
+    style: {
+      backgroundColor: "rgba(255, 255, 255, 1)",
+      borderWidth: 5,
+      borderColor: "rgba(124, 124, 124, 1)",
+      // width: "100%",
+      // height: "100%",
+      width: size ? size : 70,
+      height: size ? size : 70,
+      // alignSelf: "center",
+      justifyContent: "center",
+      borderRadius: 5,
+      margin: 10,
+      transform: [{ scale: scaleBinding }],
+    },
+  });
+};
+
+//region inventory menu window
+export const inventoryMenuWindow = (
+  component: Component,
+  onButtonPressed: (instanceID: string, player: Player) => void,
+  childrenUINodeArray: Binding<UINode[]>,
+  bnd_dailyRewardDisplay: Binding<string>
+) => {
+  const exitButtonStyle: UI_ButtonStyleGuide = {
+    font: FONT_MAIN,
+    fontSize: 46,
+    fontWeight: "bold",
+    textColor: "rgba(255, 255, 255, 1)",
+    backgroundColor: "rgba(255, 0, 0, 1)",
+    borderRadius: 10,
+  };
+const panelWidth = 500;
+const panelHeight = 500;
+const headerHeight = 60;
+  return [
+    View({
+      children: [
+        Text({
+          text: `Inventory`,
+          style: {
+            backgroundColor: "rgba(41, 126, 255, 1)",
+            fontFamily: FONT_MAIN,
+            fontSize: 36,
+            color: "rgba(255, 255, 255, 1)",
+            textAlign: "center",
+            textAlignVertical: "center",
+            width: "100%",
+            height: headerHeight,
+            position: "absolute",
+            layoutOrigin: [0.5, 0],
+            left: "50%",
+            top: 0,
+          },
+        }),
+        View({
+          // Exit Button
+          children: [
+            btnStringText(component, "X", "exitInventory", exitButtonStyle, onButtonPressed),
+          ],
+          style: {
+            width: 50,
+            height: 50,
+            position: "absolute",
+            layoutOrigin: [1, 0],
+            left: panelWidth - 8,
+            top: 8,
+            // zIndex: 12,
+          },
+        }),
+        View({
+          //Reward UI Background
+          children: [
+            DynamicList({
+              data: childrenUINodeArray,
+              renderItem: (item: UINode) => item, // Render each item as is
+              style: {
+                // backgroundColor: "rgba(32, 32, 32, 0.56)",
+                flexDirection: "row",
+                flexWrap: "wrap",
+                justifyContent: "center",
+                width: "100%",
+                height: "100%",
+              },
+            }),
+          ],
+          style: {
+            // backgroundColor: "rgba(32, 32, 32, 0.56)",
+            width: "100%",
+            height: panelHeight - headerHeight,
+            position: "absolute",
+            layoutOrigin: [0.5, 0],
+            left: "50%",
+            top: headerHeight,
+            // zIndex: 11,
+          },
+        }),
+      ],
+      style: {
+        width: panelWidth,
+        height: panelHeight,
+        layoutOrigin: [0.5, 0.5],
+        left: "70%",
+        top: "50%",
+        position: "absolute",
+        borderRadius: 20,
+ 
+        backgroundColor: "rgba(255, 255, 255, 1)",
+        overflow: "hidden",
+        display: bnd_dailyRewardDisplay,
+      },
+    }),
+  ];
+};
+
+//region inventory detail window
+export const inventoryDetailWindow = (
+  component: Component,
+  onButtonPressed: (instanceID: string, player: Player) => void,
+  bnd_detailDisplay: Binding<string>,
+) => {
+  const windowWidth = 550;
+  const windowHeight = 250;
+  return[
+    View({
+      children:[],
+           style: {
+        width: windowWidth,
+        height: windowHeight,
+        layoutOrigin: [0.5, 0.5],
+        left: "30%",
+        top: "38%",
+        position: "absolute",
+        borderRadius: 20,
+        backgroundColor: "rgba(255, 255, 255, 1)",
+        overflow: "hidden",
+        display: bnd_detailDisplay,
+      },
+    }),
+    
+  ]
+}

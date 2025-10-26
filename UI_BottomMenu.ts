@@ -19,7 +19,7 @@ import { Primary_MenuType, Sub_PlotType } from "UI_MenuManager";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 
 class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
-  protected panelWidth: number = 500;
+  protected panelWidth: number = 550;
   protected panelHeight: number = 100;
 
   static propsDefinition = {
@@ -116,7 +116,7 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
           data.menuContext !== undefined
         }`
       );
-      if (data.menuContext[0]) {
+      if (data.menuContext[0] === Primary_MenuType.PlotMenu) {
         //open the menu
         if (this.btnImgAssetIDArrayMap.has(data.menuContext[0])) {
           const btnType = data.menuContext[0];
@@ -130,7 +130,20 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
           this.childrenUINodeArray.set(newUINodeArray, [data.player]);
           this.animateMenu(data.player, true);
         }
-      } else {
+      }
+      if(data.menuContext[0] === Primary_MenuType.MerchantMenu){
+        if(this.btnImgAssetIDArrayMap.has(data.menuContext[0])){
+          const btnType = data.menuContext[0];
+          const newUINodeArray = this.convertAssetArrayToUINodeArray(
+            this.btnImgAssetIDArrayMap.get(btnType) ?? [],
+            this.btnInstanceIDArrayMap.get(btnType) ?? [],
+            this.buttonTextArrayMap.get(btnType) ?? []
+          );
+          this.childrenUINodeArray.set(newUINodeArray, [data.player]);
+          this.animateMenu(data.player, true);
+        }
+      }
+      else {
         //close the menu
         this.animateMenu(data.player, false);
 
@@ -161,7 +174,7 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
   ): UINode[] {
     try {
       const newUIArray: UINode[] = [];
-      const txtOffset = new Vec3(50, 0, 120); //(x%,y%, width%)
+      const txtOffset = new Vec3(50, -10, 140); //(x%,y%, width%)
 
       buttonImgAssetIDArray.forEach((textureID, index) => {
         newUIArray.push(

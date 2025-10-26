@@ -9,6 +9,7 @@ export const ProgTaskType = {
 export const RecipeType = {
   BurgerBasic: "burger_basic",
   HotDogBasic: "hotdog_basic",
+  CherryPie: "cherrypie",
 };
 
 export const RecipeCatalog = {
@@ -25,7 +26,7 @@ export const RecipeCatalog = {
       {
         taskType: ProgTaskType.DragToProgress,
         header: "Basic Burger",
-        description: "Drag in a circles",
+        description: "Drag in a circle",
       },
       // {
       //   taskType: ProgTaskType.Destination,
@@ -88,6 +89,23 @@ export const RecipeCatalog = {
         taskType: ProgTaskType.DragToProgress,
         header: "Basic Hot Dog",
         description: "Drag back and forth",
+      },
+    ],
+  },
+  //region cherry pie
+  [RecipeType.CherryPie]: {
+    recipeType: RecipeType.CherryPie,
+    name: "Cherry Pie",
+    steps: [
+      {
+        taskType: ProgTaskType.Destination,
+        header: "Cherry Pie",
+        description: "Go to kitchen",
+      },
+      {
+        taskType: ProgTaskType.DragToProgress,
+        header: "Cherry Pie",
+        description: "Drag in a circle",
       },
     ],
   },

@@ -1,27 +1,10 @@
 import { OnButtonAssetResponse } from "ButtonAssetRegistry";
 import { ButtonProps, OnButtonRequest, OnButtonResponse } from "ButtonRegistry";
 import { Asset, Entity, Player, PropTypes, Vec3 } from "horizon/core";
-import {
-  AnimatedBinding,
-  Animation,
-  Binding,
-  DynamicList,
-  Easing,
-  ImageSource,
-  Text,
-  UIComponent,
-  UINode,
-  View,
-} from "horizon/ui";
+import { AnimatedBinding, Animation, Binding, DynamicList, Easing, ImageSource, Text, UIComponent, UINode, View } from "horizon/ui";
 import { sysEvents } from "sysEvents";
 import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
-import {
-  button,
-  buttonImg,
-  buttonImgWithText,
-  convertAssetIDToImageSource,
-  convertAssetToImageSource,
-} from "sysUIStyleGuide";
+import { button, buttonImg, buttonImgWithText, convertAssetIDToImageSource, convertAssetToImageSource } from "sysUIStyleGuide";
 import { OnTextureAssetRequest, OnTextureAssetResponse } from "TextureRegistry_Base";
 import { Primary_MenuType, Sub_PlotType } from "UI_MenuManager";
 
@@ -38,7 +21,7 @@ class UI_TopMenu extends UIComponent<typeof UI_TopMenu> {
     buttonRegistry: { type: PropTypes.Entity, default: null },
   };
 
-  animBnd_traslateY = new AnimatedBinding(0);
+  animBnd_translateY = new AnimatedBinding(0);
   isMenuOpen = false;
   closeOffset = -250;
 
@@ -56,11 +39,11 @@ class UI_TopMenu extends UIComponent<typeof UI_TopMenu> {
 
   private plotManager: Entity | null = null;
 
-  //region initioalizeUI()
+  //region initializeUI()
   initializeUI(): UINode {
     if (!this.props.enabled) this.entity.visible.set(false);
 
-    this.animBnd_traslateY.set(this.isMenuOpen ? 0 : this.closeOffset);
+    this.animBnd_translateY.set(this.isMenuOpen ? 0 : this.closeOffset);
 
     return View({
       children: [
@@ -85,7 +68,7 @@ class UI_TopMenu extends UIComponent<typeof UI_TopMenu> {
         alignItems: "center",
         position: "absolute",
         layoutOrigin: [0.5, 0],
-        transform: [{ translateY: this.animBnd_traslateY }],
+        transform: [{ translateY: this.animBnd_translateY }],
       },
     });
   }
@@ -134,7 +117,6 @@ class UI_TopMenu extends UIComponent<typeof UI_TopMenu> {
         //if there's no sub menu, close menu
         if (this.buttonPropsMap.has(data.menuContext[2]) === false) {
           if (data.menuContext[1] === Sub_PlotType.BuildMode) {
-
           } else {
             this.animateMenu(data.player, false);
           }
@@ -163,11 +145,7 @@ class UI_TopMenu extends UIComponent<typeof UI_TopMenu> {
 
         this.async.setTimeout(() => {
           this.playerMenuContextMap.set(data.player, data.menuContext!);
-          const newUINodeArray = this.convertAssetArrayToUINodeArray(
-            this.buttonPropsMap.get(menuType)?.btnImgAssetIDArray ?? [],
-            this.buttonPropsMap.get(menuType)?.btnInstanceIDArray ?? [],
-            this.buttonPropsMap.get(menuType)?.buttonTextArray ?? []
-          );
+          const newUINodeArray = this.convertAssetArrayToUINodeArray(this.buttonPropsMap.get(menuType)?.btnImgAssetIDArray ?? [], this.buttonPropsMap.get(menuType)?.btnInstanceIDArray ?? [], this.buttonPropsMap.get(menuType)?.buttonTextArray ?? []);
           this.childrenUINodeArray.set(newUINodeArray, [data.player]);
           this.animateMenu(data.player, true);
         }, delayForClose);
@@ -191,27 +169,13 @@ class UI_TopMenu extends UIComponent<typeof UI_TopMenu> {
   }
 
   //region Asset[] to UINode[]
-  private convertAssetArrayToUINodeArray(
-    buttonImgAssetIDArray: string[],
-    btnInstanceIDArray: string[],
-    buttonTextArray: string[]
-  ): UINode[] {
+  private convertAssetArrayToUINodeArray(buttonImgAssetIDArray: string[], btnInstanceIDArray: string[], buttonTextArray: string[]): UINode[] {
     try {
       const newUIArray: UINode[] = [];
       const txtOffset = new Vec3(50, 0, 120); //(x%,y%, width%)
 
       buttonImgAssetIDArray.forEach((textureID, index) => {
-        newUIArray.push(
-          buttonImgWithText(
-            this,
-            `${btnInstanceIDArray[index]}`,
-            convertAssetIDToImageSource(buttonImgAssetIDArray[index]),
-            `${buttonTextArray[index]}`,
-            txtOffset,
-            this.onButtonPressed.bind(this), 
-            50
-          )
-        );
+        newUIArray.push(buttonImgWithText(this, `${btnInstanceIDArray[index]}`, convertAssetIDToImageSource(buttonImgAssetIDArray[index]), `${buttonTextArray[index]}`, txtOffset, this.onButtonPressed.bind(this), 50));
       });
 
       return newUIArray;
@@ -251,7 +215,7 @@ class UI_TopMenu extends UIComponent<typeof UI_TopMenu> {
   animateMenu(player: Player, open: boolean) {
     const moveToOffset = open ? 0 : this.closeOffset;
 
-    this.animBnd_traslateY.set(
+    this.animBnd_translateY.set(
       // notice that -100 will make it go up 100px
       Animation.timing(moveToOffset, {
         // how long it takes to complete in ms

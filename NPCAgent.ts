@@ -1,5 +1,5 @@
 import { Asset, AttachableEntity, AttachablePlayerAnchor, AvatarGripPose, AvatarPoseGizmo, AvatarPoseUseMode, Color, Component, Entity, Handedness, Player, PropTypes, Vec3 } from "horizon/core";
-import { Npc, NpcPlayer } from "horizon/npc";
+import { Npc, NpcPlayer, NpcPlayerSpawnResult } from "horizon/npc";
 import { KitchenManager } from "KitchenManager";
 import { NavMeshController } from "NavMeshController";
 import { debugLog } from "sysHelper";
@@ -32,18 +32,34 @@ export interface NPCChair {
   assignedToNPC: NPCAgent | undefined;
 }
 
+export interface NPCStall {
+  stallEntity: Entity;
+}
+
 // --- State Machine Base Class ---
 
 export abstract class NPCStateMachine {
   protected currentState: number = 0;
   protected parentAgent: NPCAgent | undefined;
   protected debugLogging = false;
+  protected stateStartTime: number = 0;
 
   public abstract onAgentReady(agent: NPCAgent, debugLogging: boolean): void;
   public abstract isIdle(): boolean;
-  public abstract activate(chair: NPCChair): void;
 
+  protected setCurrentState(state: number) {
+    this.currentState = state;
+    this.stateStartTime = Date.now();
+  }
+
+  protected getStateDurationSeconds(): number {
+    return (Date.now() - this.stateStartTime) / 1000;
+  }
+
+  public activateClient(chair: NPCChair) {}
   public onOrderServed(player: Player, servableFoodEntity: Entity): void {}
+
+  public activateMerchant(stall: NPCStall, spawnPosition: Vec3) {}
 
   public async updateState(): Promise<void> {}
 }
@@ -60,6 +76,7 @@ export class NPCAgent extends Component<typeof NPCAgent> {
   private npcPlayer?: NpcPlayer;
   private stateMachine?: NPCStateMachine;
   private startPosition = Vec3.zero;
+  private isForcedReturnHome = false;
 
   async start() {
     this.async.setTimeout(() => {
@@ -70,12 +87,18 @@ export class NPCAgent extends Component<typeof NPCAgent> {
   async initialize() {
     this.npcGizmo = this.entity.as(Npc);
     if (this.npcGizmo !== undefined) {
-      this.npcPlayer = await this.npcGizmo.tryGetPlayer();
-      if (this.npcPlayer === undefined) {
-        console.error("NPCAgent: Unable to get NpcPlayer from Npc");
-        return;
-      }
-      await this.onReady();
+      this.npcGizmo.spawnPlayer().then(async (result) => {
+        if (result !== NpcPlayerSpawnResult.Success) {
+          console.error("NPCAgent: Failed to spawn NPC Player for Npc with status:", result);
+          return;
+        }
+        this.npcPlayer = await this.npcGizmo!.tryGetPlayer();
+        if (this.npcPlayer === undefined) {
+          console.error("NPCAgent: Unable to get NpcPlayer from Npc");
+          return;
+        }
+        await this.onReady();
+      });
     }
   }
 
@@ -84,7 +107,7 @@ export class NPCAgent extends Component<typeof NPCAgent> {
     this.startPosition = this.entity.position.get();
 
     if (this.stateMachine === undefined) {
-      console.error("NPCAgent: No state machine assigned");
+      console.error(`NPCAgent: No state machine assigned for agent ${this.entity.name.get()}`);
       return;
     }
 
@@ -98,6 +121,14 @@ export class NPCAgent extends Component<typeof NPCAgent> {
         isUpdatingState = false;
       }
     }, 100);
+  }
+
+  public getIsForcedReturnHome() {
+    return this.isForcedReturnHome;
+  }
+
+  public forceReturnHome(forced: boolean) {
+    this.isForcedReturnHome = forced;
   }
 
   public getStateMachineName() {
@@ -115,10 +146,16 @@ export class NPCAgent extends Component<typeof NPCAgent> {
     return false;
   }
 
-  public activate(chair: NPCChair, activePlayers: Player[]) {
+  public activateClient(chair: NPCChair, activePlayers: Player[]) {
     if (this.stateMachine !== undefined) {
       this.assignChair(chair, activePlayers);
-      this.stateMachine.activate(chair);
+      this.stateMachine.activateClient(chair);
+    }
+  }
+
+  public activateMerchant(stall: NPCStall, spawnPosition: Vec3) {
+    if (this.stateMachine !== undefined) {
+      this.stateMachine.activateMerchant(stall, spawnPosition);
     }
   }
 

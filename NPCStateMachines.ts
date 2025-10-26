@@ -1,9 +1,11 @@
 import { GrabbableMoney } from "GrabbableMoney";
 import { Entity, Player, Vec3 } from "horizon/core";
 import { OrderTicket } from "KitchenManager";
-import { NPCAgent, NPCAnimationID, NPCChair, NPCMovementSpeedID, NPCStateMachine } from "NPCAgent";
+import { NPCAgent, NPCAnimationID, NPCChair, NPCMovementSpeedID, NPCStall, NPCStateMachine } from "NPCAgent";
 import { RecipeType } from "RecipeCatalog";
+import { sysEvents } from "sysEvents";
 import { debugLog } from "sysHelper";
+import { Primary_MenuType } from "UI_MenuManager";
 
 // --- World Greeter NPC State Machine ---
 
@@ -17,8 +19,8 @@ enum NPCStates_WorldGreeter {
   ReturningToStartPosition,
 }
 
-const NPC_MIN_DISTANCE_TO_PLAYER = 1.5;
-const NPC_MAX_DISTANCE_TO_PLAYER = 8;
+const GREETER_MIN_DISTANCE_TO_PLAYER = 1.5;
+const GREETER_MAX_DISTANCE_TO_PLAYER = 8;
 
 export class NPCStateMachine_WorldGreeter extends NPCStateMachine {
   private alreadyGreetedPlayers: Player[] = [];
@@ -28,17 +30,12 @@ export class NPCStateMachine_WorldGreeter extends NPCStateMachine {
     this.debugLogging = debugLogging;
     debugLog(this.debugLogging, "StateMachine_WorldGreeter: onAgentReady");
     this.parentAgent = agent;
-    this.currentState = NPCStates_WorldGreeter.WaitingForPlayerToApproach;
+    this.setCurrentState(NPCStates_WorldGreeter.WaitingForPlayerToApproach);
   }
 
   public isIdle() {
-    //return this.currentState === NPCStates_WorldGreeter.WaitingForPlayerToApproach;
     // Greeters are never available to the pool
     return false;
-  }
-
-  public activate(chair: NPCChair) {
-    // Greeters are always active
   }
 
   public override async updateState() {
@@ -52,11 +49,11 @@ export class NPCStateMachine_WorldGreeter extends NPCStateMachine {
           if (NPCAgent.isPlayerAnNPC(player) || this.alreadyGreetedPlayers.includes(player)) {
             continue;
           }
-          const playerDistance = player.position.get().distance(this.parentAgent!.entity.position.get());
-          if (playerDistance > NPC_MIN_DISTANCE_TO_PLAYER && playerDistance < NPC_MAX_DISTANCE_TO_PLAYER) {
+          const playerDistance = player.position.get().distance(this.parentAgent!.getNpcPlayer()!.position.get());
+          if (playerDistance > GREETER_MIN_DISTANCE_TO_PLAYER && playerDistance < GREETER_MAX_DISTANCE_TO_PLAYER) {
             debugLog(this.debugLogging, `StateMachine_WorldGreeter: Player ${player.name.get()} is within greeting distance (${playerDistance.toFixed(2)}m)`);
             this.targetPlayer = player;
-            this.currentState = NPCStates_WorldGreeter.TurnTowardsPlayer;
+            this.setCurrentState(NPCStates_WorldGreeter.TurnTowardsPlayer);
             break;
           }
         }
@@ -65,29 +62,29 @@ export class NPCStateMachine_WorldGreeter extends NPCStateMachine {
       case NPCStates_WorldGreeter.TurnTowardsPlayer: {
         debugLog(this.debugLogging, `StateMachine_WorldGreeter: Turning towards player`);
         await this.parentAgent!.rotateTowardsPosition(this.targetPlayer!.position.get());
-        this.currentState = NPCStates_WorldGreeter.GreetingPlayer;
+        this.setCurrentState(NPCStates_WorldGreeter.GreetingPlayer);
         break;
       }
       case NPCStates_WorldGreeter.GreetingPlayer: {
         debugLog(this.debugLogging, `StateMachine_WorldGreeter: Greeting player`);
         const playerName = this.targetPlayer!.name.get();
         await this.parentAgent!.showAIConversation(`Quickly greet player named ${playerName}`, "NPC has noticed player approaching");
-        this.currentState = NPCStates_WorldGreeter.MovingToPlayer;
+        this.setCurrentState(NPCStates_WorldGreeter.MovingToPlayer);
         break;
       }
       case NPCStates_WorldGreeter.MovingToPlayer: {
         debugLog(this.debugLogging, `StateMachine_WorldGreeter: Moving to player`);
         // Move to a position in front of the player
-        const targetPosition = this.targetPlayer!.position.get().add(this.targetPlayer!.forward.get().mul(NPC_MIN_DISTANCE_TO_PLAYER));
+        const targetPosition = this.targetPlayer!.position.get().add(this.targetPlayer!.forward.get().mul(GREETER_MIN_DISTANCE_TO_PLAYER));
         await this.parentAgent!.moveToPosition(targetPosition, NPCMovementSpeedID.Run);
         await this.parentAgent!.rotateTowardsPosition(this.targetPlayer!.position.get());
-        this.currentState = NPCStates_WorldGreeter.TellingPlayerAboutWorld;
+        this.setCurrentState(NPCStates_WorldGreeter.TellingPlayerAboutWorld);
         break;
       }
       case NPCStates_WorldGreeter.TellingPlayerAboutWorld: {
         debugLog(this.debugLogging, `StateMachine_WorldGreeter: Telling player about world`);
         await this.parentAgent!.showAIConversation(`Tell that this colorful restaurant tycoon world is going to win the contest`);
-        this.currentState = NPCStates_WorldGreeter.ReturningToStartPosition;
+        this.setCurrentState(NPCStates_WorldGreeter.ReturningToStartPosition);
         break;
       }
       case NPCStates_WorldGreeter.ReturningToStartPosition: {
@@ -98,7 +95,7 @@ export class NPCStateMachine_WorldGreeter extends NPCStateMachine {
         await this.parentAgent!.rotateTowardsPosition(this.targetPlayer!.position.get());
         this.alreadyGreetedPlayers.push(this.targetPlayer!);
         this.targetPlayer = undefined;
-        this.currentState = NPCStates_WorldGreeter.WaitingForPlayerToApproach;
+        this.setCurrentState(NPCStates_WorldGreeter.WaitingForPlayerToApproach);
         break;
       }
     }
@@ -116,10 +113,11 @@ enum NPCStates_Client {
   Sit,
   OrderFood,
   WaitToBeServed,
-  ReturningToPortal,
+  ReturningHome,
 }
 
 const CURRENCY_REWARD_PER_ORDER = 100;
+const MAXIMUM_WAIT_TIME_FOR_ORDER_SECONDS = 120;
 
 export class NPCStateMachine_Client extends NPCStateMachine {
   private chair?: NPCChair;
@@ -130,17 +128,17 @@ export class NPCStateMachine_Client extends NPCStateMachine {
     this.debugLogging = debugLogging;
     debugLog(this.debugLogging, "StateMachine_Client: onAgentReady");
     this.parentAgent = agent;
-    this.currentState = NPCStates_Client.TeleportUnderground;
+    this.setCurrentState(NPCStates_Client.TeleportUnderground);
   }
 
   public isIdle() {
     return this.currentState === NPCStates_Client.QueuedInPool;
   }
 
-  public activate(chair: NPCChair) {
+  public override activateClient(chair: NPCChair) {
     this.chair = chair;
     if (this.currentState === NPCStates_Client.QueuedInPool) {
-      this.currentState = NPCStates_Client.TeleportToPlayerPlot;
+      this.setCurrentState(NPCStates_Client.TeleportToPlayerPlot);
     }
   }
 
@@ -154,8 +152,9 @@ export class NPCStateMachine_Client extends NPCStateMachine {
         break;
       }
       case NPCStates_Client.TeleportUnderground: {
+        this.parentAgent!.forceReturnHome(false);
         this.parentAgent!.teleportToPosition(new Vec3(0, -1000, 0));
-        this.currentState = NPCStates_Client.QueuedInPool;
+        this.setCurrentState(NPCStates_Client.QueuedInPool);
         break;
       }
       case NPCStates_Client.QueuedInPool: {
@@ -164,7 +163,7 @@ export class NPCStateMachine_Client extends NPCStateMachine {
       case NPCStates_Client.TeleportToPlayerPlot: {
         debugLog(this.debugLogging, `Client NPC teleporting to player plot base: ${this.chair!.plotBaseEntity.name.get()}`);
         this.parentAgent!.teleportToPosition(this.chair!.plotBaseEntity.position.get().add(new Vec3(0, 0.5, 0)));
-        this.currentState = NPCStates_Client.WalkToSeat;
+        this.setCurrentState(NPCStates_Client.WalkToSeat);
         break;
       }
       case NPCStates_Client.WalkToSeat: {
@@ -180,7 +179,11 @@ export class NPCStateMachine_Client extends NPCStateMachine {
           await this.parentAgent!.moveToPosition(seatPosition, NPCMovementSpeedID.Walk, 10);
         }
         this.parentAgent!.teleportToPosition(seatPosition);
-        this.currentState = NPCStates_Client.Sit;
+        if (this.parentAgent!.getIsForcedReturnHome()) {
+          this.setCurrentState(NPCStates_Client.ReturningHome);
+          break;
+        }
+        this.setCurrentState(NPCStates_Client.Sit);
         break;
       }
       case NPCStates_Client.Sit: {
@@ -188,7 +191,11 @@ export class NPCStateMachine_Client extends NPCStateMachine {
         const seatPosition = this.chair!.seatPosition;
         await this.parentAgent!.rotateTowardsPosition(seatPosition.add(this.chair!.chairEntity.forward.get().mul(2)));
         this.parentAgent?.playAvatarAnimation(NPCAnimationID.Sitting);
-        this.currentState = NPCStates_Client.OrderFood;
+        if (this.parentAgent!.getIsForcedReturnHome()) {
+          this.setCurrentState(NPCStates_Client.ReturningHome);
+          break;
+        }
+        this.setCurrentState(NPCStates_Client.OrderFood);
         break;
       }
       case NPCStates_Client.OrderFood: {
@@ -200,7 +207,7 @@ export class NPCStateMachine_Client extends NPCStateMachine {
         // Place order with kitchen manager
         const orderTicket = this.chair!.kitchenManager.generateNewOrder(this.chair!.parentPlayer, recipeType, this.chair?.chairEntity);
         this.orderTicket = orderTicket;
-        this.currentState = NPCStates_Client.WaitToBeServed;
+        this.setCurrentState(NPCStates_Client.WaitToBeServed);
         await this.parentAgent!.showAIConversation(`Waiting to be served ${this.orderTicket?.recipeType}`, "NPC is patiently waiting for their food order");
         break;
       }
@@ -211,11 +218,16 @@ export class NPCStateMachine_Client extends NPCStateMachine {
           await this.parentAgent!.world.deleteAsset(this.servedFoodEntity, true);
           this.servedFoodEntity = undefined;
           GrabbableMoney.spawnMoney(this.parentAgent!.world, platePosition.add(new Vec3(0, -0.05, 0)), CURRENCY_REWARD_PER_ORDER);
-          this.currentState = NPCStates_Client.ReturningToPortal;
+          this.setCurrentState(NPCStates_Client.ReturningHome);
+        } else if (this.getStateDurationSeconds() > MAXIMUM_WAIT_TIME_FOR_ORDER_SECONDS) {
+          await this.parentAgent!.showAIConversation(`I can't wait for my ${this.orderTicket?.recipeType} anymore`, "NPC is in a hurry");
+          this.setCurrentState(NPCStates_Client.ReturningHome);
+        } else if (this.parentAgent!.getIsForcedReturnHome()) {
+          this.setCurrentState(NPCStates_Client.ReturningHome);
         }
         break;
       }
-      case NPCStates_Client.ReturningToPortal: {
+      case NPCStates_Client.ReturningHome: {
         this.parentAgent?.playAvatarAnimation(NPCAnimationID.None);
         const plotBasePosition = this.chair!.plotBaseEntity.position.get();
         await this.parentAgent!.rotateTowardsPosition(plotBasePosition);
@@ -230,7 +242,115 @@ export class NPCStateMachine_Client extends NPCStateMachine {
           debugLog(this.debugLogging, `Client NPC walking to spawnpoint using direct movement`);
           await this.parentAgent!.moveToPosition(plotBasePosition, NPCMovementSpeedID.Walk, 10);
         }
-        this.currentState = NPCStates_Client.TeleportUnderground;
+        this.setCurrentState(NPCStates_Client.TeleportUnderground);
+        break;
+      }
+    }
+  }
+}
+
+// --- Merchant NPC State Machine ---
+
+enum NPCStates_Merchant {
+  Initializing,
+  WaitingInPool,
+  WaitingForPlayerToApproach,
+  TurnTowardsPlayer,
+  GreetingPlayer,
+  EnableMerchantMenu,
+  WaitForPlayerToLeave,
+  DisableMerchantMenu,
+}
+
+const MERCHANT_APPROACH_DISTANCE_TO_PLAYER = 4;
+const MERCHANT_LEAVE_DISTANCE_TO_PLAYER = 6;
+
+export class NPCStateMachine_Merchant extends NPCStateMachine {
+  private targetPlayer: Player | undefined;
+
+  public override onAgentReady(agent: NPCAgent, debugLogging: boolean) {
+    this.debugLogging = debugLogging;
+    debugLog(this.debugLogging, "StateMachine_Merchant: onAgentReady");
+    this.parentAgent = agent;
+    this.setCurrentState(NPCStates_Merchant.WaitingInPool);
+  }
+
+  public isIdle() {
+    return this.currentState === NPCStates_Merchant.WaitingInPool;
+  }
+
+  public override activateMerchant(stall: NPCStall, spawnPosition: Vec3) {
+    if (this.currentState === NPCStates_Merchant.WaitingInPool) {
+      debugLog(this.debugLogging, `StateMachine_Merchant: Activated for stall: ${stall.stallEntity.name.get()}`);
+      this.parentAgent!.teleportToPosition(spawnPosition);
+      this.parentAgent!.rotateTowardsPosition(stall.stallEntity.position.get());
+      this.setCurrentState(NPCStates_Merchant.WaitingForPlayerToApproach);
+    }
+  }
+
+  public override async updateState() {
+    switch (this.currentState) {
+      case NPCStates_Merchant.Initializing: {
+        break;
+      }
+      case NPCStates_Merchant.WaitingInPool: {
+        break;
+      }
+      case NPCStates_Merchant.WaitingForPlayerToApproach: {
+        const players = this.parentAgent!.world.getPlayers();
+        for (const player of players) {
+          if (NPCAgent.isPlayerAnNPC(player)) {
+            continue;
+          }
+          const playerDistance = player.position.get().distance(this.parentAgent!.getNpcPlayer()!.position.get());
+          if (playerDistance < MERCHANT_APPROACH_DISTANCE_TO_PLAYER) {
+            debugLog(this.debugLogging, `StateMachine_Merchant: Player ${player.name.get()} is within approach distance (${playerDistance.toFixed(2)}m)`);
+            this.targetPlayer = player;
+            this.setCurrentState(NPCStates_Merchant.TurnTowardsPlayer);
+            break;
+          }
+        }
+        break;
+      }
+      case NPCStates_Merchant.TurnTowardsPlayer: {
+        debugLog(this.debugLogging, `StateMachine_Merchant: Turning towards player`);
+        /*await */ this.parentAgent!.rotateTowardsPosition(this.targetPlayer!.position.get());
+        this.setCurrentState(NPCStates_Merchant.GreetingPlayer);
+        break;
+      }
+      case NPCStates_Merchant.GreetingPlayer: {
+        debugLog(this.debugLogging, `StateMachine_Merchant: Greeting player`);
+        const playerName = this.targetPlayer!.name.get();
+        /*await */ this.parentAgent!.showAIConversation(`Ask player named ${playerName} if they want to buy or sell something`, "NPC has noticed player approaching");
+        this.setCurrentState(NPCStates_Merchant.EnableMerchantMenu);
+        break;
+      }
+      case NPCStates_Merchant.EnableMerchantMenu: {
+        debugLog(this.debugLogging, `StateMachine_Merchant: Enabling merchant menu`);
+        this.parentAgent!.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
+          player: this.targetPlayer!,
+          menuContext: [Primary_MenuType.MerchantMenu],
+        });
+        this.setCurrentState(NPCStates_Merchant.WaitForPlayerToLeave);
+        break;
+      }
+      case NPCStates_Merchant.WaitForPlayerToLeave: {
+        debugLog(this.debugLogging, `StateMachine_Merchant: Waiting for player to leave`);
+        const playerDistance = this.targetPlayer!.position.get().distance(this.parentAgent!.getNpcPlayer()!.position.get());
+        if (playerDistance > MERCHANT_LEAVE_DISTANCE_TO_PLAYER) {
+          debugLog(this.debugLogging, `StateMachine_Merchant: Player ${this.targetPlayer!.name.get()} is outside of leave distance (${playerDistance.toFixed(2)}m)`);
+          /*await */ this.parentAgent!.showAIConversation(`Goodbye ${this.targetPlayer!.name.get()}. Come back soon!`, "NPC has noticed player leaving");
+          this.setCurrentState(NPCStates_Merchant.DisableMerchantMenu);
+        }
+        break;
+      }
+      case NPCStates_Merchant.DisableMerchantMenu: {
+        debugLog(this.debugLogging, `StateMachine_Merchant: Disabling merchant menu`);
+        this.parentAgent!.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
+          player: this.targetPlayer!,
+          menuContext: [],
+        });
+        this.setCurrentState(NPCStates_Merchant.WaitingForPlayerToApproach);
         break;
       }
     }

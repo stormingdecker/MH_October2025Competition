@@ -1,7 +1,7 @@
-import { AvatarPoseGizmo, CodeBlockEvents, Component, Entity, Player, PropTypes } from "horizon/core";
+import { AvatarPoseGizmo, CodeBlockEvents, Component, Entity, Player, PropTypes, Vec3 } from "horizon/core";
 import { KitchenManager } from "KitchenManager";
-import { NPCAgent, NPCChair } from "NPCAgent";
-import { NPCStateMachine_Client, NPCStateMachine_WorldGreeter } from "NPCStateMachines";
+import { NPCAgent, NPCChair, NPCStall } from "NPCAgent";
+import { NPCStateMachine_Client, NPCStateMachine_Merchant, NPCStateMachine_WorldGreeter } from "NPCStateMachines";
 import { PlayerPlotManager, RestaurantItemTag } from "PlayerPlotManager";
 import { sysEvents } from "sysEvents";
 import { debugLog, ManagerType } from "sysHelper";
@@ -12,17 +12,6 @@ import { getMgrClass } from "sysUtils";
 export class NPCAgentPool extends Component<typeof NPCAgentPool> {
   static propsDefinition = {
     spawnRateInSeconds: { type: PropTypes.Number, default: 30 },
-    npcClient0: { type: PropTypes.Entity },
-    npcClient1: { type: PropTypes.Entity },
-    npcClient2: { type: PropTypes.Entity },
-    npcClient3: { type: PropTypes.Entity },
-    npcClient4: { type: PropTypes.Entity },
-    npcClient5: { type: PropTypes.Entity },
-    npcClient6: { type: PropTypes.Entity },
-    npcClient7: { type: PropTypes.Entity },
-    npcClient8: { type: PropTypes.Entity },
-    npcClient9: { type: PropTypes.Entity },
-    npcGreeter: { type: PropTypes.Entity },
     debugLogging: { type: PropTypes.Boolean, default: false },
   };
 
@@ -30,8 +19,10 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
 
   private npcGreeters: NPCAgent[] = [];
   private npcClients: NPCAgent[] = [];
+  private npcMerchants: NPCAgent[] = [];
   private activePlayers: Player[] = [];
   private availableChairs: NPCChair[] = [];
+  private playersInBuildMode: Set<Player> = new Set();
 
   override preStart() {
     NPCAgentPool.instance = this;
@@ -47,6 +38,12 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
     this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnPlayerExitWorld, (player) => {
       const index = this.activePlayers.indexOf(player);
       if (index > -1) {
+        // Force return home any NPCs assigned to this player's chairs
+        for (const chair of this.availableChairs) {
+          if (chair.parentPlayer === player && chair.assignedToNPC !== undefined) {
+            chair.assignedToNPC.forceReturnHome(true);
+          }
+        }
         this.activePlayers.splice(index, 1);
         this.availableChairs = [];
       }
@@ -56,26 +53,37 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
       const { player, chairEntity, servableFoodEntity } = data;
       this.onOrderServed(player, chairEntity, servableFoodEntity);
     });
+
+    this.connectNetworkBroadcastEvent(sysEvents.buildModeEvent, (data) => {
+      // Force return home all NPCs for the player entering build mode
+      if (data.inBuildMode) {
+        this.playersInBuildMode.add(data.player);
+        for (const chair of this.availableChairs) {
+          if (chair.parentPlayer === data.player && chair.assignedToNPC !== undefined) {
+            chair.assignedToNPC.forceReturnHome(true);
+          }
+        }
+      } else {
+        this.playersInBuildMode.delete(data.player);
+      }
+    });
   }
 
   override start() {
-    this.registerAgent(this.props.npcClient0);
-    this.registerAgent(this.props.npcClient1);
-    this.registerAgent(this.props.npcClient2);
-    this.registerAgent(this.props.npcClient3);
-    this.registerAgent(this.props.npcClient4);
-    this.registerAgent(this.props.npcClient5);
-    this.registerAgent(this.props.npcClient6);
-    this.registerAgent(this.props.npcClient7);
-    this.registerAgent(this.props.npcClient8);
-    this.registerAgent(this.props.npcClient9);
-    this.registerAgent(this.props.npcGreeter);
+    this.discoverChildrenNPC();
 
     this.async.setInterval(() => {
       if (this.activePlayers.length > 0) {
         this.spawnClient();
       }
     }, this.props.spawnRateInSeconds * 1000);
+  }
+
+  private discoverChildrenNPC() {
+    const children = this.entity.children.get();
+    for (const child of children) {
+      this.registerAgent(child);
+    }
   }
 
   private spawnClient() {
@@ -89,7 +97,7 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
     }
 
     // If all chairs are assigned, do nothing
-    const unassignedChairs = this.availableChairs.filter((chair) => chair.assignedToNPC === undefined && chair.inUseByPlayer === undefined);
+    const unassignedChairs = this.availableChairs.filter((chair) => chair.assignedToNPC === undefined && chair.inUseByPlayer === undefined && !this.playersInBuildMode.has(chair.parentPlayer));
     if (unassignedChairs.length == 0) {
       debugLog(this.props.debugLogging, "NPCAgentPool: All chairs are assigned");
       return;
@@ -107,7 +115,7 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
     const chair = unassignedChairs[randomIndex];
 
     debugLog(this.props.debugLogging, `NPCAgentPool: Assigning chair: ${chair.chairEntity.name.get()}`);
-    availableClient.activate(chair, this.activePlayers);
+    availableClient.activateClient(chair, this.activePlayers);
   }
 
   private buildAvailableChairsList() {
@@ -190,6 +198,10 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
             npcAgent.setStateMachine(new NPCStateMachine_Client());
             this.npcClients.push(npcAgent);
             break;
+          case "Merchant":
+            npcAgent.setStateMachine(new NPCStateMachine_Merchant());
+            this.npcMerchants.push(npcAgent);
+            break;
           default:
             console.error(`NPCAgentPool: Unknown state machine name: ${stateMachineName}`);
         }
@@ -215,7 +227,22 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
     }
     if (chair.assignedToNPC !== undefined) {
       chair.assignedToNPC.onOrderServed(player, servableFoodEntity);
+    } else {
+      // Get rid of food plate if served after NPC has abandoned chair
+      this.world.deleteAsset(servableFoodEntity, true);
     }
+  }
+
+  public requestMerchantNPC(stallEntity: Entity, spawnPosition: Vec3) {
+    for (const npcAgent of this.npcMerchants) {
+      if (npcAgent.isIdle()) {
+        const stall: NPCStall = { stallEntity: stallEntity };
+        npcAgent.activateMerchant(stall, spawnPosition);
+        return npcAgent;
+      }
+    }
+    console.error("NPCAgentPool: No available merchant NPCs");
+    return undefined;
   }
 
   public onPlayerEnterChair(player: Player, avatarPoseEntity: Entity) {
