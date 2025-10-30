@@ -9,7 +9,7 @@ import { debugLog } from "sysHelper";
 import { Primary_MenuType } from "UI_MenuManager";
 
 // --- World Greeter NPC State Machine ---
-
+/*
 enum NPCStates_WorldGreeter {
   Initializing,
   WaitingForPlayerToApproach,
@@ -102,7 +102,7 @@ export class NPCStateMachine_WorldGreeter extends NPCStateMachine {
     }
   }
 }
-
+*/
 // --- Gourmet NPC State Machine ---
 
 enum NPCStates_Client {
@@ -114,11 +114,13 @@ enum NPCStates_Client {
   Sit,
   OrderFood,
   WaitToBeServed,
+  Eat,
   ReturningHome,
 }
 
 const CURRENCY_REWARD_PER_ORDER = 100;
 const MAXIMUM_WAIT_TIME_FOR_ORDER_SECONDS = 120;
+const ALLOW_CLIENT_SPEAK = false;
 
 export class NPCStateMachine_Client extends NPCStateMachine {
   private chair?: NPCChair;
@@ -192,8 +194,10 @@ export class NPCStateMachine_Client extends NPCStateMachine {
         const seatPosition = this.chair!.seatPosition;
         await this.parentAgent!.rotateTowardsPosition(seatPosition.add(this.chair!.chairEntity.forward.get().mul(2)));
         this.parentAgent?.playAvatarAnimation(NPCAnimationID.Sitting);
-        const arrivalLine = NPCScript.getLine(NPCDialogueType.ClientArrival);
-        await this.parentAgent!.speakLine(arrivalLine);
+        if (ALLOW_CLIENT_SPEAK) {
+          const arrivalLine = NPCScript.getLine(NPCDialogueType.ClientArrival);
+          await this.parentAgent!.speakLine(arrivalLine);
+        }
         if (this.parentAgent!.getIsForcedReturnHome()) {
           this.setCurrentState(NPCStates_Client.ReturningHome);
           break;
@@ -203,44 +207,60 @@ export class NPCStateMachine_Client extends NPCStateMachine {
       }
       case NPCStates_Client.OrderFood: {
         // Randomly select a recipe type
-        const recipes = Object.keys(RecipeType);
-        const recipeCount = recipes.length;
+        const availableRecipes = this.chair!.kitchenManager.getAvailableRecipes();
+        const recipeCount = availableRecipes.length;
         const randomIndex = Math.floor(Math.random() * recipeCount);
-        const recipeType = recipes[randomIndex];
-        // Place order with kitchen manager
+        const recipeName = availableRecipes[randomIndex];
+        const index = recipeName.indexOf("Recipe");
+        const recipeTypeString = index > -1 ? recipeName.substring(0, index) : recipeName;
+        const recipeType = RecipeType[recipeTypeString as keyof typeof RecipeType];
+
+        debugLog(this.debugLogging, `Client NPC ordering food: ${recipeType}`);
         const orderTicket = this.chair!.kitchenManager.generateNewOrder(this.chair!.parentPlayer, recipeType, this.chair?.chairEntity);
         this.orderTicket = orderTicket;
         this.parentAgent!.getWantIcon()?.setPieType(recipeType);
         this.setCurrentState(NPCStates_Client.WaitToBeServed);
-        const orderingLine = NPCScript.getLine(NPCDialogueType.ClientOrdering);
-        await this.parentAgent!.speakLine(orderingLine);
+        if (ALLOW_CLIENT_SPEAK) {
+          const orderingLine = NPCScript.getLine(NPCDialogueType.ClientOrdering);
+          await this.parentAgent!.speakLine(orderingLine);
+        }
         break;
       }
       case NPCStates_Client.WaitToBeServed: {
         if (this.servedFoodEntity !== undefined) {
-          const receivingLine = NPCScript.getLine(NPCDialogueType.ClientReceiving);
-          await this.parentAgent!.speakLine(receivingLine);
-          this.parentAgent!.getWantIcon()?.hideIcon();
-          const platePosition = this.servedFoodEntity.position.get();
-          await this.parentAgent!.world.deleteAsset(this.servedFoodEntity, true);
-          this.servedFoodEntity = undefined;
-          GrabbableMoney.spawnMoney(this.parentAgent!.world, platePosition.add(new Vec3(0, -0.05, 0)), CURRENCY_REWARD_PER_ORDER);
-          this.setCurrentState(NPCStates_Client.ReturningHome);
+          if (ALLOW_CLIENT_SPEAK) {
+            const receivingLine = NPCScript.getLine(NPCDialogueType.ClientReceiving);
+            await this.parentAgent!.speakLine(receivingLine);
+          }
+          this.setCurrentState(NPCStates_Client.Eat);
         } else if (this.getStateDurationSeconds() > MAXIMUM_WAIT_TIME_FOR_ORDER_SECONDS) {
-          this.parentAgent!.getWantIcon()?.hideIcon();
-          const giveUpLine = NPCScript.getLine(NPCDialogueType.ClientGiveUpWaiting);
-          await this.parentAgent!.speakLine(giveUpLine);
+          if (ALLOW_CLIENT_SPEAK) {
+            const giveUpLine = NPCScript.getLine(NPCDialogueType.ClientGiveUpWaiting);
+            await this.parentAgent!.speakLine(giveUpLine);
+          }
           this.setCurrentState(NPCStates_Client.ReturningHome);
         } else if (this.parentAgent!.getIsForcedReturnHome()) {
-          this.parentAgent!.getWantIcon()?.hideIcon();
+          this.setCurrentState(NPCStates_Client.ReturningHome);
+        }
+        break;
+      }
+      case NPCStates_Client.Eat: {
+        if (this.getStateDurationSeconds() >= 1) {
+          const platePosition = this.servedFoodEntity!.position.get();
+          await this.parentAgent!.world.deleteAsset(this.servedFoodEntity!, true);
+          this.servedFoodEntity = undefined;
+          GrabbableMoney.spawnMoney(this.parentAgent!.world, platePosition.add(new Vec3(0, -0.05, 0)), CURRENCY_REWARD_PER_ORDER);
           this.setCurrentState(NPCStates_Client.ReturningHome);
         }
         break;
       }
       case NPCStates_Client.ReturningHome: {
+        this.parentAgent!.getWantIcon()?.hideIcon();
         this.parentAgent?.playAvatarAnimation(NPCAnimationID.None);
-        const departingLine = NPCScript.getLine(NPCDialogueType.ClientDeparting);
-        await this.parentAgent!.speakLine(departingLine);
+        if (ALLOW_CLIENT_SPEAK) {
+          const departingLine = NPCScript.getLine(NPCDialogueType.ClientDeparting);
+          await this.parentAgent!.speakLine(departingLine);
+        }
         const plotBasePosition = this.chair!.plotBaseEntity.position.get();
         await this.parentAgent!.rotateTowardsPosition(plotBasePosition);
         debugLog(this.debugLogging, `Releasing chair: ${this.chair!.chairEntity.name.get()}`);
@@ -265,7 +285,6 @@ export class NPCStateMachine_Client extends NPCStateMachine {
 
 enum NPCStates_Merchant {
   Initializing,
-  WaitingInPool,
   WaitingForPlayerToApproach,
   TurnTowardsPlayer,
   GreetingPlayer,
@@ -284,28 +303,23 @@ export class NPCStateMachine_Merchant extends NPCStateMachine {
     this.debugLogging = debugLogging;
     debugLog(this.debugLogging, "StateMachine_Merchant: onAgentReady");
     this.parentAgent = agent;
-    this.setCurrentState(NPCStates_Merchant.WaitingInPool);
+    this.setCurrentState(NPCStates_Merchant.WaitingForPlayerToApproach);
   }
 
   public isIdle() {
-    return this.currentState === NPCStates_Merchant.WaitingInPool;
+    return false;
   }
 
-  public override activateMerchant(stall: NPCStall, spawnPosition: Vec3) {
-    if (this.currentState === NPCStates_Merchant.WaitingInPool) {
-      debugLog(this.debugLogging, `StateMachine_Merchant: Activated for stall: ${stall.stallEntity.name.get()}`);
-      this.parentAgent!.teleportToPosition(spawnPosition);
-      this.parentAgent!.rotateTowardsPosition(stall.stallEntity.position.get());
-      this.setCurrentState(NPCStates_Merchant.WaitingForPlayerToApproach);
-    }
+  public override activateMerchant(stall: NPCStall) {
+    // if (this.currentState === NPCStates_Merchant.WaitingInPool) {
+    //   debugLog(this.debugLogging, `StateMachine_Merchant: Activated for stall: ${stall.stallEntity.name.get()}`);
+    //   this.setCurrentState(NPCStates_Merchant.WaitingForPlayerToApproach);
+    // }
   }
 
   public override async updateState() {
     switch (this.currentState) {
       case NPCStates_Merchant.Initializing: {
-        break;
-      }
-      case NPCStates_Merchant.WaitingInPool: {
         break;
       }
       case NPCStates_Merchant.WaitingForPlayerToApproach: {

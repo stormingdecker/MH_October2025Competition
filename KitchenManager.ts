@@ -1,4 +1,16 @@
-import { Asset, Component, Entity, GrabbableEntity, ParticleGizmo, Player, PropTypes, Quaternion, TriggerGizmo, Vec3 } from "horizon/core";
+import {
+  Asset,
+  Component,
+  Entity,
+  GrabbableEntity,
+  ParticleGizmo,
+  Player,
+  PropTypes,
+  Quaternion,
+  TriggerGizmo,
+  Vec3,
+} from "horizon/core";
+import { InventoryManager } from "InventoryManager";
 import { MoveableBase } from "MoveableBase";
 import { FilterType, PlayerManager, PlayerMgrEvents } from "PlayerManager";
 import { PlayerPlotManager } from "PlayerPlotManager";
@@ -6,7 +18,8 @@ import { ProgTaskType, RecipeCatalog, RecipeType } from "RecipeCatalog";
 import { ServableFood } from "ServableFood";
 import { sysEvents } from "sysEvents";
 import { assertAllNullablePropsSet, getEntityListByTag, ManagerType } from "sysHelper";
-import { generateSafeID, getMgrClass } from "sysUtils";
+import { InventoryType, pieTypes } from "sysTypes";
+import { generateSafeID, getMgrClass, validate } from "sysUtils";
 import { TFint_ProgressionTask } from "TFint_ProgressionTask";
 import { oneHudEvents } from "UI_OneHUDEvents";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
@@ -15,6 +28,7 @@ export const KitchenApplianceTag = {
   OrderStation: "orderStation",
   PrepStation: "prepStation",
   CookingStation: "cookingStation",
+  PickUpStation: "pickupStation",
 };
 
 export class KitchenManager extends Component<typeof KitchenManager> {
@@ -26,6 +40,7 @@ export class KitchenManager extends Component<typeof KitchenManager> {
 
   private playerMgr: PlayerManager | undefined = undefined;
   private OneHudEntity: Entity | null = null;
+  private InventoryManager: InventoryManager | undefined = undefined;
 
   private activePlayer: Player | null = null;
   private thisKitchensManagers: Player[] = [];
@@ -41,9 +56,7 @@ export class KitchenManager extends Component<typeof KitchenManager> {
 
     this.OneHudEntity = getEntityListByTag(ManagerType.UI_OneHUD, this.world)[0];
 
-    this.connectNetworkEvent(this.entity, simpleButtonEvent, (data) => {
-
-    });
+    this.connectNetworkEvent(this.entity, simpleButtonEvent, (data) => {});
 
     this.connectNetworkEvent(this.entity, PlayerMgrEvents.PlayerJoined, (data) => {
       this.onPlayerJoined(data.player);
@@ -60,6 +73,12 @@ export class KitchenManager extends Component<typeof KitchenManager> {
   //region start()
   start() {
     this.vfxArrowGizmo = this.props.vfxArrow?.as(ParticleGizmo) ?? null;
+
+    this.InventoryManager = getMgrClass<InventoryManager>(
+      this,
+      ManagerType.InventoryManager,
+      InventoryManager
+    );
 
     //Subscribe to PlayerManager.PlayerEnter/Exit events
     this.playerMgr = getMgrClass<PlayerManager>(this, ManagerType.PlayerManager, PlayerManager);
@@ -193,17 +212,22 @@ export class KitchenManager extends Component<typeof KitchenManager> {
         return;
       }
 
-      if (nextStepTaskType === ProgTaskType.DragToProgress || nextStepTaskType === ProgTaskType.TapToProgress) {
+      if (
+        nextStepTaskType === ProgTaskType.DragToProgress ||
+        nextStepTaskType === ProgTaskType.TapToProgress
+      ) {
         //find available prep stations and choose first available or closets to player
         //tmp for now we define it in props definition
-        moveableBase = this.getFirstAvailablePrepStation()?.getComponents<MoveableBase>(MoveableBase)[0];
+        moveableBase =
+          this.getFirstAvailablePrepStation()?.getComponents<MoveableBase>(MoveableBase)[0];
         console.log(`Next step triggable by player ${player.name.get()}`);
         moveableBase?.setWhoCanTrigger([player]);
         // const optionalTFint = moveableBase?.getOptionalTFint();
         // const TFint = optionalTFint?.getComponents<TFint_ProgressionTask>(TFint_ProgressionTask)[0];
         // TFint?.setTaskType(nextStepTaskType, this.entity);
       } else if (nextStepTaskType === ProgTaskType.Timed) {
-        moveableBase = this.getFirstAvailableCookingStation()?.getComponents<MoveableBase>(MoveableBase)[0];
+        moveableBase =
+          this.getFirstAvailableCookingStation()?.getComponents<MoveableBase>(MoveableBase)[0];
         console.log(`Next step triggable by player ${player.name.get()}`);
 
         moveableBase?.setWhoCanTrigger([player]);
@@ -215,7 +239,8 @@ export class KitchenManager extends Component<typeof KitchenManager> {
     } else if (stepInstructions.taskType === ProgTaskType.Timed) {
       console.log("Starting Timed Task");
       //do timed task logic
-      moveableBase = this.getFirstAvailableCookingStation()?.getComponents<MoveableBase>(MoveableBase)[0];
+      moveableBase =
+        this.getFirstAvailableCookingStation()?.getComponents<MoveableBase>(MoveableBase)[0];
       console.log(`Next step triggable by player NO ONE`);
 
       moveableBase?.setWhoCanTrigger([]);
@@ -225,10 +250,14 @@ export class KitchenManager extends Component<typeof KitchenManager> {
       this.stopArrowVFX();
       showProgressBar = false;
       //region task Drag or Tap
-    } else if (stepInstructions.taskType === ProgTaskType.DragToProgress || stepInstructions.taskType === ProgTaskType.TapToProgress) {
+    } else if (
+      stepInstructions.taskType === ProgTaskType.DragToProgress ||
+      stepInstructions.taskType === ProgTaskType.TapToProgress
+    ) {
       console.log("Starting Progression Task");
       //find all counters owned by kitchen owner and set who can trigger to kitchen owner
-      moveableBase = this.getFirstAvailablePrepStation()?.getComponents<MoveableBase>(MoveableBase)[0];
+      moveableBase =
+        this.getFirstAvailablePrepStation()?.getComponents<MoveableBase>(MoveableBase)[0];
       console.log(`Next step triggable by player NO ONE`);
       moveableBase?.setWhoCanTrigger([]);
       const optionalTFint = moveableBase?.getOptionalTFint();
@@ -261,7 +290,9 @@ export class KitchenManager extends Component<typeof KitchenManager> {
     if (activeOrderList && activeOrderList.length > 0) {
       activeOrderList[0].orderStatus = orderStatus;
       this.activeOrders.set(player, activeOrderList);
-      console.log(`Order ${activeOrderList[0].orderId} updated to status ${activeOrderList[0].orderStatus}`);
+      console.log(
+        `Order ${activeOrderList[0].orderId} updated to status ${activeOrderList[0].orderStatus}`
+      );
     }
 
     // return orderTicket;
@@ -275,13 +306,13 @@ export class KitchenManager extends Component<typeof KitchenManager> {
       console.error(`Asset with ID ${assetId} not found`);
     }
 
-    const orderStations = this.getOrderStations();
+    const orderStations = this.getPickupStations();
     const closestOrderStation = this.returnClosestEntityToPlayer(orderStations ?? [], player);
     if (!closestOrderStation) {
       console.error("No order stations found to spawn food plate.");
       return;
     }
-    const orderPos = closestOrderStation?.position.get().add(new Vec3(0, 1, 0));
+    const orderPos = closestOrderStation?.position.get().add(new Vec3(-0.2, 1.1, 0));
     const orderRot = Quaternion.zero;
     const orderScale = Vec3.one;
 
@@ -303,8 +334,13 @@ export class KitchenManager extends Component<typeof KitchenManager> {
 
   //region getOrderStations()
   getOrderStations(): Entity[] | null {
-    const plotMgr = getMgrClass<PlayerPlotManager>(this, ManagerType.PlayerPlotManager, PlayerPlotManager);
-    const orderStations = plotMgr?.getPlayerItemsByTag(this.activePlayer!, KitchenApplianceTag.OrderStation) ?? [];
+    const plotMgr = getMgrClass<PlayerPlotManager>(
+      this,
+      ManagerType.PlayerPlotManager,
+      PlayerPlotManager
+    );
+    const orderStations =
+      plotMgr?.getPlayerItemsByTag(this.activePlayer!, KitchenApplianceTag.OrderStation) ?? [];
     if (orderStations.length === 0) {
       console.warn("No prep stations found in the world.");
       return null;
@@ -312,10 +348,30 @@ export class KitchenManager extends Component<typeof KitchenManager> {
     return orderStations;
   }
 
+  getPickupStations(): Entity[] | null {
+    const plotMgr = getMgrClass<PlayerPlotManager>(
+      this,
+      ManagerType.PlayerPlotManager,
+      PlayerPlotManager
+    );
+    const pickUpStations =
+      plotMgr?.getPlayerItemsByTag(this.activePlayer!, KitchenApplianceTag.PickUpStation) ?? [];
+    if (pickUpStations.length === 0) {
+      console.warn("No pick up stations found in the world.");
+      return null;
+    }
+    return pickUpStations;
+  }
+
   //region getFirstAvailablePrepStation()
   getFirstAvailablePrepStation(): Entity | null {
-    const plotMgr = getMgrClass<PlayerPlotManager>(this, ManagerType.PlayerPlotManager, PlayerPlotManager);
-    const prepStations = plotMgr?.getPlayerItemsByTag(this.activePlayer!, KitchenApplianceTag.PrepStation) ?? [];
+    const plotMgr = getMgrClass<PlayerPlotManager>(
+      this,
+      ManagerType.PlayerPlotManager,
+      PlayerPlotManager
+    );
+    const prepStations =
+      plotMgr?.getPlayerItemsByTag(this.activePlayer!, KitchenApplianceTag.PrepStation) ?? [];
     if (prepStations.length === 0) {
       console.warn("No prep stations found in the world.");
       return null;
@@ -326,13 +382,21 @@ export class KitchenManager extends Component<typeof KitchenManager> {
 
   //region getFirstAvailableCookingStation()
   getFirstAvailableCookingStation(): Entity | null {
-    const plotMgr = getMgrClass<PlayerPlotManager>(this, ManagerType.PlayerPlotManager, PlayerPlotManager);
-    const cookingStations = plotMgr?.getPlayerItemsByTag(this.activePlayer!, KitchenApplianceTag.CookingStation) ?? [];
+    const plotMgr = getMgrClass<PlayerPlotManager>(
+      this,
+      ManagerType.PlayerPlotManager,
+      PlayerPlotManager
+    );
+    const cookingStations =
+      plotMgr?.getPlayerItemsByTag(this.activePlayer!, KitchenApplianceTag.CookingStation) ?? [];
     if (cookingStations.length === 0) {
       console.warn("No cooking stations found in the world.");
       return null;
     }
-    const closestCookingStation = this.returnClosestEntityToPlayer(cookingStations, this.activePlayer!);
+    const closestCookingStation = this.returnClosestEntityToPlayer(
+      cookingStations,
+      this.activePlayer!
+    );
     return closestCookingStation;
   }
 
@@ -387,6 +451,24 @@ export class KitchenManager extends Component<typeof KitchenManager> {
   //region stopArrowVFX()
   stopArrowVFX() {
     this.vfxArrowGizmo?.stop();
+  }
+
+  //region getAvailableRecipes()
+  public getAvailableRecipes(): InventoryType[] {
+    const playerInventory = this.InventoryManager?.getPlayerInventory(this.activePlayer!);
+    if (!playerInventory) {
+      console.error("No inventory found for active player.");
+      return [];
+    }
+    //cycle through recipe catalog and return all recipes the player owns
+    const availableRecipes: InventoryType[] = [];
+    pieTypes.forEach((pieType) => {
+      const recipeType = validate(this, pieType.recipeType);
+      if (playerInventory.items[recipeType!] && playerInventory.items[recipeType!] > 0) {
+        availableRecipes.push(recipeType!);
+      }
+    });
+    return availableRecipes;
   }
 }
 Component.register(KitchenManager);

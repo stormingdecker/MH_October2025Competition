@@ -5,8 +5,6 @@ import { NavMeshController } from "NavMeshController";
 import { debugLog } from "sysHelper";
 import { pieTypes } from "sysTypes";
 
-const ALLOW_NPC_SPEAK = false;
-
 export enum NPCMovementSpeedID {
   Casual,
   Walk,
@@ -50,7 +48,6 @@ export class NPCWantIcon extends Component<typeof NPCWantIcon> {
   }
 
   public setPieType(pieType: string) {
-    console.log("NPCWantIcon: Setting pie type to", pieType);
     const foundPieType = pieTypes.find((pie) => pie.name === pieType);
     if (!foundPieType) {
       console.error(`NPCWantIcon: No pie type found for ${pieType}`);
@@ -91,7 +88,7 @@ export abstract class NPCStateMachine {
   public activateClient(chair: NPCChair) {}
   public onOrderServed(player: Player, servableFoodEntity: Entity): void {}
 
-  public activateMerchant(stall: NPCStall, spawnPosition: Vec3) {}
+  public activateMerchant(stall: NPCStall) {}
 
   public async updateState(): Promise<void> {}
 }
@@ -165,7 +162,7 @@ export class NPCAgent extends Component<typeof NPCAgent> {
       const parentEntity = this.wantIcon.entity.parent.get() ?? undefined;
       if (parentEntity !== undefined) {
         const npcPosition = this.npcPlayer?.position.get() || Vec3.zero;
-        parentEntity.position.set(npcPosition.add(new Vec3(0, 2, 0)));
+        parentEntity.position.set(npcPosition.add(new Vec3(0, 1.25, 0)));
       }
     }
   }
@@ -237,9 +234,9 @@ export class NPCAgent extends Component<typeof NPCAgent> {
     }
   }
 
-  public activateMerchant(stall: NPCStall, spawnPosition: Vec3) {
+  public activateMerchant(stall: NPCStall) {
     if (this.stateMachine !== undefined) {
-      this.stateMachine.activateMerchant(stall, spawnPosition);
+      this.stateMachine.activateMerchant(stall);
     }
   }
 
@@ -361,9 +358,6 @@ export class NPCAgent extends Component<typeof NPCAgent> {
   }
 
   public async speakLine(conversationLine: string) {
-    if (!ALLOW_NPC_SPEAK) {
-      return;
-    }
     debugLog(this.props.debugLogging, `Speaking line: ${conversationLine}`);
     await this.npcGizmo?.conversation.speak(conversationLine);
   }

@@ -57,7 +57,6 @@ import {
   Sub_MerchantType,
   Sub_PlotType,
 } from "UI_MenuManager";
-import { Manager } from "UI_N_Inventory";
 import { oneHudEvents } from "UI_OneHUDEvents";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 
@@ -675,6 +674,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       const playerInventory = this.inventoryMgr?.getPlayerInventory(player);
 
       if (isSubMenu && menuContext[1] === Sub_PlotType.FoodMenu) {
+        this.setupFoodMenuContainer([player], this.imageSetMap.get("FoodMenu")!);
         this.bnd_foodMenuDisplay.set("flex", [player]);
       } else {
         this.bnd_foodMenuDisplay.set("none", [player]);

@@ -5,7 +5,6 @@ import { debugLog } from "sysHelper";
 
 export class MerchantStall extends Component<typeof MerchantStall> {
   static propsDefinition = {
-    NPCSpawnPoint: { type: PropTypes.Entity },
     debugLogging: { type: PropTypes.Boolean, default: false },
   };
 
@@ -19,14 +18,9 @@ export class MerchantStall extends Component<typeof MerchantStall> {
   }
 
   private initializeNPC() {
-    if (!this.props.NPCSpawnPoint) {
-      console.error("MerchantStall: NPCSpawnPoint entity is not defined in props.");
-      return;
-    }
-    const spawnPosition = this.props.NPCSpawnPoint.position.get();
-    this.merchantNPC = NPCAgentPool.instance.requestMerchantNPC(this.entity, spawnPosition);
+    this.merchantNPC = NPCAgentPool.instance.requestMerchantNPC(this.entity);
     if (this.merchantNPC !== undefined) {
-      debugLog(this.props.debugLogging, `MerchantStall: Successfully initialized merchant NPC at ${spawnPosition}`);
+      debugLog(this.props.debugLogging, `MerchantStall: Successfully initialized merchant NPC`);
       this.async.clearInterval(this.initializationHandle!);
       this.initializationHandle = undefined;
     }

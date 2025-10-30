@@ -21,7 +21,7 @@ export class SaveManager extends Component<typeof SaveManager> {
   static propsDefinition = {
     enabled: { type: PropTypes.Boolean, default: true },
     showDebugs: { type: PropTypes.Boolean, default: false },
-    enableSaving : { type: PropTypes.Boolean, default: true },
+    enableSaving: { type: PropTypes.Boolean, default: true },
     enableIntervalSave: { type: PropTypes.Boolean, default: false },
     intervalSeconds: { type: PropTypes.Number, default: 10 },
   };
@@ -54,10 +54,13 @@ export class SaveManager extends Component<typeof SaveManager> {
   start() {
     if (!this.props.enabled) return;
 
-
     this.statsMgr = getMgrClass<StatsManager>(this, ManagerType.StatsManager, StatsManager);
     // this.inventoryMgr = getMgrClass<IInventoryManager>(this, ManagerType.InventoryManager, IInventoryManager);
-    this.plotMgr = getMgrClass<PlayerPlotManager>(this, ManagerType.PlayerPlotManager, PlayerPlotManager);
+    this.plotMgr = getMgrClass<PlayerPlotManager>(
+      this,
+      ManagerType.PlayerPlotManager,
+      PlayerPlotManager
+    );
 
     //Subscribe to PlayerManager.PlayerEnter/Exit events
     this.playerMgr = getMgrClass<PlayerManager>(this, ManagerType.PlayerManager, PlayerManager);
@@ -82,33 +85,59 @@ export class SaveManager extends Component<typeof SaveManager> {
     debugLog(this.props.showDebugs, `Loading player data for ${player.name.get()}`);
     this.activePlayerList.add(player);
 
-    const playerStats = this.world.persistentStorage.getPlayerVariable<PlayerStats>(player, SAVE_DATA_KEY);
+    const playerStats = this.world.persistentStorage.getPlayerVariable<PlayerStats>(
+      player,
+      SAVE_DATA_KEY
+    );
     if (playerStats) {
-      debugLog(this.props.showDebugs, `Loaded stats for ${player.name.get()}: ${JSON.stringify(playerStats)}`);
+      debugLog(
+        this.props.showDebugs,
+        `Loaded stats for ${player.name.get()}: ${JSON.stringify(playerStats)}`
+      );
       this.statsMgr!.playerStatsLoaded(player, playerStats);
     } else {
-      debugLog(this.props.showDebugs, `No stats found for ${player.name.get()}, resetting to default.`);
+      debugLog(
+        this.props.showDebugs,
+        `No stats found for ${player.name.get()}, resetting to default.`
+      );
       this.statsMgr!.resetPlayerData(player);
     }
 
-    const playerInventory = this.world.persistentStorage.getPlayerVariable<PlayerInventory>(player, SAVE_INVENTORY_KEY);
-    if (playerInventory && Object.keys(playerInventory).length > 0) {
-      debugLog(this.props.showDebugs, `Loaded inventory for ${player.name.get()}: ${JSON.stringify(playerInventory)}`);
-      this.inventoryMgr!.playerInventoryLoaded(player, playerInventory);
-    } else {
-      debugLog(this.props.showDebugs, `No inventory found for ${player.name.get()}. Setting to default.`);
-      this.inventoryMgr!.resetPlayerInventory(player);
-    }
-
-    const playerPlotData = this.world.persistentStorage.getPlayerVariable<any>(player, SAVE_PLOT_KEY);
+    const playerPlotData = this.world.persistentStorage.getPlayerVariable<any>(
+      player,
+      SAVE_PLOT_KEY
+    );
     if (playerPlotData && Object.keys(playerPlotData).length > 0) {
-      debugLog(this.props.showDebugs, `Loaded plot data for ${player.name.get()}: ${JSON.stringify(playerPlotData)}`);
+      debugLog(
+        this.props.showDebugs,
+        `Loaded plot data for ${player.name.get()}: ${JSON.stringify(playerPlotData)}`
+      );
       this.plotMgr!.playerPlotLoaded(player, playerPlotData);
     } else {
-      debugLog(this.props.showDebugs, `No plot data found for ${player.name.get()}. Setting to default.`);
+      debugLog(
+        this.props.showDebugs,
+        `No plot data found for ${player.name.get()}. Setting to default.`
+      );
       this.plotMgr!.resetPlayerPlot(player);
     }
 
+    const playerInventory = this.world.persistentStorage.getPlayerVariable<PlayerInventory>(
+      player,
+      SAVE_INVENTORY_KEY
+    );
+    if (playerInventory && Object.keys(playerInventory).length > 0) {
+      debugLog(
+        this.props.showDebugs,
+        `Loaded inventory for ${player.name.get()}: ${JSON.stringify(playerInventory)}`
+      );
+      this.inventoryMgr!.playerInventoryLoaded(player, playerInventory);
+    } else {
+      debugLog(
+        this.props.showDebugs,
+        `No inventory found for ${player.name.get()}. Setting to default.`
+      );
+      this.inventoryMgr!.resetPlayerInventory(player);
+    }
   }
 
   //region player Left
@@ -123,7 +152,7 @@ export class SaveManager extends Component<typeof SaveManager> {
 
   //region savePlayerData
   public savePlayerData(player: Player) {
-    if(!this.props.enableSaving) {
+    if (!this.props.enableSaving) {
       debugLog(this.props.showDebugs, `Saving disabled. Skipping save for ${player.name.get()}.`);
       return;
     }
@@ -139,7 +168,5 @@ export class SaveManager extends Component<typeof SaveManager> {
     this.world.persistentStorage.setPlayerVariable(player, SAVE_INVENTORY_KEY, playerInventory);
     this.world.persistentStorage.setPlayerVariable(player, SAVE_PLOT_KEY, playerPlotData);
   }
-
-
 }
 Component.register(SaveManager);

@@ -1411,7 +1411,7 @@ export const inventoryMenuWindow = (
     backgroundColor: "rgba(255, 0, 0, 1)",
     borderRadius: 10,
   };
-  const panelWidth = 500;
+  const panelWidth = 550;
   const panelHeight = 500;
   const headerHeight = 60;
   return [
@@ -1550,7 +1550,7 @@ export const merchantDetailWindow = (
   bnd_merchantBtnText: Binding<string>,
 
 ) => {
-  const windowWidth = 550;
+  const windowWidth = 600;
   const windowHeight = 300;
   const textAreaWidth = 320;
 

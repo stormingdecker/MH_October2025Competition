@@ -7,6 +7,7 @@ import { sysEvents } from "sysEvents";
 import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
 import { BuildingComponent, DEFAULT_PLOT_LAYOUT, PlayerPlot } from "sysTypes";
 import { fromBase36Safe, generateSafeID, getMgrClass, toBase36Safe } from "sysUtils";
+import { Primary_MenuType } from "UI_MenuManager";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 import { getAngleTowardsTarget } from "Utils";
 
@@ -189,6 +190,10 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
         return;
       }
       plot.spawnPoint.teleportPlayer(player);
+      this.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
+        player: player,
+        menuContext: [Primary_MenuType.PlotMenu],
+      });
     }, raceConditionDelay);
   }
 
