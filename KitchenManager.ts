@@ -42,8 +42,7 @@ export class KitchenManager extends Component<typeof KitchenManager> {
     this.OneHudEntity = getEntityListByTag(ManagerType.UI_OneHUD, this.world)[0];
 
     this.connectNetworkEvent(this.entity, simpleButtonEvent, (data) => {
-      const { player, recipeType } = data;
-      this.generateNewOrder(player, recipeType);
+
     });
 
     this.connectNetworkEvent(this.entity, PlayerMgrEvents.PlayerJoined, (data) => {

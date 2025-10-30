@@ -15,7 +15,7 @@ import { sysEvents } from "sysEvents";
 import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
 import { buttonImgWithText, convertAssetIDToImageSource } from "sysUIStyleGuide";
 import { MenuBtnType } from "UI_AccordionMenu";
-import { Primary_MenuType, Sub_PlotType } from "UI_MenuManager";
+import { Primary_MenuType, Sub_MerchantType, Sub_PlotType } from "UI_MenuManager";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 
 class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
@@ -130,9 +130,8 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
           this.childrenUINodeArray.set(newUINodeArray, [data.player]);
           this.animateMenu(data.player, true);
         }
-      }
-      if(data.menuContext[0] === Primary_MenuType.MerchantMenu){
-        if(this.btnImgAssetIDArrayMap.has(data.menuContext[0])){
+      } else if (data.menuContext[0] === Primary_MenuType.MerchantMenu) {
+        if (this.btnImgAssetIDArrayMap.has(data.menuContext[0])) {
           const btnType = data.menuContext[0];
           const newUINodeArray = this.convertAssetArrayToUINodeArray(
             this.btnImgAssetIDArrayMap.get(btnType) ?? [],
@@ -142,11 +141,10 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
           this.childrenUINodeArray.set(newUINodeArray, [data.player]);
           this.animateMenu(data.player, true);
         }
-      }
-      else {
+      } else {
         //close the menu
         this.animateMenu(data.player, false);
-
+        
         return;
       }
       this.playerMenuContextMap.set(data.player, curMenuContext);
@@ -199,11 +197,10 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
   //region on Button Pressed()
   onButtonPressed(instanceId: string, player: Player): void {
     const curMenuContext = this.playerMenuContextMap.get(player) ?? [];
-    console.log(`Button with instanceId ${instanceId} pressed by player ${player.name.get()}`);
+    debugLog(this.props.showDebugs, `Button with instanceId ${instanceId} pressed by player ${player.name.get()}`);
     let updatedMenuContext: string[] = [];
     switch (instanceId) {
       case Sub_PlotType.BuildMode:
-        console.log("Button 1 Pressed");
         if (curMenuContext[1] === Sub_PlotType.BuildMode) {
           updatedMenuContext = [Primary_MenuType.PlotMenu];
         } else {
@@ -218,7 +215,6 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
         }
         break;
       case Sub_PlotType.Staff:
-        console.log("Button 3 Pressed");
         if (curMenuContext[1] === Sub_PlotType.Staff) {
           updatedMenuContext = [Primary_MenuType.PlotMenu];
         } else {
@@ -233,7 +229,6 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
           updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.Upgrades];
         }
 
-        console.log("Button 4 Pressed");
         break;
       case Sub_PlotType.Shop:
         if (curMenuContext[1] === Sub_PlotType.Shop) {
@@ -241,21 +236,38 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
         } else {
           updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.Shop];
         }
-        console.log("Button 5 Pressed");
         break;
-        case Sub_PlotType.Decor:
-        if (curMenuContext[1] === Sub_PlotType.Decor) {
+      case Sub_PlotType.Paint:
+        if (curMenuContext[1] === Sub_PlotType.Paint) {
           updatedMenuContext = [Primary_MenuType.PlotMenu];
         } else {
-          updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.Decor];
+          updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.Paint];
         }
-          break;
+        break;
+
+      //MERCHANT SUBMENU
+      case Sub_MerchantType.Buy:
+        if (curMenuContext[1] === Sub_MerchantType.Buy) {
+          updatedMenuContext = [Primary_MenuType.MerchantMenu];
+        } else {
+          updatedMenuContext = [Primary_MenuType.MerchantMenu, Sub_MerchantType.Buy];
+        }
+        break;
+      case Sub_MerchantType.Sell:
+        if (curMenuContext[1] === Sub_MerchantType.Sell) {
+          updatedMenuContext = [Primary_MenuType.MerchantMenu];
+        } else {
+          updatedMenuContext = [Primary_MenuType.MerchantMenu, Sub_MerchantType.Sell];
+        }
+        break;
+
       default:
         break;
     }
 
     this.playerMenuContextMap.set(player, updatedMenuContext);
 
+    debugLog(this.props.showDebugs, `Updated Menu Context for player ${player.name.get()}: ${updatedMenuContext}`);
     this.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
       player: player,
       menuContext: updatedMenuContext,

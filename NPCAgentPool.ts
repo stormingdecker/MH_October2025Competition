@@ -185,10 +185,12 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
   }
 
   private registerAgent(agentEntity?: Entity) {
+    debugLog(this.props.debugLogging, `NPCAgentPool: Attempting to registering entity: ${agentEntity?.name.get()}`);
     if (agentEntity !== undefined) {
       const npcAgent = agentEntity.getComponents(NPCAgent)[0];
       if (npcAgent !== undefined) {
         const stateMachineName = npcAgent.getStateMachineName();
+        debugLog(this.props.debugLogging, `NPCAgentPool: Registering NPC Agent with state machine: ${stateMachineName}`);
         switch (stateMachineName) {
           case "Greeter":
             npcAgent.setStateMachine(new NPCStateMachine_WorldGreeter());

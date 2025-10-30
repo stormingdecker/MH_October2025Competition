@@ -27,7 +27,7 @@ class UI_TitleManager extends UIComponent<typeof UI_TitleManager> {
 
   //region pvt variables
   private bndBtnDisplay = new Binding<string>("none");
-  private bndDisplay = new Binding<string>("flex");
+  private bndDisplay = new Binding<string>("none");
 
   //region Init UI
   initializeUI(): UINode {

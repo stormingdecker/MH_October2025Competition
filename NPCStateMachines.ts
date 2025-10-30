@@ -2,6 +2,7 @@ import { GrabbableMoney } from "GrabbableMoney";
 import { Entity, Player, Vec3 } from "horizon/core";
 import { OrderTicket } from "KitchenManager";
 import { NPCAgent, NPCAnimationID, NPCChair, NPCMovementSpeedID, NPCStall, NPCStateMachine } from "NPCAgent";
+import { NPCDialogueType, NPCScript } from "NPCScript";
 import { RecipeType } from "RecipeCatalog";
 import { sysEvents } from "sysEvents";
 import { debugLog } from "sysHelper";
@@ -191,6 +192,8 @@ export class NPCStateMachine_Client extends NPCStateMachine {
         const seatPosition = this.chair!.seatPosition;
         await this.parentAgent!.rotateTowardsPosition(seatPosition.add(this.chair!.chairEntity.forward.get().mul(2)));
         this.parentAgent?.playAvatarAnimation(NPCAnimationID.Sitting);
+        const arrivalLine = NPCScript.getLine(NPCDialogueType.ClientArrival);
+        await this.parentAgent!.speakLine(arrivalLine);
         if (this.parentAgent!.getIsForcedReturnHome()) {
           this.setCurrentState(NPCStates_Client.ReturningHome);
           break;
@@ -203,32 +206,41 @@ export class NPCStateMachine_Client extends NPCStateMachine {
         const recipes = Object.keys(RecipeType);
         const recipeCount = recipes.length;
         const randomIndex = Math.floor(Math.random() * recipeCount);
-        const recipeType = (RecipeType as any)[recipes[randomIndex]];
+        const recipeType = recipes[randomIndex];
         // Place order with kitchen manager
         const orderTicket = this.chair!.kitchenManager.generateNewOrder(this.chair!.parentPlayer, recipeType, this.chair?.chairEntity);
         this.orderTicket = orderTicket;
+        this.parentAgent!.getWantIcon()?.setPieType(recipeType);
         this.setCurrentState(NPCStates_Client.WaitToBeServed);
-        await this.parentAgent!.showAIConversation(`Waiting to be served ${this.orderTicket?.recipeType}`, "NPC is patiently waiting for their food order");
+        const orderingLine = NPCScript.getLine(NPCDialogueType.ClientOrdering);
+        await this.parentAgent!.speakLine(orderingLine);
         break;
       }
       case NPCStates_Client.WaitToBeServed: {
         if (this.servedFoodEntity !== undefined) {
-          await this.parentAgent!.showAIConversation(`Thank you for this ${this.orderTicket?.recipeType}`, "NPC is grateful for their food order");
+          const receivingLine = NPCScript.getLine(NPCDialogueType.ClientReceiving);
+          await this.parentAgent!.speakLine(receivingLine);
+          this.parentAgent!.getWantIcon()?.hideIcon();
           const platePosition = this.servedFoodEntity.position.get();
           await this.parentAgent!.world.deleteAsset(this.servedFoodEntity, true);
           this.servedFoodEntity = undefined;
           GrabbableMoney.spawnMoney(this.parentAgent!.world, platePosition.add(new Vec3(0, -0.05, 0)), CURRENCY_REWARD_PER_ORDER);
           this.setCurrentState(NPCStates_Client.ReturningHome);
         } else if (this.getStateDurationSeconds() > MAXIMUM_WAIT_TIME_FOR_ORDER_SECONDS) {
-          await this.parentAgent!.showAIConversation(`I can't wait for my ${this.orderTicket?.recipeType} anymore`, "NPC is in a hurry");
+          this.parentAgent!.getWantIcon()?.hideIcon();
+          const giveUpLine = NPCScript.getLine(NPCDialogueType.ClientGiveUpWaiting);
+          await this.parentAgent!.speakLine(giveUpLine);
           this.setCurrentState(NPCStates_Client.ReturningHome);
         } else if (this.parentAgent!.getIsForcedReturnHome()) {
+          this.parentAgent!.getWantIcon()?.hideIcon();
           this.setCurrentState(NPCStates_Client.ReturningHome);
         }
         break;
       }
       case NPCStates_Client.ReturningHome: {
         this.parentAgent?.playAvatarAnimation(NPCAnimationID.None);
+        const departingLine = NPCScript.getLine(NPCDialogueType.ClientDeparting);
+        await this.parentAgent!.speakLine(departingLine);
         const plotBasePosition = this.chair!.plotBaseEntity.position.get();
         await this.parentAgent!.rotateTowardsPosition(plotBasePosition);
         debugLog(this.debugLogging, `Releasing chair: ${this.chair!.chairEntity.name.get()}`);
@@ -314,14 +326,15 @@ export class NPCStateMachine_Merchant extends NPCStateMachine {
       }
       case NPCStates_Merchant.TurnTowardsPlayer: {
         debugLog(this.debugLogging, `StateMachine_Merchant: Turning towards player`);
-        /*await */ this.parentAgent!.rotateTowardsPosition(this.targetPlayer!.position.get());
+        this.parentAgent!.rotateTowardsPosition(this.targetPlayer!.position.get());
         this.setCurrentState(NPCStates_Merchant.GreetingPlayer);
         break;
       }
       case NPCStates_Merchant.GreetingPlayer: {
         debugLog(this.debugLogging, `StateMachine_Merchant: Greeting player`);
         const playerName = this.targetPlayer!.name.get();
-        /*await */ this.parentAgent!.showAIConversation(`Ask player named ${playerName} if they want to buy or sell something`, "NPC has noticed player approaching");
+        const greetingLine = NPCScript.getLine(NPCDialogueType.MerchantGreeting);
+        this.parentAgent!.speakLine(greetingLine);
         this.setCurrentState(NPCStates_Merchant.EnableMerchantMenu);
         break;
       }
@@ -339,7 +352,9 @@ export class NPCStateMachine_Merchant extends NPCStateMachine {
         const playerDistance = this.targetPlayer!.position.get().distance(this.parentAgent!.getNpcPlayer()!.position.get());
         if (playerDistance > MERCHANT_LEAVE_DISTANCE_TO_PLAYER) {
           debugLog(this.debugLogging, `StateMachine_Merchant: Player ${this.targetPlayer!.name.get()} is outside of leave distance (${playerDistance.toFixed(2)}m)`);
-          /*await */ this.parentAgent!.showAIConversation(`Goodbye ${this.targetPlayer!.name.get()}. Come back soon!`, "NPC has noticed player leaving");
+          this.parentAgent!.rotateTowardsPosition(this.targetPlayer!.position.get());
+          const farewellLine = NPCScript.getLine(NPCDialogueType.MerchantFarewell);
+          this.parentAgent!.speakLine(farewellLine);
           this.setCurrentState(NPCStates_Merchant.DisableMerchantMenu);
         }
         break;

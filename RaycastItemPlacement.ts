@@ -65,6 +65,8 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
 
   private useWholeNumberSnapping: boolean = false;
 
+  private playerInBuilding : boolean = false;
+
   //region preStart()
   preStart(): void {
     if (!this.props.enabled) return;
@@ -126,7 +128,7 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
       this.onInputEnded({ interactionInfo: [firstInteraction] });
     });
 
-    //region build mode event
+    //region updateMenuContext
     this.connectNetworkBroadcastEvent(sysEvents.updateMenuContext, (data) => {
       console.log("Build mode event received");
       if (data.player !== this.playerOwner) return;
@@ -304,6 +306,7 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
     if (this.selectedItem) {
       const hitPoint = this.raycastHitPoint(this.planeRaycastGizmo!, touchInfo);
       const hitPointX = this.useWholeNumberSnapping ? this.snapToWhole(hitPoint!.x) : this.snapToHalfNoWhole(hitPoint!.x);
+      this.heightOffset = hitPoint!.y;
       const hitPointZ = this.useWholeNumberSnapping ? this.snapToWhole(hitPoint!.z) : this.snapToHalfNoWhole(hitPoint!.z);
       if (hitPoint) {
         let hitPointRounded = new Vec3(hitPointX, this.heightOffset, hitPointZ);

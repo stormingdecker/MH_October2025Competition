@@ -36,6 +36,7 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
     PlotBaseID: { type: PropTypes.Number, default: 0 },
     PlotManager: { type: PropTypes.Entity },
     PlotTrigger: { type: PropTypes.Entity },
+    BuildTrigger: { type: PropTypes.Entity },
     PlotBase: { type: PropTypes.Entity },
     KitchenManager: { type: PropTypes.Entity },
     SpawnPoint: { type: PropTypes.Entity },
@@ -68,6 +69,16 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
       this.props.PlotTrigger!,
       CodeBlockEvents.OnPlayerExitTrigger,
       this.OnPlayerExitTrigger.bind(this)
+    );
+    this.connectCodeBlockEvent(
+      this.props.BuildTrigger!,
+      CodeBlockEvents.OnPlayerEnterTrigger,
+      this.OnPlayerEnterBuildTrigger.bind(this)
+    );
+    this.connectCodeBlockEvent(
+      this.props.BuildTrigger!,
+      CodeBlockEvents.OnPlayerExitTrigger,
+      this.OnPlayerExitBuildTrigger.bind(this)
     );
 
     this.connectNetworkEvent(this.entity, sysEvents.assignPlotOwner, (data) => {
@@ -192,6 +203,27 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
       player: player,
       menuContext: [],
     });
+  }
+
+  OnPlayerEnterBuildTrigger(player: Player) {
+    console.log(`Player entered build trigger: ${player.name.get()}`);
+
+    if (player.id > 10000) {
+      //player is an NPC
+    } else {
+      //player is a real player
+      //FUTURE NOTE: currently we'll send an event to whomever enters the trigger but in the future we'll filter by player ownership of the plot
+      // this.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
+      //   player: player,
+      //   menuContext: [],
+      // });
+    }
+  }
+  OnPlayerExitBuildTrigger(player: Player) {
+    // this.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
+    //   player: player,
+    //   menuContext: [],
+    // });
   }
 }
 Component.register(PerPlotManager);

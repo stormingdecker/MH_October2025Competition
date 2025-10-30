@@ -517,13 +517,11 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     wallpaperMoveableBase.forEach((entity) => {
       const MoveableBaseComp = entity.getComponents<MoveableBase>(MoveableBase)[0];
       let entityTextureTarget = undefined;
-      if (tag === "wallpaper") {
-        entityTextureTarget = MoveableBaseComp.getOptionalWallpaper();
+      if (tag === "wallpaper" || tag === "floor") {
+        entityTextureTarget = MoveableBaseComp.getOptionalPrimaryTexture();
       } else if (tag === "wallpaper2") {
-        entityTextureTarget = MoveableBaseComp.getOptionalWallpaper2();
-      } else if (tag === "floor") {
-        entityTextureTarget = MoveableBaseComp.getOptionalFloor();
-      }
+        entityTextureTarget = MoveableBaseComp.getOptionalSecondaryTexture();
+      } 
       if (!entityTextureTarget) {
         console.warn(`No wallpaper entity found on MoveableBase for ${entity.name.get()}`);
         return;

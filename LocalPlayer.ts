@@ -139,6 +139,18 @@ class LocalPlayer extends hz.Component<typeof LocalPlayer> {
     });
     //endregion
 
+
+    this.connectNetworkBroadcastEvent(sysEvents.updateMenuContext, (data) => {
+      if (data.player !== this.owningPlayer) return;
+
+      const curMenuContext = data.menuContext;
+      if(curMenuContext.length > 1){
+        hz.PlayerControls.disableSystemControls();
+      }
+      else if (curMenuContext.length <= 1){
+        hz.PlayerControls.enableSystemControls();
+      }
+    });
     //endregion
   }
   //endregion

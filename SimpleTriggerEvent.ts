@@ -19,7 +19,6 @@ class SimpleTriggerEvent extends Component<typeof SimpleTriggerEvent> {
       //send the simpleButtonEvent to the targetEntity
       this.sendNetworkEvent(this.props.targetEntity, simpleButtonEvent, {
         player: player,
-        recipeType: this.props.recipeType,
       });
     } else {
       console.warn("UI_SimpleButtonEvent: targetEntity prop not set");

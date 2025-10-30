@@ -72,6 +72,7 @@ export const sysEvents = {
   assignSelectedItem: new NetworkEvent<{ player: Player; selected: Entity | null }>("assignSelectedItem"),
   buildModeEvent: new NetworkEvent<{ player: Player; inBuildMode: boolean }>("buildModeEvent"),
   changeTaggedEntityTextureEvent: new NetworkEvent<{ player: Player; textureAssetId: string; tag: string }>("changeTaggedEntityTextureEvent"),
+  playerInPlotBuildingEvent: new NetworkEvent<{ player: Player; inBuilding: boolean }>("playerInPlotBuildingEvent"),
 
   //region Menu Events
   //bottom menu

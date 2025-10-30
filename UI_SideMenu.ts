@@ -105,13 +105,13 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
     if (!this.props.enabled) return;
 
     this.connectNetworkEvent(this.entity, simpleButtonEvent, (data) => {
-      console.log(`Simple Button Pressed by ${data.player.name.get()}`);
+      debugLog(this.props.showDebugs, `Simple Button Pressed by ${data.player.name.get()}`);
       this.animateMenu(data.player, (this.isMenuOpen = !this.isMenuOpen));
     });
 
     //BUTTON ASSET ARRAY RESPONSE
     this.connectNetworkEvent(this.entity, OnButtonResponse, (data) => {
-      console.log("Button Asset Response Received");
+      debugLog(this.props.showDebugs, "Button Asset Response Received");
       this.buttonPropsMap.set(data.buttonType, {
         buttonType: data.buttonType,
         btnImgAssetIDArray: data.btnImgAssetIDArray,
@@ -134,7 +134,7 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
       // const curPlayerMenuContext = this.curPlayerMenuContextMap.get(data.player) ?? [];
       let menuType = "";
       let backBtnDisplay = "flex";
-      console.log(`Update Menu Context Received: ${data.menuContext} from ${data.player.name.get()}`);
+      debugLog(this.props.showDebugs, `Update Menu Context Received: ${data.menuContext} from ${data.player.name.get()}`);
       if (data.menuContext.length <= 1) {
         //close menu
         this.animateMenu(data.player, false);
@@ -201,7 +201,7 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
   private convertAssetArrayToUINodeArray(buttonImgAssetIDArray: string[], btnInstanceIDArray: string[], buttonTextArray: string[]): UINode[] {
     try {
       const newUIArray: UINode[] = [];
-      const txtOffset = new Vec3(50, 0, 120); //(x%,y%, width%)
+      const txtOffset = new Vec3(50, 0, 150); //(x%,y%, width%)
 
       buttonImgAssetIDArray.forEach((textureID, index) => {
         newUIArray.push(buttonImgWithText(this, `${btnInstanceIDArray[index]}`, convertAssetIDToImageSource(buttonImgAssetIDArray[index]), `${buttonTextArray[index]}`, txtOffset, this.onButtonPressed.bind(this)));
@@ -221,7 +221,7 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
       //handle back button
       if (curMenuContext.length > 1) {
         const newMenuContext = curMenuContext.slice(0, curMenuContext.length - 1);
-        console.log(`Back Button Pressed. New Menu Context: ${newMenuContext}`);
+        debugLog(this.props.showDebugs, `Back Button Pressed. New Menu Context: ${newMenuContext}`);
         this.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
           player: player,
           menuContext: newMenuContext,
@@ -234,33 +234,33 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
       //we in detail menu
       const buttonProps = this.buttonPropsMap.get(curMenuContext[2]);
       const index = buttonProps?.btnInstanceIDArray.indexOf(instanceId);
-      console.log(`Button Pressed: ${instanceId} at index ${index} in menu ${curMenuContext[2]}`);
+      debugLog(this.props.showDebugs, `Button Pressed: ${instanceId} at index ${index} in menu ${curMenuContext[2]}`);
       if (typeof index === "number" && index >= 0 && buttonProps?.buttonTextArray) {
-        console.log(`Button Text: ${buttonProps.buttonTextArray[index]}`);
+        debugLog(this.props.showDebugs, `Button Text: ${buttonProps.buttonTextArray[index]}`);
         //convert text into number if possible
         const buttonText = buttonProps.buttonTextArray[index];
         const numVal = parseInt(buttonText);
         if (!isNaN(numVal)) {
-          console.log(`Button Text as num val: ${numVal}`);
+          debugLog(this.props.showDebugs, `Button Text as num val: ${numVal}`);
           this.tryPurchaseAsset(player, instanceId, numVal);
         } else {
-          console.log(`Button Text is not a number: ${buttonText}`);
+          debugLog(this.props.showDebugs, `Button Text is not a number: ${buttonText}`);
         }
       } else {
-        console.log(`Button Text: undefined`);
+        debugLog(this.props.showDebugs, `Button Text: undefined`);
       }
     } else if (curMenuContext.length === 2) {
       //we in sub menu
       const buttonProps = this.buttonPropsMap.get(curMenuContext[1]);
       const newMenuContext = [...curMenuContext, instanceId];
-      console.log(`Button Pressed: ${instanceId} in menu ${newMenuContext}`);
+      debugLog(this.props.showDebugs, `Button Pressed: ${instanceId} in menu ${newMenuContext}`);
       this.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
         player: player,
         menuContext: newMenuContext,
       });
     }
 
-    console.log(`Button with instanceId ${instanceId} pressed by player ${player.name.get()}`);
+    debugLog(this.props.showDebugs, `Button with instanceId ${instanceId} pressed by player ${player.name.get()}`);
     switch (instanceId) {
       default:
         break;
@@ -289,9 +289,9 @@ class UI_SideMenu extends UIComponent<typeof UI_SideMenu> {
     this.inventoryMgr?.updatePlayerInventory(player, InventoryType.currency, -cost, this.entity);
 
     const asset = new Asset(BigInt(assetId));
-    console.log(`MenuContext is :${curMenuContext}`);
-    if (curMenuContext[2] === "WallpaperCatalog") {
-      console.log("We'd swap wallpaper here");
+    debugLog(this.props.showDebugs, `MenuContext is :${curMenuContext}`);
+    if (curMenuContext[2] === "WallpaperCatalog" || curMenuContext[2] === "WallpaintCatalog") {
+      debugLog(this.props.showDebugs, "We'd swap wallpaper here");
       this.sendNetworkEvent(this.plotManager!, sysEvents.changeTaggedEntityTextureEvent, {
         player: player!,
         textureAssetId: assetId,

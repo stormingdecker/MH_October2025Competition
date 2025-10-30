@@ -1,10 +1,10 @@
 import { Component, Player, PlayerDeviceType, PropTypes } from "horizon/core";
-import { InventoryManager } from "InventoryManager";
+import { IInventoryManager } from "Interfaces";
 import { FilterType, PlayerManager, PlayerMgrEvents } from "PlayerManager";
 import { PlayerPlotManager } from "PlayerPlotManager";
 import { StatsManager } from "StatsManager";
 import { sysEvents } from "sysEvents";
-import { debugLog, ManagerType } from "sysHelper";
+import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
 import { PlayerInventory, PlayerPlot, PlayerStats } from "sysTypes";
 import { getMgrClass } from "sysUtils";
 
@@ -28,7 +28,7 @@ export class SaveManager extends Component<typeof SaveManager> {
 
   private activePlayerList: Set<Player> = new Set();
   private statsMgr: StatsManager | undefined = undefined;
-  private inventoryMgr: InventoryManager | undefined = undefined;
+  private inventoryMgr: IInventoryManager | undefined = undefined;
   private plotMgr: PlayerPlotManager | undefined = undefined;
   private playerMgr: PlayerManager | undefined = undefined;
 
@@ -54,8 +54,9 @@ export class SaveManager extends Component<typeof SaveManager> {
   start() {
     if (!this.props.enabled) return;
 
+
     this.statsMgr = getMgrClass<StatsManager>(this, ManagerType.StatsManager, StatsManager);
-    this.inventoryMgr = getMgrClass<InventoryManager>(this, ManagerType.InventoryManager, InventoryManager);
+    // this.inventoryMgr = getMgrClass<IInventoryManager>(this, ManagerType.InventoryManager, IInventoryManager);
     this.plotMgr = getMgrClass<PlayerPlotManager>(this, ManagerType.PlayerPlotManager, PlayerPlotManager);
 
     //Subscribe to PlayerManager.PlayerEnter/Exit events
@@ -70,6 +71,10 @@ export class SaveManager extends Component<typeof SaveManager> {
         });
       }, this.props.intervalSeconds * 1000); //auto save every X seconds
     }
+  }
+
+  public injectIInventoryMgr(inventoryMgr: IInventoryManager) {
+    this.inventoryMgr = inventoryMgr;
   }
 
   //region player Joined

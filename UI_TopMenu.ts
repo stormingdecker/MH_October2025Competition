@@ -1,10 +1,27 @@
 import { OnButtonAssetResponse } from "ButtonAssetRegistry";
 import { ButtonProps, OnButtonRequest, OnButtonResponse } from "ButtonRegistry";
 import { Asset, Entity, Player, PropTypes, Vec3 } from "horizon/core";
-import { AnimatedBinding, Animation, Binding, DynamicList, Easing, ImageSource, Text, UIComponent, UINode, View } from "horizon/ui";
+import {
+  AnimatedBinding,
+  Animation,
+  Binding,
+  DynamicList,
+  Easing,
+  ImageSource,
+  Text,
+  UIComponent,
+  UINode,
+  View,
+} from "horizon/ui";
 import { sysEvents } from "sysEvents";
 import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
-import { button, buttonImg, buttonImgWithText, convertAssetIDToImageSource, convertAssetToImageSource } from "sysUIStyleGuide";
+import {
+  button,
+  buttonImg,
+  buttonImgWithText,
+  convertAssetIDToImageSource,
+  convertAssetToImageSource,
+} from "sysUIStyleGuide";
 import { OnTextureAssetRequest, OnTextureAssetResponse } from "TextureRegistry_Base";
 import { Primary_MenuType, Sub_PlotType } from "UI_MenuManager";
 
@@ -83,7 +100,7 @@ class UI_TopMenu extends UIComponent<typeof UI_TopMenu> {
 
     //BUTTON ASSET ARRAY RESPONSE
     this.connectNetworkEvent(this.entity, OnButtonResponse, (data) => {
-      console.log("Button Asset Response Received");
+      debugLog(this.props.showDebugs, "Button Asset Response Received");
       this.buttonPropsMap.set(data.buttonType, {
         buttonType: data.buttonType,
         btnImgAssetIDArray: data.btnImgAssetIDArray,
@@ -145,7 +162,11 @@ class UI_TopMenu extends UIComponent<typeof UI_TopMenu> {
 
         this.async.setTimeout(() => {
           this.playerMenuContextMap.set(data.player, data.menuContext!);
-          const newUINodeArray = this.convertAssetArrayToUINodeArray(this.buttonPropsMap.get(menuType)?.btnImgAssetIDArray ?? [], this.buttonPropsMap.get(menuType)?.btnInstanceIDArray ?? [], this.buttonPropsMap.get(menuType)?.buttonTextArray ?? []);
+          const newUINodeArray = this.convertAssetArrayToUINodeArray(
+            this.buttonPropsMap.get(menuType)?.btnImgAssetIDArray ?? [],
+            this.buttonPropsMap.get(menuType)?.btnInstanceIDArray ?? [],
+            this.buttonPropsMap.get(menuType)?.buttonTextArray ?? []
+          );
           this.childrenUINodeArray.set(newUINodeArray, [data.player]);
           this.animateMenu(data.player, true);
         }, delayForClose);
@@ -169,13 +190,27 @@ class UI_TopMenu extends UIComponent<typeof UI_TopMenu> {
   }
 
   //region Asset[] to UINode[]
-  private convertAssetArrayToUINodeArray(buttonImgAssetIDArray: string[], btnInstanceIDArray: string[], buttonTextArray: string[]): UINode[] {
+  private convertAssetArrayToUINodeArray(
+    buttonImgAssetIDArray: string[],
+    btnInstanceIDArray: string[],
+    buttonTextArray: string[]
+  ): UINode[] {
     try {
       const newUIArray: UINode[] = [];
-      const txtOffset = new Vec3(50, 0, 120); //(x%,y%, width%)
+      const txtOffset = new Vec3(50, 0, 140); //(x%,y%, width%)
 
       buttonImgAssetIDArray.forEach((textureID, index) => {
-        newUIArray.push(buttonImgWithText(this, `${btnInstanceIDArray[index]}`, convertAssetIDToImageSource(buttonImgAssetIDArray[index]), `${buttonTextArray[index]}`, txtOffset, this.onButtonPressed.bind(this), 50));
+        newUIArray.push(
+          buttonImgWithText(
+            this,
+            `${btnInstanceIDArray[index]}`,
+            convertAssetIDToImageSource(buttonImgAssetIDArray[index]),
+            `${buttonTextArray[index]}`,
+            txtOffset,
+            this.onButtonPressed.bind(this),
+            50
+          )
+        );
       });
 
       return newUIArray;
@@ -191,14 +226,15 @@ class UI_TopMenu extends UIComponent<typeof UI_TopMenu> {
     if (curMenuContext[0] === Primary_MenuType.PlotMenu) {
       //we in detail menu
       if (curMenuContext[1] === Sub_PlotType.BuildMode) {
-        console.log(`Button with instanceId ${instanceId} pressed by player ${player.name.get()}`);
+        debugLog(
+          this.props.showDebugs,
+          `Button with instanceId ${instanceId} pressed by player ${player.name.get()}`
+        );
         switch (instanceId) {
           case "rotate":
-            console.log("Button 1 Pressed");
             this.sendNetworkBroadcastEvent(sysEvents.buildRotateEvent, { player: player });
             break;
           case "delete":
-            console.log("Button 2 Pressed");
             this.sendNetworkBroadcastEvent(sysEvents.tryDeleteSelectedItemEvent, {
               player: player,
             });

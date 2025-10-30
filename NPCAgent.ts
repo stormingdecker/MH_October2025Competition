@@ -1,8 +1,11 @@
-import { Asset, AttachableEntity, AttachablePlayerAnchor, AvatarGripPose, AvatarPoseGizmo, AvatarPoseUseMode, Color, Component, Entity, Handedness, Player, PropTypes, Vec3 } from "horizon/core";
-import { Npc, NpcPlayer, NpcPlayerSpawnResult } from "horizon/npc";
+import { Asset, AttachableEntity, AttachablePlayerAnchor, AvatarGripPose, AvatarPoseGizmo, AvatarPoseUseMode, Color, Component, Entity, Handedness, MeshEntity, Player, PropTypes, TextureAsset, Vec3, World } from "horizon/core";
+import { Npc, NpcPlayer } from "horizon/npc";
 import { KitchenManager } from "KitchenManager";
 import { NavMeshController } from "NavMeshController";
 import { debugLog } from "sysHelper";
+import { pieTypes } from "sysTypes";
+
+const ALLOW_NPC_SPEAK = false;
 
 export enum NPCMovementSpeedID {
   Casual,
@@ -35,6 +38,35 @@ export interface NPCChair {
 export interface NPCStall {
   stallEntity: Entity;
 }
+
+// --- NPC Want Icon ---
+
+export class NPCWantIcon extends Component<typeof NPCWantIcon> {
+  private meshEntity?: MeshEntity;
+
+  override start() {
+    this.meshEntity = this.entity.as(MeshEntity);
+    this.meshEntity.visible.set(false);
+  }
+
+  public setPieType(pieType: string) {
+    console.log("NPCWantIcon: Setting pie type to", pieType);
+    const foundPieType = pieTypes.find((pie) => pie.name === pieType);
+    if (!foundPieType) {
+      console.error(`NPCWantIcon: No pie type found for ${pieType}`);
+      return;
+    }
+
+    const textureAsset = new TextureAsset(BigInt(foundPieType.imageAssetID));
+    this.meshEntity!.setTexture(textureAsset);
+    this.meshEntity!.visible.set(true);
+  }
+
+  public hideIcon() {
+    this.meshEntity!.visible.set(false);
+  }
+}
+Component.register(NPCWantIcon);
 
 // --- State Machine Base Class ---
 
@@ -77,33 +109,83 @@ export class NPCAgent extends Component<typeof NPCAgent> {
   private stateMachine?: NPCStateMachine;
   private startPosition = Vec3.zero;
   private isForcedReturnHome = false;
+  private initializationHandle: number | undefined;
+  private isInitializing = false;
+  private wantIcon?: NPCWantIcon;
+
+  override preStart(): void {
+    this.npcGizmo = this.entity.as(Npc);
+  }
 
   async start() {
-    this.async.setTimeout(() => {
-      this.initialize();
-    }, 3000);
+    this.initializationHandle = this.async.setInterval(() => {
+      if (!this.isInitializing) {
+        this.initialize();
+      }
+    }, 5000);
+  }
+
+  public getWantIcon() {
+    if (this.wantIcon === undefined) {
+      this.wantIcon = this.findWantIconComponent(this.entity);
+      if (this.wantIcon === undefined) {
+        console.error(`NPCAgent: No NPCWantIcon component found for ${this.entity.name.get()}`);
+        return;
+      }
+    }
+    return this.wantIcon;
   }
 
   async initialize() {
-    this.npcGizmo = this.entity.as(Npc);
+    this.isInitializing = true;
     if (this.npcGizmo !== undefined) {
-      this.npcGizmo.spawnPlayer().then(async (result) => {
-        if (result !== NpcPlayerSpawnResult.Success) {
-          console.error("NPCAgent: Failed to spawn NPC Player for Npc with status:", result);
-          return;
-        }
-        this.npcPlayer = await this.npcGizmo!.tryGetPlayer();
-        if (this.npcPlayer === undefined) {
-          console.error("NPCAgent: Unable to get NpcPlayer from Npc");
-          return;
-        }
-        await this.onReady();
-      });
+      //this.npcGizmo.spawnPlayer().then(async (result) => {
+      //if (result !== NpcPlayerSpawnResult.Success) {
+      //console.error(`NPCAgent: Failed to spawn NPC Player for ${this.entity.name.get()} with status:`, result);
+      //this.isInitializing = false;
+      //return;
+      //}
+      this.npcPlayer = await this.npcGizmo!.tryGetPlayer();
+      if (this.npcPlayer === undefined) {
+        console.error(`NPCAgent: Unable to get NpcPlayer for ${this.entity.name.get()}`);
+        this.isInitializing = false;
+        return;
+      }
+      debugLog(this.props.debugLogging, `NPCAgent: Successfully spawned NPC Player for ${this.entity.name.get()}`);
+      this.async.clearInterval(this.initializationHandle!);
+      this.initializationHandle = undefined;
+      this.isInitializing = false;
+      await this.onReady();
+      //});
     }
   }
 
+  private onWorldUpdate() {
+    if (this.wantIcon !== undefined) {
+      const parentEntity = this.wantIcon.entity.parent.get() ?? undefined;
+      if (parentEntity !== undefined) {
+        const npcPosition = this.npcPlayer?.position.get() || Vec3.zero;
+        parentEntity.position.set(npcPosition.add(new Vec3(0, 2, 0)));
+      }
+    }
+  }
+
+  private findWantIconComponent(rootEntity: Entity): NPCWantIcon | undefined {
+    const wantIconComponents = rootEntity.getComponents(NPCWantIcon);
+    if (wantIconComponents.length > 0) {
+      return wantIconComponents[0];
+    }
+    const children = rootEntity.children.get();
+    for (const child of children) {
+      const wantIconComponent = this.findWantIconComponent(child);
+      if (wantIconComponent !== undefined) {
+        return wantIconComponent;
+      }
+    }
+    return undefined;
+  }
+
   public async onReady() {
-    debugLog(this.props.debugLogging, "NPCAgent: onReady");
     this.startPosition = this.entity.position.get();
 
     if (this.stateMachine === undefined) {
@@ -112,6 +194,8 @@ export class NPCAgent extends Component<typeof NPCAgent> {
     }
 
     this.stateMachine.onAgentReady(this, this.props.debugLogging);
+
+    this.connectLocalBroadcastEvent(World.onUpdate, () => this.onWorldUpdate());
 
     let isUpdatingState = false;
     this.async.setInterval(async () => {
@@ -274,6 +358,14 @@ export class NPCAgent extends Component<typeof NPCAgent> {
   public clearAvatarPose() {
     debugLog(this.props.debugLogging, `Clearing avatar pose`);
     this.npcPlayer?.clearAvatarGripPoseOverride();
+  }
+
+  public async speakLine(conversationLine: string) {
+    if (!ALLOW_NPC_SPEAK) {
+      return;
+    }
+    debugLog(this.props.debugLogging, `Speaking line: ${conversationLine}`);
+    await this.npcGizmo?.conversation.speak(conversationLine);
   }
 
   public async showAIConversation(instruction: string, eventPerception?: string, dynamicContextKey?: string, dynamicContextValue?: string) {

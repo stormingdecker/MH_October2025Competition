@@ -1,7 +1,16 @@
 // Copyright (c) Dave Mills (uRocketLife). Released under the MIT License.
 
 import { DailyRewardManager } from "DailyRewardManager";
-import { Asset, Color, Entity, NetworkEvent, Player, PropTypes, Vec3 } from "horizon/core";
+import {
+  Asset,
+  Color,
+  Entity,
+  NetworkEvent,
+  Player,
+  PropTypes,
+  TextureAsset,
+  Vec3,
+} from "horizon/core";
 import {
   AnimatedBinding,
   Animation,
@@ -16,9 +25,10 @@ import {
   View,
 } from "horizon/ui";
 import { ImageSetProps, OnImageSetResponse } from "ImageRegistry";
+import { InventoryManager } from "InventoryManager";
 import { sysEvents } from "sysEvents";
 import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
-import { InventoryType } from "sysTypes";
+import { foodTypes, InventoryType, pieTypes } from "sysTypes";
 import {
   btnImgBndText,
   buttonImg,
@@ -32,18 +42,33 @@ import {
   inventoryDetailWindow,
   inventoryMenuWindow,
   inventorySlotButton,
+  merchantDetailWindow,
   notification,
   numberUp,
   popup,
   progressBar,
   progressionTask,
 } from "sysUIStyleGuide";
-import { getMgrClass } from "sysUtils";
-import { Detail_Fruit, Primary_MenuType, Sub_InventoryType, Sub_PlotType } from "UI_MenuManager";
+import { getMgrClass, validate } from "sysUtils";
+import {
+  Detail_Fruit,
+  Primary_MenuType,
+  Sub_InventoryType,
+  Sub_MerchantType,
+  Sub_PlotType,
+} from "UI_MenuManager";
+import { Manager } from "UI_N_Inventory";
 import { oneHudEvents } from "UI_OneHUDEvents";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 
 export const UI_OneHudTag = "UI_OneHUD";
+
+export const enum inventoryWindowType {
+  Undefined,
+  Personal,
+  Sell,
+  Buy,
+}
 
 export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   //region propsDefs
@@ -115,6 +140,8 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     inventoryScreenPosition: { type: PropTypes.Vec3, default: new Vec3(50, 50, 10) }, //x%, y%, z-index
   };
 
+  private inventoryMgr?: InventoryManager;
+
   //region private var
   //progressBar Variables
   bnd_progressBar = new Binding<string>("0%");
@@ -147,7 +174,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   animBnd_inventoryScale = new AnimatedBinding(1);
 
   //popup Variables
-  bnd_popupDisplay = new Binding<string>("flex");
+  bnd_popupDisplay = new Binding<string>("none");
   bnd_popupTitle = new Binding<string>("New Popup!");
   bnd_popupContent = new Binding<string>("Popup Content");
   bnd_popupWatermark = new Binding<ImageSource>(""); // Provide an initial value, e.g., empty string or default image source
@@ -157,14 +184,14 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   popupRequestResponseMap = new Map<Player, Entity>();
 
   //notification variables
-  bnd_notifyDisplay = new Binding<string>("flex");
+  bnd_notifyDisplay = new Binding<string>("none");
   bndAlertImg = new Binding<ImageSource>("");
   bndAlertMsg = new Binding<string>("Looking good today!");
   animBnd_translateX = new AnimatedBinding(0);
   private notifyEasing!: Easing;
 
   //confirmation variables
-  bnd_confirmDisplay = new Binding<string>("flex");
+  bnd_confirmDisplay = new Binding<string>("none");
   bndHeaderText = new Binding<string>("Are you sure you want to proceed?");
   //Stores player to message making multiplayer confirmations work per player
   playerMessageMap: Map<Player, { entity: Entity; message: string }> = new Map();
@@ -183,7 +210,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   bnd_progTaskProgressAsString = new Binding<string>("0");
   animBnd_ProgTaskTranslateY = new AnimatedBinding(0);
   openProgTaskOnStart = false;
-  bnd_showTaskProgressBar = new Binding<string>("flex");
+  bnd_showTaskProgressBar = new Binding<string>("none");
 
   //currency ui nodes
   private currencyUINodeArray = new Binding<UINode[]>([]); // Binding to hold currency nodes
@@ -204,13 +231,33 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   //inventory menu
   private inventory_childrenUINodeArray = new Binding<UINode[]>([]); // Binding to hold child nodes
   private bnd_inventoryDisplay = new Binding<string>("none");
+  private inventoryCountBindings: Map<InventoryType, Binding<string>> = new Map(); //FUTURE NOTE: this can likely be reduced to just a binding (no map needed)
+  private bnd_inventoryHeaderText = new Binding<string>("Inventory");
 
   //inventory detail window
   private bnd_inventoryDetailDisplay = new Binding<string>("none");
 
+  //merchant detail window
+  private bnd_merchantItemImg = new Binding<ImageSource>(
+    convertAssetIDToImageSource(DefaultBlankImgAssetID)
+  );
+  private bnd_merchantItemName = new Binding<string>("");
+  private bnd_merchantItemPrice = new Binding<string>("0");
+  private bnd_merchantDetailDisplay = new Binding<string>("none");
+  private bnd_merchantBtnText = new Binding<string>("Sell");
+
   //multiplayer variables
   private playerMenuContextMap = new Map<Player, string[]>();
   private prevPlayerMenuContextMap = new Map<Player, string[]>();
+
+  //add to inventory VFX
+  private itemImgPosX = new AnimatedBinding(0.5);
+  private itemImgPosY = new AnimatedBinding(0.5);
+  private itemImgScale = new AnimatedBinding(1);
+  private itemImgSource = new Binding<ImageSource>(
+    convertAssetIDToImageSource(DefaultBlankImgAssetID)
+  );
+  private itemImgDisplay = new Binding<string>("none");
 
   //region initializeUI()
   initializeUI(): UINode {
@@ -244,6 +291,10 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       this.props.progTaskInstructImg?.id?.toString() ?? DefaultBlankImgAssetID;
     this.bnd_progTaskInstructImg.set(convertAssetIDToImageSource(progTaskInstructImgId));
     this.animBnd_ProgTaskTranslateY.set(this.openProgTaskOnStart ? 0 : 200);
+
+    this.itemImgSource.set(
+      ImageSource.fromTextureAsset(new TextureAsset(BigInt(1973296496791704)))
+    );
 
     // Initialize UI elements here
     return View({
@@ -440,7 +491,8 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
             this,
             this.onButtonPressed.bind(this),
             this.inventory_childrenUINodeArray,
-            this.bnd_inventoryDisplay
+            this.bnd_inventoryDisplay,
+            this.bnd_inventoryHeaderText
           )
         ),
         ...this.toNodes(
@@ -450,6 +502,45 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
             this.bnd_inventoryDetailDisplay
           )
         ),
+        //MERCHANT MENUS
+        ...this.toNodes(
+          merchantDetailWindow(
+            this,
+            this.bnd_merchantItemName,
+            this.bnd_merchantItemImg,
+            this.bnd_merchantItemPrice,
+            this.onButtonPressed.bind(this),
+            this.bnd_merchantDetailDisplay,
+            this.bnd_merchantBtnText
+          )
+        ),
+        //Inventory Item Add VFX
+        View({
+          children: [
+            Image({
+              source: this.itemImgSource,
+              style: {
+                height: 100,
+                aspectRatio: 1,
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                marginLeft: -50,
+                marginTop: -50,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 1,
+              },
+            }),
+          ],
+          style: {
+            position: "absolute",
+            left: this.itemImgPosX.interpolate([0, 1], ["0%", "100%"]),
+            top: this.itemImgPosY.interpolate([0, 1], ["0%", "100%"]),
+            display: this.itemImgDisplay,
+          },
+        }),
       ],
       style: {
         width: "100%",
@@ -472,17 +563,24 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
 
     // this.setupCurrencyContainer();
 
+    this.inventoryMgr = getMgrClass<InventoryManager>(
+      this,
+      ManagerType.InventoryManager,
+      InventoryManager
+    );
+
     this.connectNetworkEvent(this.entity, simpleButtonEvent, (data) => {
       console.log(
         `Simple button called on ${this.entity.name.get()} pressed by ${data.player.name.get()}`
       );
-      if (this.progTaskIsHidden) {
-        this.showProgTask([data.player], "Task In Progress", "Tap rapidly", "", "");
-        this.progTaskIsHidden = false;
-      } else {
-        this.hideProgTask([data.player]);
-        this.progTaskIsHidden = true;
-      }
+      // if (this.progTaskIsHidden) {
+      //   this.showProgTask([data.player], "Task In Progress", "Tap rapidly", "", "");
+      //   this.progTaskIsHidden = false;
+      // } else {
+      //   this.hideProgTask([data.player]);
+      //   this.progTaskIsHidden = true;
+      // }
+      this.triggerAnimation(data.player, "1973296496791704"); //money
     });
 
     // progress subscriptions
@@ -555,60 +653,240 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       } else if (data.imageSetType === "FoodMenu") {
         this.setupFoodMenuContainer([], this.imageSetMap.get("FoodMenu")!);
       } else if (data.imageSetType === "InventoryMenu") {
-        this.setupInventoryMenuContainer([], this.imageSetMap.get("InventoryMenu")!);
+        // this.setupInventoryMenuContainer_deprecated([], this.imageSetMap.get("InventoryMenu")!);
+        // this.setupInventoryMenuContainer([]);
       }
     });
 
-    this.connectNetworkEvent(this.entity, oneHudEvents.ShowDailyRewardUI, (data) => {
-      this.bnd_dailyRewardDisplay.set("flex", data.players);
-    });
     this.connectNetworkEvent(this.entity, oneHudEvents.UpdateDailyRewardStreak, (data) => {
       this.updateDailyRewardVisuals([data.player], data.newStreak);
     });
 
-    //region context menu updates
+    //region CONTEXT MENU
     this.connectNetworkBroadcastEvent(sysEvents.updateMenuContext, (data) => {
-      const newContextMenuLength = data.menuContext.length;
+      const { player, menuContext } = data;
+      console.log(`Incoming menu context ${menuContext} for ${player.name.get()}`);
+      const newContextMenuLength = menuContext.length;
       const isPrimaryMenu = newContextMenuLength == 1;
-      const isSubMenu = data.menuContext.length == 2;
-      const isDetailMenu = data.menuContext.length == 3;
+      const isSubMenu = newContextMenuLength == 2;
+      const isDetailMenu = newContextMenuLength == 3;
+      let inventoryMenuType: inventoryWindowType = inventoryWindowType.Undefined;
 
-      if (isSubMenu && data.menuContext[1] === "FoodMenu") {
-        this.bnd_foodMenuDisplay.set("flex", [data.player]);
+      const playerInventory = this.inventoryMgr?.getPlayerInventory(player);
+
+      if (isSubMenu && menuContext[1] === Sub_PlotType.FoodMenu) {
+        this.bnd_foodMenuDisplay.set("flex", [player]);
       } else {
-        this.bnd_foodMenuDisplay.set("none", [data.player]);
+        this.bnd_foodMenuDisplay.set("none", [player]);
       }
 
-      if (data.menuContext[0] === "InventoryMenu") {
-        this.bnd_inventoryDisplay.set("flex", [data.player]);
-      } else {
-        this.bnd_inventoryDisplay.set("none", [data.player]);
+      if (menuContext[1] === Sub_MerchantType.Buy) {
       }
 
       if (
-        data.menuContext[0] === "InventoryMenu" &&
-        data.menuContext[1] === "Fruit" &&
-        isDetailMenu
+        //INVENTORY MENU
+        menuContext[0] === Primary_MenuType.InventoryMenu ||
+        menuContext[1] === Sub_MerchantType.Sell ||
+        menuContext[1] === Sub_MerchantType.Buy
       ) {
-        this.bnd_inventoryDetailDisplay.set("flex", [data.player]);
+        //make sure player has an inventory
+        if (!playerInventory) {
+          console.error(`No inventory found for player ${player.name.get()}`);
+          return;
+        }
+
+        if (menuContext[0] === Primary_MenuType.InventoryMenu) {
+          inventoryMenuType = inventoryWindowType.Personal;
+          this.bnd_inventoryHeaderText.set("Inventory", [player]);
+        } else if (menuContext[1] === Sub_MerchantType.Sell) {
+          inventoryMenuType = inventoryWindowType.Sell;
+          this.bnd_inventoryHeaderText.set("Sell Inventory", [player]);
+        } else {
+          inventoryMenuType = inventoryWindowType.Buy;
+          this.bnd_inventoryHeaderText.set("Buy Recipes", [player]);
+        }
+
+        if (
+          inventoryMenuType === inventoryWindowType.Personal ||
+          inventoryMenuType === inventoryWindowType.Sell
+        ) {
+          const recipients = player ? [player] : undefined;
+          const newUIInventoryNodeArray = this.createInventoryMenuUINodeArray();
+          this.inventory_childrenUINodeArray.set(newUIInventoryNodeArray, recipients);
+
+          let playerItemCount = 0;
+          foodTypes.forEach((fruit) => {
+            playerItemCount = playerInventory.items[fruit.name] ?? 0;
+
+            let bnd_itemCount = this.inventoryCountBindings.get(fruit.name);
+            if (!bnd_itemCount) {
+              bnd_itemCount = new Binding<string>("0");
+              this.inventoryCountBindings.set(fruit.name, bnd_itemCount);
+            }
+            bnd_itemCount.set(playerItemCount.toString(), [player]);
+          });
+          pieTypes.forEach((pie) => {
+            playerItemCount = playerInventory.items[pie.name] ?? 0;
+
+            let bnd_itemCount = this.inventoryCountBindings.get(pie.name);
+            if (!bnd_itemCount) {
+              bnd_itemCount = new Binding<string>("0");
+              this.inventoryCountBindings.set(pie.name, bnd_itemCount);
+            }
+            bnd_itemCount.set(playerItemCount.toString(), [player]);
+          });
+        } else {
+          const recipients = player ? [player] : undefined;
+          const newUIInventoryNodeArray = this.createBuyMenuUINodeArray();
+          this.inventory_childrenUINodeArray.set(newUIInventoryNodeArray, recipients);
+
+          let playerItemCount = 0;
+          pieTypes.forEach((pie) => {
+            playerItemCount = playerInventory.items[pie.recipeType!] ?? 0;
+
+            let bnd_itemCount = this.inventoryCountBindings.get(pie.recipeType!);
+            if (!bnd_itemCount) {
+              bnd_itemCount = new Binding<string>("0");
+              this.inventoryCountBindings.set(pie.recipeType!, bnd_itemCount);
+            }
+            bnd_itemCount.set(playerItemCount.toString(), [player]);
+          });
+          // this.populateBuyMenuContainer([player]);
+        }
+        this.bnd_inventoryDisplay.set("flex", [player]);
       } else {
-        this.bnd_inventoryDetailDisplay.set("none", [data.player]);
+        this.bnd_inventoryDisplay.set("none", [player]);
       }
 
-      this.playerMenuContextMap.set(data.player, data.menuContext);
+      //INVENTORY DETAIL MENU
+      if (
+        menuContext[0] === Primary_MenuType.InventoryMenu &&
+        menuContext[1] === Sub_InventoryType.Fruit && //FUTURE NOTE: May need to expand beyond just fruit
+        isDetailMenu
+      ) {
+        this.bnd_inventoryDetailDisplay.set("flex", [player]);
+      } else {
+        this.bnd_inventoryDetailDisplay.set("none", [player]);
+      }
+
+      //region merchant detail
+      if (menuContext[0] === Primary_MenuType.MerchantMenu && isDetailMenu) {
+        let itemId = menuContext[2]; //ex: "apple" or "applePie"
+        console.log(`Inventory Menu Type is ${inventoryMenuType}`);
+        //SELL DETAIL MENU
+        if (inventoryMenuType === inventoryWindowType.Sell) {
+          //populate merchant detail window info here
+          console.log(`Updating merchant detail window for item ID ${itemId}`);
+          this.bnd_merchantItemName.set(itemId, [player]);
+          this.bnd_merchantBtnText.set("Sell", [player]);
+          const fruitItem = foodTypes.find((fruit) => fruit.name === itemId);
+          const pieItem = pieTypes.find((pie) => pie.name === itemId);
+          const isFruit = fruitItem !== undefined;
+
+          const itemAssetId = fruitItem?.imageAssetID ?? pieItem?.imageAssetID;
+          if (!itemAssetId) {
+            console.error(`No image asset id found for item ID ${itemId}`);
+          }
+          const itemImgSource =
+            convertAssetIDToImageSource(itemAssetId!) ??
+            convertAssetIDToImageSource(DefaultBlankImgAssetID);
+
+          this.bnd_merchantItemImg.set(itemImgSource, [player]);
+          //update to price from inventory mgr later
+          const fruitToSell = menuContext[2];
+          let price = 0;
+          if (isFruit) {
+            foodTypes.forEach((fruit) => {
+              if (fruit.name === fruitToSell) {
+                //find fruit in database
+                price = fruit.sellPrice;
+              }
+            });
+          } else {
+            pieTypes.forEach((pie) => {
+              if (pie.name === fruitToSell) {
+                //find pie in database
+                price = pie.sellPrice;
+              }
+            });
+          }
+          this.bnd_merchantItemPrice.set(price.toString(), [player]);
+        } else if (inventoryMenuType === inventoryWindowType.Buy) {
+          //populate merchant detail window info here
+          itemId = itemId + "Recipe";
+          console.log(`Updating merchant detail window for item ID ${itemId}`);
+          this.bnd_merchantItemName.set(itemId, [player]);
+          this.bnd_merchantBtnText.set("Buy", [player]);
+          // const fruitItem = fruitTypes.find((fruit) => fruit.name === itemId);
+          const pieItem = pieTypes.find((pie) => pie.recipeType === itemId);
+          // const isFruit = fruitItem !== undefined;
+
+          const itemAssetId = pieItem?.recipeImgAssetId;
+          if (!itemAssetId) {
+            console.error(`No image asset id found for item ID ${itemId}`);
+          }
+          const itemImgSource =
+            convertAssetIDToImageSource(itemAssetId!) ??
+            convertAssetIDToImageSource(DefaultBlankImgAssetID);
+
+          this.bnd_merchantItemImg.set(itemImgSource, [player]);
+          //update to price from inventory mgr later
+          const fruitToSell = menuContext[2];
+          let price = 0;
+
+          pieTypes.forEach((pie) => {
+            if (pie.name === fruitToSell) {
+              //find pie in database
+              price = pie.recipeBuyPrice;
+            }
+          });
+
+          this.bnd_merchantItemPrice.set(price.toString(), [player]);
+        }
+
+        this.bnd_merchantDetailDisplay.set("flex", [player]);
+      } else {
+        this.bnd_merchantDetailDisplay.set("none", [player]);
+      }
+
+      this.playerMenuContextMap.set(player, menuContext);
     });
 
     this.connectNetworkEvent(this.entity, sysEvents.showDailyRewardUI, (data) => {
-      // this.bnd_dailyRewardDisplay.set(data.show ? "flex" : "none", [data.player]);
-      this.playerGiftBoxMap.set(data.player, data.giftBox);
+      const { player, show, giftBox } = data;
+      this.bnd_dailyRewardDisplay.set(show ? "flex" : "none", [player]);
+      this.playerGiftBoxMap.set(player, giftBox);
       const dailyRewardMgr = getMgrClass<DailyRewardManager>(
         this,
         ManagerType.DailyRewardManager,
         DailyRewardManager
       );
-      const dailyStreak = dailyRewardMgr?.getDailyRewardInfo(data.player)?.dailyStreak ?? 0;
-      this.updateDailyRewardVisuals([data.player], dailyStreak);
+      const dailyStreak = dailyRewardMgr?.getDailyRewardInfo(player)?.dailyStreak ?? 0;
+      this.updateDailyRewardVisuals([player], dailyStreak);
     });
+  }
+
+  private triggerAnimation(player: Player, imageAssetId: string) {
+    const imgSource = convertAssetIDToImageSource(imageAssetId);
+    this.itemImgSource.set(imgSource, [player]);
+    this.itemImgDisplay.set("flex", [player]);
+
+    // Define the animation sequence.
+    this.itemImgPosX.set(0.5, undefined, [player]);
+    this.itemImgPosY.set(0.5, undefined, [player]);
+
+    const animationX = Animation.timing(0.1, { duration: 500, easing: Easing.ease }); // Move to 90% right
+    const animationY = Animation.timing(0.88, { duration: 500, easing: Easing.ease }); // Move to 10% top
+
+    // Set the new values for the animated bindings to start the animation.
+    this.itemImgPosX.set(animationX, undefined, [player]);
+    this.itemImgPosY.set(
+      animationY,
+      () => {
+        this.itemImgDisplay.set("none", [player]);
+      },
+      [player]
+    );
   }
 
   updateDailyRewardVisuals(players: Player[], curDaysClaimed: number): void {
@@ -660,6 +938,8 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     } else {
       this.bnd_confirmDisplay.set("flex");
     }
+
+    // this.setupInventoryMenuContainer([]);
   }
 
   setupDailyRewardContainer(players: Player[], imageSet: ImageSetProps): void {
@@ -686,17 +966,13 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     // Assuming you want to do something with newUINodeArray here
   }
 
-  setupInventoryMenuContainer(players: Player[], imageSet: ImageSetProps): void {
-    if (!this.imageSetMap.has("InventoryMenu")) {
-      console.warn("No inventory menu child nodes to setup.");
-      return;
-    }
-    const recipients = players.length > 0 ? players : undefined;
-    const imageSetType = "InventoryMenu";
-    const newUINodeArray = this.convertInventoryToUINodeArray(this.imageSetMap.get(imageSetType)!);
-    this.inventory_childrenUINodeArray.set(newUINodeArray, recipients);
-    // Assuming you want to do something with newUINodeArray here
-  }
+  setupInventoryMenuContainer(players: Player[]): void {}
+
+  // populateBuyMenuContainer(players: Player[]): void {
+  //   const recipients = players.length > 0 ? players : undefined;
+  //   const newUIInventoryNodeArray = this.createBuyMenuUINodeArray();
+  //   this.inventory_childrenUINodeArray.set(newUIInventoryNodeArray, recipients);
+  // }
 
   //region onButtonPressed()
   onButtonPressed(instanceId: string, player: Player) {
@@ -704,22 +980,42 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     const curMenuContext = this.playerMenuContextMap.get(player) || [];
     let updatedMenuContext: string[] = [];
     let sendContextMenuUpdate = false;
+    let inventoryMenuType: inventoryWindowType = inventoryWindowType.Undefined;
+    if (
+      //INVENTORY MENU
+      curMenuContext[0] === Primary_MenuType.InventoryMenu ||
+      curMenuContext[1] === Sub_MerchantType.Sell ||
+      curMenuContext[1] === Sub_MerchantType.Buy
+    ) {
+      if (curMenuContext[1] === Sub_MerchantType.Buy) {
+        inventoryMenuType = inventoryWindowType.Buy;
+      } else if (curMenuContext[1] === Sub_MerchantType.Sell) {
+        inventoryMenuType = inventoryWindowType.Sell;
+      } else {
+        inventoryMenuType = inventoryWindowType.Personal;
+      }
+    }
 
-    let inventoryItemIndex = -1;
+    //inventory/ merchant vars
+    let isSellMenu = false;
+    let primaryMenu = "";
+    let subMenu = "";
+
+    let inventoryItemName = "";
 
     // Handle inventory item button presses
-    if (instanceId.startsWith("inventoryItemBtn_")) {
-      const indexStr = instanceId.split("_")[1];
-      const index = parseInt(indexStr, 10);
-      inventoryItemIndex = index;
-      if (!isNaN(index)) {
-        console.log(`Inventory item button ${index} pressed by ${player.name.get()}`);
-        // Handle the inventory item button press with the specific index
-        // Add your inventory item logic here
-      } else {
-        console.warn(`Invalid index in instanceId: ${instanceId}`);
-      }
-      curInstanceId = "inventoryItemBtn";
+    if (instanceId.startsWith("InventoryType_")) {
+      const itemStr = instanceId.split("_")[1];
+      console.log(`Parsed inventory item name: ${itemStr}`);
+      inventoryItemName = itemStr;
+      curInstanceId = "InventoryType_";
+    }
+
+    if (instanceId.startsWith("RecipeType_")) {
+      const itemStr = instanceId.split("_")[1];
+      console.log(`Parsed recipe item name: ${itemStr}`);
+      inventoryItemName = itemStr;
+      curInstanceId = "RecipeType_";
     }
 
     switch (curInstanceId) {
@@ -760,6 +1056,11 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
           const rewardAmount = 10 + dailyStreak * 5; //example: base 10 currency + 5 per streak day
 
           this.async.setTimeout(() => {
+            this.triggerAnimation(player, this.props.currencyImgAsset!.id?.toString());
+            // this.triggerAnimation(player, "1973296496791704");
+          }, 1700);
+
+          this.async.setTimeout(() => {
             // Implement award logic here, e.g., give points, items, etc.
             const inventoryManager = getEntityListByTag(
               ManagerType.InventoryManager,
@@ -771,7 +1072,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
               quantity: rewardAmount,
               sender: this.entity,
             });
-          }, 2000);
+          }, 2300);
 
           this.async.setTimeout(() => {
             this.bnd_dailyRewardDisplay.set("none", [player]);
@@ -790,29 +1091,181 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         break;
       case "exitInventory":
         console.log(`Inventory Menu Exit Button Pressed by ${player.name.get()}`);
-        updatedMenuContext = this.prevPlayerMenuContextMap.get(player) || [];
-        sendContextMenuUpdate = true;
-        break;
-      case "inventoryItemBtn":
-        // if(curMenuContext[1] ===)
-        console.log(
-          `Inventory Item Button Pressed by ${player.name.get()} for item index ${inventoryItemIndex}`
-        );
-        // Handle inventory item button press logic here
-        updatedMenuContext = [
-          Primary_MenuType.InventoryMenu,
-          Sub_InventoryType.Fruit,
-          Detail_Fruit.Apple,
-        ]; // Example of navigating to a detail view
+        isSellMenu = curMenuContext[1] === Sub_MerchantType.Sell;
+        if (isSellMenu) {
+          primaryMenu = Primary_MenuType.MerchantMenu;
+          updatedMenuContext = [primaryMenu];
+        } else {
+          //
+          updatedMenuContext = this.prevPlayerMenuContextMap.get(player) || [];
+        }
 
         sendContextMenuUpdate = true;
         break;
+      case "InventoryType_":
+        // if(curMenuContext[1] ===)
+        console.log(
+          `Inventory Item Button Pressed by ${player.name.get()} for item name ${inventoryItemName}`
+        );
+
+        //do we react like an inventory menu or a sell menu
+        isSellMenu = curMenuContext[1] === Sub_MerchantType.Sell;
+        primaryMenu = isSellMenu ? Primary_MenuType.MerchantMenu : Primary_MenuType.InventoryMenu;
+        subMenu = isSellMenu ? Sub_MerchantType.Sell : Sub_InventoryType.Fruit;
+        // Handle inventory item button press logic here
+
+        updatedMenuContext = [primaryMenu, subMenu, inventoryItemName]; // Example of navigating to a detail view
+
+        sendContextMenuUpdate = true;
+        break;
+      case "RecipeType_":
+        console.log(
+          `Recipe Item Button Pressed by ${player.name.get()} for item name ${inventoryItemName}`
+        );
+
+        updatedMenuContext = [
+          Primary_MenuType.MerchantMenu,
+          Sub_MerchantType.Buy,
+          inventoryItemName,
+        ]; // Example of navigating to a detail view
+        sendContextMenuUpdate = true;
+        break;
+      case "merchantEvent": //will need to know if we are buying or selling
+        const playerInventory = this.inventoryMgr?.getPlayerInventory(player);
+        let itemId = curMenuContext[2];
+        let price = 0;
+
+        if (inventoryMenuType === inventoryWindowType.Buy) {
+          console.log(`Merchant Buy Button Pressed for ${curMenuContext[2]}`);
+          const recipeName = itemId + "Recipe";
+
+          const pie = pieTypes.find((pie) => pie.name === itemId);
+          if (!pie) {
+            console.error(`No pie found for item ID ${itemId}`);
+            return;
+          } else {
+            console.log(`Found pie ${pie.name} for item ID ${itemId}`);
+          }
+
+          price = pie.recipeBuyPrice;
+          if (playerInventory!.items[pie.recipeType!] < 1) {
+            //determine if player has item to sell
+            this.inventoryMgr!.updatePlayerInventory(player, InventoryType[pie.recipeType!], 1);
+            this.inventoryMgr!.updatePlayerInventory(player, InventoryType.currency, -price);
+            console.log(`Purchased recipe for ${price}`);
+          } else {
+            this.showNotification("You already know this recipe!", [player], null);
+          }
+
+          const newPlayerInventory = this.inventoryMgr?.getPlayerInventory(player);
+          if (!newPlayerInventory) {
+            console.error(`No inventory found for player ${player.name.get()}`);
+            return;
+          }
+
+          let playerItemCount = 0;
+          pieTypes.forEach((pie) => {
+            console.log(`Updating inventory count for ${pie.recipeType}`);
+            playerItemCount = newPlayerInventory!.items[pie.recipeType!] ?? 0;
+
+            let bnd_itemCount = this.inventoryCountBindings.get(pie.recipeType!);
+            console.log(`Player has ${playerItemCount} of ${pie.recipeType}`);
+            if (!bnd_itemCount) {
+              bnd_itemCount = new Binding<string>("0");
+              console.log(`Creating new binding for ${pie.recipeType}`);
+              this.inventoryCountBindings.set(pie.recipeType!, bnd_itemCount);
+            }
+            bnd_itemCount.set(playerItemCount.toString(), [player]);
+          });
+
+
+          //END OF BUY LOGIC
+        } else if (inventoryMenuType === inventoryWindowType.Sell) {
+          console.log(`Merchant Sell Button Pressed for ${curMenuContext[2]}`);
+          const fruitItem = foodTypes.find((fruit) => fruit.name === itemId);
+          const pieItem = pieTypes.find((pie) => pie.name === itemId);
+          const isFruit = fruitItem !== undefined;
+          const itemType = fruitItem ?? pieItem;
+
+          if (isFruit) {
+            foodTypes.forEach((fruit) => {
+              if (fruit.name === itemType?.name) {
+                //find fruit in database
+                price = fruit.sellPrice;
+                if (playerInventory!.items[fruit.name] > 0) {
+                  //determine if player has item to sell
+                  this.inventoryMgr!.updatePlayerInventory(player, InventoryType[fruit.name], -1);
+                  this.inventoryMgr!.updatePlayerInventory(player, InventoryType.currency, price);
+                } else {
+                  this.showNotification("You do not have any to sell!", [player], null);
+                }
+              }
+            });
+          } else if (!isFruit) {
+            pieTypes.forEach((pie) => {
+              if (pie.name === itemType?.name) {
+                //find pie in database
+                price = pie.sellPrice;
+                if (playerInventory!.items[pie.name] > 0) {
+                  //determine if player has item to sell
+                  this.inventoryMgr!.updatePlayerInventory(player, InventoryType[pie.name], -1);
+                  this.inventoryMgr!.updatePlayerInventory(player, InventoryType.currency, price);
+                } else {
+                  this.showNotification("You do not have any to sell!", [player], null);
+                }
+              }
+            });
+          }
+
+          const itemAssetId = itemType?.imageAssetID;
+          if (!itemAssetId) {
+            console.error(`No image asset id found for item ID ${itemId}`);
+          }
+
+          const newPlayerInventory = this.inventoryMgr?.getPlayerInventory(player);
+          if (!newPlayerInventory) {
+            console.error(`No inventory found for player ${player.name.get()}`);
+            return;
+          }
+
+          let playerItemCount = 0;
+          foodTypes.forEach((fruit) => {
+            playerItemCount = newPlayerInventory!.items[fruit.name] ?? 0;
+
+            let bnd_itemCount = this.inventoryCountBindings.get(fruit.name);
+            if (!bnd_itemCount) {
+              bnd_itemCount = new Binding<string>("0");
+              this.inventoryCountBindings.set(fruit.name, bnd_itemCount);
+            }
+            bnd_itemCount.set(playerItemCount.toString(), [player]);
+          });
+          pieTypes.forEach((pie) => {
+            playerItemCount = newPlayerInventory!.items[pie.name] ?? 0;
+
+            let bnd_itemCount = this.inventoryCountBindings.get(pie.name);
+            if (!bnd_itemCount) {
+              bnd_itemCount = new Binding<string>("0");
+              this.inventoryCountBindings.set(pie.name, bnd_itemCount);
+            }
+            bnd_itemCount.set(playerItemCount.toString(), [player]);
+          });
+
+          console.warn(`Sold item for ${price}`);
+        }
+        // this.bnd_merchantItemName.set(itemId, [player]);
+
+        //lower inventory count for the player
+        //add currency to player
+
+        break;
       default:
         console.warn(`Unhandled button press for instanceId: ${instanceId}`);
+        console.warn(`Current menu context: ${curMenuContext}`);
         break;
     }
 
     if (sendContextMenuUpdate) {
+      console.log(`Sending updated menu context ${updatedMenuContext} for ${player.name.get()}`);
       this.sendNetworkBroadcastEvent(sysEvents.updateMenuContext, {
         player: player,
         menuContext: updatedMenuContext,
@@ -1178,35 +1631,76 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     }
   }
 
-  //region UI Inventory to UINode[]
-  private convertInventoryToUINodeArray(inventoryProps: ImageSetProps): UINode[] {
-    try {
-      const newUIArray: UINode[] = [];
-      const txtOffset = new Vec3(0, 0, 120); //(x%,y%, width%)
+  private createBuyMenuUINodeArray(): UINode[] {
+    const newUIBuyMenuArray: UINode[] = [];
+    const txtOffset = new Vec3(0, 0, 120); //(x%,y%, width%)
 
-      inventoryProps.primaryTextArray.forEach((text, index) => {
-        const imgIDToUse = inventoryProps.usePrimaryImage[index]
-          ? inventoryProps.primaryImageAssetIDArray[index]
-          : inventoryProps.secondaryImageAssetIDArray[index];
+    pieTypes.forEach((pie) => {
+      let bnd_itemCount = this.inventoryCountBindings.get(pie.recipeType!);
+      if (!bnd_itemCount) {
+        bnd_itemCount = new Binding<string>("0");
+        this.inventoryCountBindings.set(pie.recipeType!, bnd_itemCount);
+      }
+      newUIBuyMenuArray.push(
+        inventorySlotButton(
+          this,
+          "RecipeType_" + pie.name,
+          convertAssetIDToImageSource(pie.recipeImgAssetId),
+          bnd_itemCount,
+          txtOffset,
+          this.onButtonPressed.bind(this),
+          70
+        )
+      );
+    });
 
-        newUIArray.push(
-          inventorySlotButton(
-            this,
-            `inventoryItemBtn_${index}`,
-            convertAssetIDToImageSource(imgIDToUse),
-            inventoryProps.primaryTextArray[index],
-            txtOffset,
-            this.onButtonPressed.bind(this),
-            70 //button size
-          )
-        );
-      });
+    return newUIBuyMenuArray;
+  }
 
-      return newUIArray;
-    } catch (error) {
-      console.error(`Error fetching texture assets`, error);
-      return []; // Skip this iteration if texture asset is not found
-    }
+  //region Create Inventory
+  private createInventoryMenuUINodeArray(): UINode[] {
+    const newUIInventoryArray: UINode[] = [];
+    const txtOffset = new Vec3(0, 0, 120); //(x%,y%, width%)
+
+    foodTypes.forEach((fruit) => {
+      let bnd_itemCount = this.inventoryCountBindings.get(fruit.name);
+      if (!bnd_itemCount) {
+        bnd_itemCount = new Binding<string>("0");
+        this.inventoryCountBindings.set(fruit.name, bnd_itemCount);
+      }
+      newUIInventoryArray.push(
+        inventorySlotButton(
+          this,
+          "InventoryType_" + fruit.name,
+          convertAssetIDToImageSource(fruit.imageAssetID),
+          bnd_itemCount,
+          txtOffset,
+          this.onButtonPressed.bind(this),
+          70
+        )
+      );
+    });
+
+    pieTypes.forEach((pie) => {
+      let bnd_itemCount = this.inventoryCountBindings.get(pie.name);
+      if (!bnd_itemCount) {
+        bnd_itemCount = new Binding<string>("0");
+        this.inventoryCountBindings.set(pie.name, bnd_itemCount);
+      }
+      newUIInventoryArray.push(
+        inventorySlotButton(
+          this,
+          "InventoryType_" + pie.name,
+          convertAssetIDToImageSource(pie.imageAssetID),
+          bnd_itemCount,
+          txtOffset,
+          this.onButtonPressed.bind(this),
+          70
+        )
+      );
+    });
+
+    return newUIInventoryArray;
   }
 }
 UIComponent.register(UI_OneHUD);

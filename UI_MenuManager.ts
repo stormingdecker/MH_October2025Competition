@@ -25,7 +25,7 @@ export enum Sub_PlotType {
   Staff = "StaffMenu",
   Upgrades = "UpgradesMenu",
   Shop = "ShopMenu",
-  Decor = "DecorMenu",
+  Paint = "PaintMenu",
 }
 
 export enum Sub_MerchantType{

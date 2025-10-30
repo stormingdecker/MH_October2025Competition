@@ -1,4 +1,6 @@
 import { Component, Entity, NetworkEvent, Player } from "horizon/core";
+import { IInventoryManager } from "Interfaces";
+import { SaveManager } from "SaveManager";
 import { sysEvents } from "sysEvents";
 import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
 import { DEFAULT_INVENTORY, InventoryType, PlayerInventory } from "sysTypes";
@@ -7,7 +9,14 @@ import { oneHudEvents } from "UI_OneHUDEvents";
 // import { oneHudEvents } from "UI_OneHUD";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 
-export class InventoryManager extends Component<typeof InventoryManager> {
+export type InventoryFirstPickMap = {
+  [key in InventoryType]?: boolean;
+};
+
+export class InventoryManager
+  extends Component<typeof InventoryManager>
+  implements IInventoryManager
+{
   static propsDefinition = {
     enabled: { type: "boolean", default: true },
     showDebugs: { type: "boolean", default: false },
@@ -15,6 +24,9 @@ export class InventoryManager extends Component<typeof InventoryManager> {
 
   private playerInventoryMap: Map<Player, PlayerInventory> = new Map();
   private oneHUD: Entity | undefined;
+  private saveManager: SaveManager | undefined;
+  private playerFirstPickPopupMap: Map<Player, InventoryFirstPickMap> = new Map(); //every time the player picks an item for the first time per session
+  private loadingPlayerInventory =false;
 
   //region preStart()
   preStart(): void {
@@ -30,6 +42,8 @@ export class InventoryManager extends Component<typeof InventoryManager> {
   //region start()
   start() {
     this.oneHUD = getEntityListByTag(ManagerType.UI_OneHUD, this.world)[0];
+    this.saveManager = getMgrClass(this, ManagerType.SaveManager, SaveManager);
+    this.saveManager?.injectIInventoryMgr(this);
   }
 
   //region InventoryLoaded()
@@ -51,25 +65,39 @@ export class InventoryManager extends Component<typeof InventoryManager> {
   }
 
   public prunePlayerInventoryMap(player: Player) {
+    this.playerFirstPickPopupMap.delete(player);
     this.playerInventoryMap.delete(player);
   }
 
+
   public broadcastPlayerInventory(player: Player) {
     const inventory = this.getPlayerInventory(player);
+    this.loadingPlayerInventory = true;
     for (const item in inventory.items) {
       if (Object.prototype.hasOwnProperty.call(inventory.items, item)) {
         this.updatePlayerInventory(player, item as InventoryType, 0);
       }
     }
+    this.async.setTimeout(() => {
+      this.loadingPlayerInventory = false;
+    }, 1000);
   }
 
   //region update Inventory()
-  public updatePlayerInventory(player: Player, itemType: InventoryType, quantity: number, sender: Entity | null = null) {
+  public updatePlayerInventory(
+    player: Player,
+    itemType: InventoryType,
+    quantity: number,
+    sender: Entity | null = null
+  ) {
     const inventory = this.playerInventoryMap.get(player);
     if (inventory) {
       if (inventory.items[itemType] !== undefined) {
-        debugLog(this.props.showDebugs, 
-          `Updated inventory for player ${player.name.get()}: ${itemType} is now ${inventory.items[itemType]}`
+        debugLog(
+          this.props.showDebugs,
+          `Updated inventory for player ${player.name.get()}: ${itemType} is now ${
+            inventory.items[itemType]
+          }`
         );
         inventory.items[itemType] += quantity;
         if (inventory.items[itemType] < 0) inventory.items[itemType] = 0; // Prevent negative quantities
@@ -79,42 +107,77 @@ export class InventoryManager extends Component<typeof InventoryManager> {
             this.sendNetworkEvent(this.oneHUD!, oneHudEvents.UpdateInventoryUI, {
               player: player,
               inventoryType: itemType,
-              newValue: inventory.items[itemType].toString()
+              newValue: inventory.items[itemType].toString(),
             });
             break;
-            case InventoryType.diamond:
+          case InventoryType.diamond:
             this.sendNetworkEvent(this.oneHUD!, oneHudEvents.UpdateInventoryUI, {
               player: player,
               inventoryType: itemType,
-              newValue: inventory.items[itemType].toString()
+              newValue: inventory.items[itemType].toString(),
             });
-              break;
+            break;
           default:
             debugLog(
               this.props.showDebugs,
-              `Updated inventory for player ${player.name.get()}: ${itemType} is now ${inventory.items[itemType]}`
+              `Updated inventory for player ${player.name.get()}: ${itemType} is now ${
+                inventory.items[itemType]
+              }`
             );
             break;
-          }
-          this.playerInventoryMap.set(player, inventory);
+        }
+        this.playerInventoryMap.set(player, inventory);
+        this.saveManager?.savePlayerData(player);
       } else {
         console.warn(`Item ${itemType} does not exist in the inventory.`);
+      }
+
+      if (inventory.items[itemType] > 0 && !this.loadingPlayerInventory) {
+        this.checkIfFirstPick(player, itemType);
       }
     } else {
       console.warn(`No inventory found for player ${player.name.get()}.`);
     }
   }
 
+  private checkIfFirstPick(player: Player, itemType: InventoryType) {
+    if (itemType === InventoryType.currency || itemType === InventoryType.diamond) {
+      return; //skip currency and diamond
+    }
+    if (!this.playerFirstPickPopupMap.has(player)) {
+      this.playerFirstPickPopupMap.set(player, {});
+    }
+    const firstPickMap = this.playerFirstPickPopupMap.get(player)!;
+    if (!firstPickMap[itemType]) {
+      firstPickMap[itemType] = true;
+      debugLog(
+        this.props.showDebugs,
+        `Player ${player.name.get()} picked ${itemType} for the first time this session.`
+      );
+      this.sendNetworkEvent(this.oneHUD!, oneHudEvents.PopupRequest, {
+        requester: this.entity,
+        player: player,
+        title: "New Item Acquired!",
+        message: `You have acquired your first ${itemType}! Check your inventory to see your new item.`,
+      });
+    }
+  }
 }
 Component.register(InventoryManager);
 
 // Ensures all nested inventory types are validated, including new ones in DEFAULT_INVENTORY.items
-export function validatePlayerInventory(player: Player, playerInventory: PlayerInventory): PlayerInventory {
+export function validatePlayerInventory(
+  player: Player,
+  playerInventory: PlayerInventory
+): PlayerInventory {
   // Validate top-level keys
   for (const [key, value] of Object.entries(DEFAULT_INVENTORY)) {
     if (typeof value === "object" && value !== null) {
       // Deep check for nested objects (like 'items')
-      if (typeof playerInventory[key as keyof PlayerInventory] !== "object" || playerInventory[key as keyof PlayerInventory] === null) {
+      if (
+        typeof playerInventory[key as keyof PlayerInventory] !== "object" ||
+        playerInventory[key as keyof PlayerInventory] === null
+      ) {
         playerInventory[key as keyof PlayerInventory] = { ...value };
       } else {
         // Check nested keys

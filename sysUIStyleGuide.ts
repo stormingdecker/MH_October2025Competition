@@ -81,7 +81,7 @@ export const confirm = (
                 onConfirmBtnPressed(true, player);
               }, 100);
             },
-            onRelease: (player) => {},
+            onRelease: (player) => { },
             style: {
               width: "40%",
               height: "100%",
@@ -169,6 +169,7 @@ export const notification = (
       borderRadius: 60,
       transform: [{ translateX: animBnd_translateX }],
       display: bnd_notifyDisplay,
+      zIndex: 100,
     },
   });
 };
@@ -267,6 +268,7 @@ export const popup = (
       position: "absolute",
       transform: [{ translateY: animBnd_posY }],
       display: bndDisplay,
+      zIndex: 20,
     },
   });
 };
@@ -654,7 +656,7 @@ export const buttonImg = (
   component: Component,
   instanceId: string,
   img: ImageSource,
-  onButtonPressed: (instanceID: string, player: Player) => void, 
+  onButtonPressed: (instanceID: string, player: Player) => void,
   size?: number
 ) => {
   const scaleBinding = new Binding<number>(1);
@@ -683,7 +685,7 @@ export const buttonImg = (
       }, 100);
       onButtonPressed(instanceId, player);
     },
-    onRelease: (player) => {},
+    onRelease: (player) => { },
     style: {
       // backgroundColor: "rgba(0, 255, 60, 0.73)",
       width: size ? size : 75,
@@ -698,7 +700,8 @@ export const buttonImg = (
 };
 
 //region btn w/ img & text
-export const buttonImgWithText = (//used for bottom, side and top menu buttons 
+export const buttonImgWithText = (
+  //used for bottom, side and top menu buttons
   component: Component,
   instanceId: string,
   img: ImageSource,
@@ -738,7 +741,7 @@ export const buttonImgWithText = (//used for bottom, side and top menu buttons
               // padding: 5,
               borderRadius: 5,
               width: `${textOffset.z}%`,
-              height: "30%",
+              height: "50%",
             },
           }),
         ],
@@ -755,7 +758,7 @@ export const buttonImgWithText = (//used for bottom, side and top menu buttons
       }, 100);
       onButtonPressed(instanceId, player);
     },
-    onRelease: (player) => {},
+    onRelease: (player) => { },
     style: {
       // backgroundColor: "rgba(0, 255, 60, 0.73)",
       // width: "100%",
@@ -772,7 +775,7 @@ export const buttonImgWithText = (//used for bottom, side and top menu buttons
 };
 
 //region btn img bnd text
-export const btnImgBndText = ( 
+export const btnImgBndText = (
   component: Component,
   instanceId: string,
   currencyImg: ImageSource,
@@ -840,7 +843,7 @@ export const btnImgBndText = (
       }, 100);
       onButtonPressed(instanceId, player);
     },
-    onRelease: (player) => {},
+    onRelease: (player) => { },
     style: {
       // backgroundColor: "rgba(0, 255, 60, 0.73)",
       width: "100%",
@@ -852,6 +855,7 @@ export const btnImgBndText = (
       borderRadius: 5,
       transform: [{ scale: scaleBinding }],
       marginTop: 10,
+      zIndex: 1,
     },
   });
 };
@@ -974,6 +978,59 @@ export const btnStringText = (
   });
 };
 
+//region btn w/ bnd string text
+export const btnBndStringText = (
+  component: Component,
+  btnString: Binding<string>,
+  instanceID: string,
+  buttonStyleGuide: UI_ButtonStyleGuide,
+  onButtonPressed: (instanceID: string, player: Player) => void
+) => {
+  const scaleBinding = new Binding<number>(1);
+
+  return Pressable({
+    children: [
+      View({
+        children: [
+          Text({
+            text: btnString,
+            style: {
+              color: buttonStyleGuide.textColor,
+              fontFamily: (buttonStyleGuide.font ?? FONT_MAIN) as any,
+              fontSize: buttonStyleGuide.fontSize,
+              textAlignVertical: "center",
+              textAlign: "center",
+            },
+          }),
+        ],
+        style: {
+          width: "100%",
+          height: "100%",
+          backgroundColor: buttonStyleGuide.backgroundColor,
+          borderRadius: buttonStyleGuide.borderRadius,
+          alignItems: "center", //by default applies to horizontal axis
+          justifyContent: "center", //by default applies to vertical axis
+        },
+      }),
+    ],
+    //region onPress
+    onPress: (player) => {
+      scaleBinding.set(0.9, [player]);
+      component.async.setTimeout(() => {
+        scaleBinding.set(1, [player]);
+      }, 100);
+      onButtonPressed(instanceID, player);
+    },
+    style: {
+      width: "100%",
+      height: "100%",
+      // apply button scaling changes
+      transform: [{ scale: scaleBinding }],
+      // backgroundColor: "rgba(252, 0, 0, 0.5)",
+    },
+  });
+};
+
 //region daily reward window
 export const dailyRewardWindow = (
   component: Component,
@@ -994,8 +1051,9 @@ export const dailyRewardWindow = (
     fontSize: 22,
     fontWeight: "bold",
     textColor: "rgba(255, 255, 255, 1)",
-    backgroundColor: "rgba(41, 126, 255, 1)",
-    borderRadius: 20,
+    backgroundColor: "rgba(255, 41, 159, 1)",
+    borderRadius: 50,
+
   };
   return [
     View({
@@ -1003,8 +1061,10 @@ export const dailyRewardWindow = (
         Text({
           text: "Daily Reward!",
           style: {
-            backgroundColor: "rgba(41, 126, 255, 1)",
-            fontFamily: FONT_MAIN,
+            backgroundColor: "rgba(253, 120, 235, 1)",
+            //fontFamily: FONT_MAIN,
+            fontFamily: "Kallisto",
+            fontWeight: "bold",
             fontSize: 36,
             color: "rgba(255, 255, 255, 1)",
             textAlign: "center",
@@ -1015,21 +1075,30 @@ export const dailyRewardWindow = (
             layoutOrigin: [0.5, 0],
             left: "50%",
             top: 0,
+            borderColor: "rgba(255, 251, 251, 1)",
+            borderBottomWidth: 8,
+            borderTopRightRadius: 25,
+            borderTopLeftRadius: 25,
           },
         }),
         View({
           // Exit Button
           children: [
-            btnStringText(component, "x", "exitDailyRewards", exitButtonStyle, onButtonPressed),
+            btnStringText(component, "✖", "exitDailyRewards", exitButtonStyle, onButtonPressed),
           ],
           style: {
             width: 50,
             height: 50,
             position: "absolute",
-            layoutOrigin: [0.5, 0.5],
-            left: "93%",
-            top: "10%",
-            // zIndex: 12,
+            borderColor: "rgba(255, 255, 255, 1)",
+            borderRadius: 8,
+            borderWidth: 3,
+            // layoutOrigin: [0.5, 0.5],
+            // left: "93%",
+            // top: "10%",
+            right: -10,
+            top: -10,
+            zIndex: 12,
           },
         }),
         View({
@@ -1070,6 +1139,12 @@ export const dailyRewardWindow = (
             layoutOrigin: [0.5, 0.5],
             left: "50%",
             top: "88%",
+            marginTop: 10,
+            marginBottom: 10,
+            borderColor: "rgba(255, 255, 255, 1)",
+            borderRadius: 25,
+            borderWidth: 5,
+            zIndex: 12,
           },
         }),
       ],
@@ -1080,9 +1155,11 @@ export const dailyRewardWindow = (
         left: "50%",
         top: "50%",
         position: "absolute",
-        borderRadius: 20,
-        backgroundColor: "rgba(255, 255, 255, 1)",
-        overflow: "hidden",
+        borderRadius: 25,
+        backgroundColor: "rgba(245, 209, 209, 1)",
+        borderColor: "rgba(255, 251, 251, 1)",
+        borderWidth: 8,
+        //overflow: "hidden",
         display: bnd_dailyRewardDisplay,
       },
     }),
@@ -1110,7 +1187,7 @@ export const ImgSetUIwStrings = (
           fontFamily: FONT_MAIN,
           fontSize: 24,
           fontWeight: "bold",
-          color: "rgba(63, 63, 63, 1)",
+          color: "rgba(250, 250, 250, 1)",
           textAlign: "center",
           textAlignVertical: "center",
         },
@@ -1157,7 +1234,7 @@ export const foodMenuWindow = (
         Text({
           text: "Food Menu",
           style: {
-            backgroundColor: "rgba(41, 126, 255, 1)",
+            backgroundColor: "rgba(175, 122, 219, 1)",
             fontFamily: FONT_MAIN,
             fontSize: 36,
             color: "rgba(255, 255, 255, 1)",
@@ -1168,21 +1245,24 @@ export const foodMenuWindow = (
             position: "absolute",
             layoutOrigin: [0.5, 0],
             left: "50%",
-            top: 0,
+            top: 50,
           },
         }),
         View({
           // Exit Button
           children: [
-            btnStringText(component, "x", "exitFoodMenu", exitButtonStyle, onButtonPressed),
+            btnStringText(component, "✖", "exitFoodMenu", exitButtonStyle, onButtonPressed),
           ],
           style: {
             width: 50,
             height: 50,
             position: "absolute",
-            layoutOrigin: [0.5, 0.5],
-            left: "93%",
-            top: "10%",
+            // layoutOrigin: [0.5, 0.5],
+            // left: "93%",
+            // top: "10%",
+
+            right: -10,
+            top: -10,
             // zIndex: 12,
           },
         }),
@@ -1202,7 +1282,7 @@ export const foodMenuWindow = (
             }),
           ],
           style: {
-            // backgroundColor: "rgba(32, 32, 32, 0.56)",
+            //backgroundColor: "rgba(32, 32, 32, 0.56)",
             width: "90%",
             height: "50%",
             position: "absolute",
@@ -1221,8 +1301,8 @@ export const foodMenuWindow = (
         top: "40%",
         position: "absolute",
         borderRadius: 20,
-        backgroundColor: "rgba(255, 255, 255, 1)",
-        overflow: "hidden",
+        backgroundColor: "rgba(218, 167, 252, 1)",
+        //overflow: "hidden",
         display: bnd_dailyRewardDisplay,
       },
     }),
@@ -1234,10 +1314,10 @@ export const inventorySlotButton = (
   component: Component,
   instanceId: string,
   img: ImageSource,
-  text: string,
+  currentAmount: Binding<string>,
   textOffset: Vec3,
   onButtonPressed: (instanceID: string, player: Player) => void,
-  size?: number
+  slotSize?: number
 ) => {
   const scaleBinding = new Binding<number>(1);
   return Pressable({
@@ -1256,31 +1336,37 @@ export const inventorySlotButton = (
             },
           }),
           Text({
-            text: text,
+            text: currentAmount,
             style: {
               fontFamily: FONT_MAIN,
               fontWeight: "bold",
-              color: "rgba(255, 217, 0, 1)",
-              textShadowColor: "rgba(0, 0, 0, 1)",
-              textShadowOffset: [2, 2],
+              //color: "rgba(255, 217, 0, 1)",
+              color: "rgba(255, 255, 255, 1)",
+              backgroundColor: "rgba(214, 88, 29, 1)",
+              //textShadowColor: "rgba(0, 0, 0, 1)",
+              //textShadowOffset: [2, 2],
               fontSize: 20,
-              layoutOrigin: [0, 1],
-              left: `${textOffset.x}%`,
-              top: `${100 - textOffset.y}%`,
+              //layoutOrigin: [0, 1],
+              // left: `${textOffset.x}%`,
+              // top: `${100 - textOffset.y}%`,
               position: "absolute",
-              width: `${textOffset.z}%`,
-              textAlign: "left",
+              right: -10,
+              bottom: -5,
+              //width: `${textOffset.z}%`,
+              width: 40,
+              textAlign: "center",
               textAlignVertical: "bottom",
               // backgroundColor: "rgba(255, 255, 255, 1)",
               // padding: 5,
-              // borderRadius: 0,
-              height: "100%",
+              borderRadius: 10,
+              //height: "100%",
             },
           }),
         ],
         style: {
-          // backgroundColor: "rgba(251, 0, 0, 0.87)",
+          backgroundColor: "rgba(230, 146, 241, 0.87)",
           alignItems: "center",
+          borderRadius: 10,
         },
       }),
     ],
@@ -1291,18 +1377,18 @@ export const inventorySlotButton = (
       }, 100);
       onButtonPressed(instanceId, player);
     },
-    onRelease: (player) => {},
+    onRelease: (player) => { },
     style: {
-      backgroundColor: "rgba(255, 255, 255, 1)",
-      borderWidth: 5,
-      borderColor: "rgba(124, 124, 124, 1)",
+      //backgroundColor: "rgba(106, 200, 212, 1)",
+      borderWidth: 3,
+      borderColor: "rgba(255, 255, 255, 1)",
       // width: "100%",
       // height: "100%",
-      width: size ? size : 70,
-      height: size ? size : 70,
+      width: slotSize ? slotSize : 70,
+      height: slotSize ? slotSize : 70,
       // alignSelf: "center",
       justifyContent: "center",
-      borderRadius: 5,
+      borderRadius: 10,
       margin: 10,
       transform: [{ scale: scaleBinding }],
     },
@@ -1314,7 +1400,8 @@ export const inventoryMenuWindow = (
   component: Component,
   onButtonPressed: (instanceID: string, player: Player) => void,
   childrenUINodeArray: Binding<UINode[]>,
-  bnd_dailyRewardDisplay: Binding<string>
+  bnd_dailyRewardDisplay: Binding<string>,
+  bnd_windowHeaderText: Binding<string>,
 ) => {
   const exitButtonStyle: UI_ButtonStyleGuide = {
     font: FONT_MAIN,
@@ -1324,27 +1411,38 @@ export const inventoryMenuWindow = (
     backgroundColor: "rgba(255, 0, 0, 1)",
     borderRadius: 10,
   };
-const panelWidth = 500;
-const panelHeight = 500;
-const headerHeight = 60;
+  const panelWidth = 500;
+  const panelHeight = 500;
+  const headerHeight = 60;
   return [
     View({
       children: [
         Text({
-          text: `Inventory`,
+          text: bnd_windowHeaderText,
           style: {
-            backgroundColor: "rgba(41, 126, 255, 1)",
-            fontFamily: FONT_MAIN,
+            backgroundColor: "rgba(105, 219, 209, 1))",
+            //rgba(255, 223, 236, 1) pink
+            //fontFamily: FONT_MAIN,
+            fontFamily: "Kallisto",
             fontSize: 36,
             color: "rgba(255, 255, 255, 1)",
             textAlign: "center",
             textAlignVertical: "center",
             width: "100%",
             height: headerHeight,
+            paddingBottom: 5,
             position: "absolute",
             layoutOrigin: [0.5, 0],
             left: "50%",
             top: 0,
+            // borderColor: "rgba(255, 255, 255, 1)",
+            // borderWidth: 7,
+            borderRadius: 25,
+            borderBottomRightRadius: 0,
+            borderBottomLeftRadius: 0,
+            borderBottomWidth: 8,
+            borderColor: "rgba(255, 255, 255, 1)",
+
           },
         }),
         View({
@@ -1356,10 +1454,15 @@ const headerHeight = 60;
             width: 50,
             height: 50,
             position: "absolute",
-            layoutOrigin: [1, 0],
-            left: panelWidth - 8,
-            top: 8,
-            // zIndex: 12,
+            // layoutOrigin: [1, 0],
+            // left: panelWidth - 8,
+            // top: 8,
+            top: -15,
+            right: -15,
+            zIndex: 12,
+            borderColor: "rgba(255, 255, 255, 1)",
+            borderWidth: 3,
+            borderRadius: 10,
           },
         }),
         View({
@@ -1397,10 +1500,12 @@ const headerHeight = 60;
         left: "70%",
         top: "50%",
         position: "absolute",
-        borderRadius: 20,
- 
-        backgroundColor: "rgba(255, 255, 255, 1)",
-        overflow: "hidden",
+        borderRadius: 25,
+
+        backgroundColor: "rgba(202, 245, 255, 1)",
+        borderColor: "rgba(255, 255, 255, 1)",
+        borderWidth: 8,
+        //overflow: "hidden",
         display: bnd_dailyRewardDisplay,
       },
     }),
@@ -1411,14 +1516,14 @@ const headerHeight = 60;
 export const inventoryDetailWindow = (
   component: Component,
   onButtonPressed: (instanceID: string, player: Player) => void,
-  bnd_detailDisplay: Binding<string>,
+  bnd_detailDisplay: Binding<string>
 ) => {
   const windowWidth = 550;
   const windowHeight = 250;
-  return[
+  return [
     View({
-      children:[],
-           style: {
+      children: [],
+      style: {
         width: windowWidth,
         height: windowHeight,
         layoutOrigin: [0.5, 0.5],
@@ -1431,6 +1536,133 @@ export const inventoryDetailWindow = (
         display: bnd_detailDisplay,
       },
     }),
-    
-  ]
-}
+  ];
+};
+
+//region merchant detail window
+export const merchantDetailWindow = (
+  component: Component,
+  instanceId: Binding<string>,
+  img: Binding<ImageSource>,
+  currentPrice: Binding<string>,
+  onButtonPressed: (instanceID: string, player: Player) => void,
+  bnd_detailDisplay: Binding<string>,
+  bnd_merchantBtnText: Binding<string>,
+
+) => {
+  const windowWidth = 550;
+  const windowHeight = 300;
+  const textAreaWidth = 320;
+
+  const uiButtonStyle: UI_ButtonStyleGuide = {
+    font: FONT_MAIN,
+    fontSize: 40,
+    fontWeight: "bold",
+    textColor: "rgba(255, 255, 255, 1)",
+    backgroundColor: "rgba(41, 126, 255, 1)",
+    borderRadius: 20,
+  };
+
+  return [
+    View({
+      children: [
+        View({//Image
+          children: [
+            Image({
+              source: img,
+              style: {
+                width: "100%",
+                height: "100%",
+              },
+            }),
+          ],
+          style: {
+            backgroundColor: "rgba(200, 200, 200, 0.5)",
+            width: 150,
+            height: 150,
+            layoutOrigin: [0, 0],
+            left: 30,
+            top: 30,
+            position: "absolute",
+          },
+        }),
+        View({//Title
+          children: [
+            Text({
+              text: instanceId,
+              style: {
+                fontFamily: FONT_MAIN,
+                fontSize: 28,
+                fontWeight: "bold",
+                color: "rgba(63, 63, 63, 1)",
+                textAlign: "left",
+                textAlignVertical: "center",
+              },
+            }),
+          ],
+          style: {
+            backgroundColor: "rgba(200, 200, 200, 0.5)",
+            width: textAreaWidth,
+            height: 80,
+            layoutOrigin: [0, 0],
+            left: "35%",
+            top: 30,
+            position: "absolute",
+          },
+        }),
+        View({
+          // Price
+          children: [
+            Text({
+              text: currentPrice.derive((price) => `Price: $${price}`),
+              style: {
+                fontFamily: FONT_MAIN,
+                fontSize: 24,
+                fontWeight: "bold",
+                color: "rgba(77, 77, 77, 1)",
+                textAlign: "left",
+                textAlignVertical: "center",
+              },
+            }),
+          ],
+          style: {//detail text
+            backgroundColor: "rgba(200, 200, 200, 0.5)",
+            width: textAreaWidth,
+            height: 90,
+            layoutOrigin: [0, 0],
+            left: "35%",
+            top: "40%",
+            position: "absolute",
+          },
+        }),
+        View({
+          // Sell Button
+          children: [
+            btnBndStringText(component, bnd_merchantBtnText, "merchantEvent", uiButtonStyle, onButtonPressed),
+          ],
+          style: {
+            width: 175,
+            height: 70,
+            position: "absolute",
+            layoutOrigin: [0.5, 1],
+            left: "50%",
+            top: windowHeight - 15,
+            // zIndex: 12,
+          },
+        }),
+      ],
+      style: {
+        width: windowWidth,
+        height: windowHeight,
+        layoutOrigin: [0.5, 0.5],
+        left: "30%",
+        top: "38%",
+        position: "absolute",
+        borderRadius: 20,
+        backgroundColor: "rgba(255, 255, 255, 1)",
+        overflow: "hidden",
+        display: bnd_detailDisplay,
+      },
+    }),
+  ];
+};
