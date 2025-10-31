@@ -33,6 +33,7 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
     vfxBang: { type: PropTypes.Entity },
     MerchantStall: { type: PropTypes.Entity },
     FruitTree: { type: PropTypes.Entity },
+    UI_AvatarExpression: { type: PropTypes.Entity },
   };
 
   dailyRewardManager: DailyRewardManager | undefined = undefined;
@@ -61,6 +62,7 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
       const player = data.player;
       if (player) {
         this.plotOwner = player;
+        this.props.UI_AvatarExpression!.owner.set(player);
 
         //spawn player at plot spawn point
         console.log(`Spawning player ${player.name.get()} at plot ${this.props.PlotBaseID}`);

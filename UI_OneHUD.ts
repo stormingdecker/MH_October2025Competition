@@ -191,6 +191,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   bndAlertImg = new Binding<ImageSource>("");
   bndAlertMsg = new Binding<string>("Looking good today!");
   animBnd_translateX = new AnimatedBinding(0);
+  bnd_notifyBkgColor = new Binding<string>("rgba(255, 0, 0, 1)");
   private notifyEasing!: Easing;
 
   //confirmation variables
@@ -202,6 +203,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   bndCancel_Scale = new Binding<number>(1);
 
   //prog task
+  bnd_progTaskDisplay = new Binding<string>("none");
   bnd_progTaskHeader = new Binding<string>("Progression Task");
   bnd_progTaskContent = new Binding<string>("Complete the task to earn rewards!");
   bnd_progTaskResultImg = new Binding<ImageSource>(
@@ -242,6 +244,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   private bnd_inventoryItemImg = new Binding<ImageSource>(
     convertAssetIDToImageSource(DefaultBlankImgAssetID)
   );
+  private bnd_inventoryItemInstanceId = new Binding<string>("");
   private bnd_inventoryItemName = new Binding<string>("");
   private bnd_inventoryDetailText = new Binding<string>("0");
 
@@ -249,6 +252,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   private bnd_merchantItemImg = new Binding<ImageSource>(
     convertAssetIDToImageSource(DefaultBlankImgAssetID)
   );
+  private bnd_merchantItemInstanceId = new Binding<string>("");
   private bnd_merchantItemName = new Binding<string>("");
   private bnd_merchantItemPrice = new Binding<string>("0");
   private bnd_merchantDetailDisplay = new Binding<string>("none");
@@ -447,8 +451,9 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
             this.bndAlertImg,
             this.bndAlertMsg,
             this.animBnd_translateX,
-            400,
-            100
+            450,
+            150,
+            this.bnd_notifyBkgColor
           )
         ),
         //confirmation panel
@@ -465,7 +470,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         //progress task popup
         ...this.toNodes(
           progressionTask(
-            this.props.progTaskEnabled,
+            this.bnd_progTaskDisplay,
             this.bnd_progTaskHeader,
             this.bnd_progTaskContent,
             this.bnd_progTaskProgressAsString,
@@ -506,6 +511,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         ...this.toNodes(
           inventoryDetailWindow(
             this,
+            this.bnd_inventoryItemInstanceId,
             this.bnd_inventoryItemName,
             this.bnd_inventoryItemImg,
             this.bnd_inventoryDetailText,
@@ -516,6 +522,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         ...this.toNodes(
           merchantDetailWindow(
             this,
+            this.bnd_merchantItemInstanceId,
             this.bnd_merchantItemName,
             this.bnd_merchantItemImg,
             this.bnd_merchantItemPrice,
@@ -590,7 +597,6 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       //   this.hideProgTask([data.player]);
       //   this.progTaskIsHidden = true;
       // }
-      this.triggerAnimation(data.player, "1973296496791704", InventoryType.currency); //money
     });
 
     // progress subscriptions
@@ -613,7 +619,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
 
     // notification subscriptions
     this.connectNetworkEvent(this.entity, oneHudEvents.NotificationEvent, (data) => {
-      this.showNotification(data.message, data.players, data.imageAssetId);
+      this.showNotification(data.message, data.players, data.imageAssetId, data.bkgColor);
     });
 
     // popup subscriptions
@@ -644,6 +650,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     this.connectNetworkEvent(this.entity, oneHudEvents.UpdateProgressionTask, (data) => {
       this.updateProgTask(data.players, data.progressAsString);
     });
+    //region update inventory UI
     this.connectNetworkEvent(this.entity, oneHudEvents.UpdateInventoryUI, (data) => {
       this.updateInventoryUI(data.player, data.inventoryType, data.newValue);
     });
@@ -683,6 +690,10 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       let inventoryMenuType: inventoryWindowType = inventoryWindowType.Undefined;
 
       const playerInventory = this.inventoryMgr?.getPlayerInventory(player);
+
+      if (menuContext.length === 0) {
+        this.bnd_progTaskDisplay.set("none", [player]);
+      }
 
       if (isSubMenu && menuContext[1] === Sub_PlotType.FoodMenu) {
         // this.setupFoodMenuContainer([player], this.imageSetMap.get("FoodMenu")!);
@@ -778,7 +789,8 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       ) {
         let itemId = menuContext[2]; //ex: "apple" or "applePie"
         console.log(`Inventory Menu Type is ${inventoryMenuType}`);
-        this.bnd_inventoryItemName.set(itemId, [player]);
+        this.bnd_inventoryItemInstanceId.set(itemId, [player]);
+      
         this.bnd_inventoryDetailText.set("More item detail goes here", [player]);
         const fruitItem = foodTypes.find((fruit) => fruit.name === itemId);
         const pieItem = pieTypes.find((pie) => pie.name === itemId);
@@ -791,27 +803,18 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         const itemImgSource =
           convertAssetIDToImageSource(itemAssetId!) ??
           convertAssetIDToImageSource(DefaultBlankImgAssetID);
-
         this.bnd_inventoryItemImg.set(itemImgSource, [player]);
 
         //FUTURE NOTE: Needs to pull detail info from sysTypes later
         // const fruitToSell = menuContext[2];
         // let price = 0;
-        // if (isFruit) {
-        //   foodTypes.forEach((fruit) => {
-        //     if (fruit.name === fruitToSell) {
-        //       //find fruit in database
-        //       price = fruit.sellPrice;
-        //     }
-        //   });
-        // } else {
-        //   pieTypes.forEach((pie) => {
-        //     if (pie.name === fruitToSell) {
-        //       //find pie in database
-        //       price = pie.sellPrice;
-        //     }
-        //   });
-        // }
+        if (isFruit) {
+          this.bnd_inventoryItemName.set(fruitItem!.itemName, [player]);
+        } else {
+          pieTypes.forEach((pie) => {
+            this.bnd_inventoryItemName.set(pie.itemName, [player]);
+          });
+        }
         // this.bnd_merchantItemPrice.set(price.toString(), [player]);
 
         this.bnd_inventoryDetailDisplay.set("flex", [player]);
@@ -827,7 +830,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         if (inventoryMenuType === inventoryWindowType.Sell) {
           //populate merchant detail window info here
           console.log(`Updating merchant detail window for item ID ${itemId}`);
-          this.bnd_merchantItemName.set(itemId, [player]);
+          this.bnd_merchantItemInstanceId.set(itemId, [player]);
           this.bnd_merchantBtnText.set("Sell", [player]);
           const fruitItem = foodTypes.find((fruit) => fruit.name === itemId);
           const pieItem = pieTypes.find((pie) => pie.name === itemId);
@@ -865,7 +868,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
           //populate merchant detail window info here
           itemId = itemId + "Recipe";
           console.log(`Updating merchant detail window for item ID ${itemId}`);
-          this.bnd_merchantItemName.set(itemId, [player]);
+          this.bnd_merchantItemInstanceId.set(itemId, [player]);
           this.bnd_merchantBtnText.set("Buy", [player]);
           // const fruitItem = fruitTypes.find((fruit) => fruit.name === itemId);
           const pieItem = pieTypes.find((pie) => pie.recipeType === itemId);
@@ -1458,13 +1461,16 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
 
   //region showNotification()
   //Populate notification with required message and optional player & imageAssetId
-  public showNotification(message: string, players: Player[], imageAssetId: string | null) {
+  public showNotification(message: string, players: Player[], imageAssetId: string | null, bkgColor?: string) {
     const asset = imageAssetId ? new Asset(BigInt(imageAssetId)) : this.props.notificationImg!;
     const imgSrc = ImageSource.fromTextureAsset(asset);
     let recipients = players.length > 0 ? players : undefined;
     this.bndAlertImg.set(imgSrc, recipients);
 
     this.bndAlertMsg.set(message, recipients);
+    if (bkgColor) {
+      this.bnd_notifyBkgColor.set(bkgColor, recipients);
+    }
 
     this.displayNotification(recipients);
   }
@@ -1485,7 +1491,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       //wait for 1500ms
       Animation.delay(
         //Notice delay wraps the next animation
-        1500,
+        2000,
         //then move the UI all the way to the left(-1000px) over 1000ms
         Animation.timing(-1000, {
           duration: 800,
@@ -1579,6 +1585,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     this.animBnd_ProgTaskTranslateY.set(200);
 
     this.bnd_showTaskProgressBar.set(showProgressBar ? "flex" : "none", recipients);
+    this.bnd_progTaskDisplay.set("flex", recipients);
 
     //then move the UI all the way to the left(-1000px) over 1000ms
     this.animBnd_ProgTaskTranslateY.set(
@@ -1601,7 +1608,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         duration: 200,
         easing: this.notifyEasing,
       }),
-      undefined,
+      () => this.bnd_progTaskDisplay.set("none", recipients),
       recipients ?? undefined
     );
   }
@@ -1705,9 +1712,9 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       imageAssetId = matchingRecipe.recipeImgAssetId.toString();
     }
 
-    if (imageAssetId !== "") {
-      this.triggerAnimation(player, imageAssetId, inventoryType);
-    }
+    this.triggerAnimation(player, imageAssetId, inventoryType);
+    // if (imageAssetId !== "") {
+    // }
   }
 
   //region Asset[] to UINode[]

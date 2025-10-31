@@ -92,6 +92,7 @@ class ButtonRegistry extends Component<typeof ButtonRegistry> {
   private btnInstanceIDArray: string[] = [];
   private buttonTextArray: string[] = [];
 
+  //region preStart()
   preStart() {
     // Magic to turn the props into an array of button assets and filter out undefined/null
     this.buttonAssetArray = Array.from({ length: 50 }, (_, i) => (this.props as any)[`btnImg${i}`]!).filter(

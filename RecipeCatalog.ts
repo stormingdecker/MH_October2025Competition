@@ -29,12 +29,22 @@ export const RecipeCatalog = {
       {
         taskType: ProgTaskType.Destination,
         header: "Apple Pie",
-        description: "Go to kitchen",
+        description: "Go to counter",
       },
       {
         taskType: ProgTaskType.DragToProgress,
         header: "Apple Pie",
         description: "Drag in a circle",
+      },
+            {
+        taskType: ProgTaskType.Destination,
+        header: "Apple Pie",
+        description: "Go to oven",
+      },
+      {
+        taskType: ProgTaskType.Timed,
+        header: "Apple Pie",
+        description: "Cook the pie",
       },
     ],
   },

@@ -4,8 +4,10 @@ import { OrderTicket } from "KitchenManager";
 import { NPCAgent, NPCAnimationID, NPCChair, NPCMovementSpeedID, NPCStall, NPCStateMachine } from "NPCAgent";
 import { NPCDialogueType, NPCScript } from "NPCScript";
 import { RecipeType } from "RecipeCatalog";
+import { StatsManager } from "StatsManager";
 import { sysEvents } from "sysEvents";
 import { debugLog } from "sysHelper";
+import { StatType } from "sysTypes";
 import { Primary_MenuType } from "UI_MenuManager";
 
 // --- World Greeter NPC State Machine ---
@@ -13,7 +15,7 @@ import { Primary_MenuType } from "UI_MenuManager";
 enum NPCStates_WorldGreeter {
   Initializing,
   WaitingForPlayerToApproach,
-  TurnTowardsPlayer,
+  TurnTowardsPlayer,39
   GreetingPlayer,
   MovingToPlayer,
   TellingPlayerAboutWorld,
@@ -121,6 +123,7 @@ enum NPCStates_Client {
 const CURRENCY_REWARD_PER_ORDER = 100;
 const MAXIMUM_WAIT_TIME_FOR_ORDER_SECONDS = 120;
 const WALK_TIMEOUT_SECONDS = 30;
+const EAT_TIME_SECONDS = 10;
 const ALLOW_CLIENT_SPEAK = false;
 
 export class NPCStateMachine_Client extends NPCStateMachine {
@@ -246,7 +249,12 @@ export class NPCStateMachine_Client extends NPCStateMachine {
         break;
       }
       case NPCStates_Client.Eat: {
-        if (this.getStateDurationSeconds() >= 2) {
+        if (this.getStateDurationSeconds() >= EAT_TIME_SECONDS) {
+          const isOrderAnApplePie = this.orderTicket?.recipeType === RecipeType.applePie;
+          if (isOrderAnApplePie) {
+            // Update leaderboard
+            StatsManager.instance.updatePlayerStat(this.chair!.parentPlayer, StatType.applePiesServed, 1);
+          }
           const platePosition = this.servedFoodEntity!.position.get();
           await this.chair!.kitchenManager!.despawnFoodPlate(this.servedFoodEntity!);
           this.servedFoodEntity = undefined;

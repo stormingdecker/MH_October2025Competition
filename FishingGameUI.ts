@@ -67,6 +67,7 @@ class FishingGameUI extends UIComponent<typeof FishingGameUI> {
 
   meterHeight = 500;
 
+  //region initializeUI()
   initializeUI(): UINode {
     return View({
       children: [
@@ -170,6 +171,7 @@ class FishingGameUI extends UIComponent<typeof FishingGameUI> {
     });
   }
 
+  //region preStart() 
   preStart() {
     this.connectNetworkEvent(this.entity, sysEvents.NewOwnerEvent, (data) => {
       this.entity.owner.set(data.newOwner);
@@ -195,6 +197,7 @@ class FishingGameUI extends UIComponent<typeof FishingGameUI> {
     });
   }
 
+  //region start()
   start() {
     assertAllNullablePropsSet(this, this.entity.name.get());
     this.showUI(false);
@@ -227,6 +230,7 @@ class FishingGameUI extends UIComponent<typeof FishingGameUI> {
     }
   }
 
+  //region startNibble()
   startNibble() {
     if (this.autoBite) {
       this.resetGameSettings();
@@ -271,6 +275,7 @@ class FishingGameUI extends UIComponent<typeof FishingGameUI> {
 
   padding = 0;
 
+  //region resetGameSettings()
   resetGameSettings() {
     this.isActiveGame = true;
     this.fillAmount = 0.3;
@@ -296,6 +301,7 @@ class FishingGameUI extends UIComponent<typeof FishingGameUI> {
     if (!this.isActiveGame) return;
   }
 
+//region catchMiniGame()
   private catchMiniGame() {
     if (!this.isActiveGame) return;
 
@@ -379,7 +385,7 @@ class FishingGameUI extends UIComponent<typeof FishingGameUI> {
     this.bindFillHeight.set(this.fillMeterHeight);
     this.bindFillTop.set(fillTop);
 
-    // Win condition
+    //region win condition
     if (this.fillAmount >= 1 || this.autoWin) {
       //reset everything
       this.endConditions();
@@ -408,6 +414,7 @@ class FishingGameUI extends UIComponent<typeof FishingGameUI> {
     }, 100);
   }
 
+  //region endConditions()
   endConditions() {
     debugLog(this.showDebugs, "End Mini Game");
     this.isActiveGame = false;
@@ -423,6 +430,7 @@ class FishingGameUI extends UIComponent<typeof FishingGameUI> {
     }, 1500);
   }
 
+  //region wiggleFish()
   wiggleFish() {
     if (!this.fishIsWiggling) {
       return;

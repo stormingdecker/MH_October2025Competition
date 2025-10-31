@@ -107,6 +107,7 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
       this.buttonTextArrayMap.set(data.menuType, data.buttonTextArray);
     });
 
+    //region menu context
     this.connectNetworkBroadcastEvent(sysEvents.updateMenuContext, (data) => {
       const prevMenuContext = this.playerMenuContextMap.get(data.player) ?? [];
       const curMenuContext = data.menuContext ?? [];
@@ -222,11 +223,11 @@ class UI_BottomMenu extends UIComponent<typeof UI_BottomMenu> {
         }
 
         break;
-      case Sub_PlotType.Upgrades:
-        if (curMenuContext[1] === Sub_PlotType.Upgrades) {
+      case Sub_PlotType.Upgrade:
+        if (curMenuContext[1] === Sub_PlotType.Upgrade) {
           updatedMenuContext = [Primary_MenuType.PlotMenu];
         } else {
-          updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.Upgrades];
+          updatedMenuContext = [Primary_MenuType.PlotMenu, Sub_PlotType.Upgrade];
         }
 
         break;

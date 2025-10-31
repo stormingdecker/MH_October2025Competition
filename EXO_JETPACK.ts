@@ -18,6 +18,7 @@ import {
   Color,
 } from "horizon/core";
 import { sysEvents } from "sysEvents";
+import { Primary_MenuType } from "UI_MenuManager";
 
 enum ThrustState {
   OFF,
@@ -68,18 +69,24 @@ export class EXO_JETPACK extends Component<typeof EXO_JETPACK> {
   private localPlayer: Player | undefined;
   private isGrabbed: boolean = false;
 
+  private isVisible: boolean = true;
+
   //region preStart()
   override preStart() {
-    this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnGrabStart, (isRightHand: boolean, player: Player) =>
-      this.onGrab(player)
+    this.connectCodeBlockEvent(
+      this.entity,
+      CodeBlockEvents.OnGrabStart,
+      (isRightHand: boolean, player: Player) => this.onGrab(player)
     );
 
-    this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnGrabEnd, (player: Player) => this.onRelease(player));
-  
-   this.connectNetworkBroadcastEvent(sysEvents.updateMenuContext, (data) => {
-    if (data.player.id !== this.localPlayer?.id) return;
+    this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnGrabEnd, (player: Player) =>
+      this.onRelease(player)
+    );
 
-      if (data.menuContext.length > 0){
+    this.connectNetworkBroadcastEvent(sysEvents.updateMenuContext, (data) => {
+      if (data.player.id !== this.localPlayer?.id) return;
+
+      if (data.menuContext.length > 0) {
         this.isGrabbed = false;
         this.ascendInput?.disconnect();
         this.descendInput?.disconnect();
@@ -88,11 +95,23 @@ export class EXO_JETPACK extends Component<typeof EXO_JETPACK> {
         this.isAscending = false;
         this.isDescending = false;
         this.updateThrustState(ThrustState.OFF);
-      }
-      else if (!this.isGrabbed && this.localPlayer) {
+      } else if (!this.isGrabbed && this.localPlayer) {
         this.onGrab(this.localPlayer!);
       }
-   });
+    });
+
+    this.connectNetworkBroadcastEvent(sysEvents.updateMenuContext, (data) => {
+      if (data.player.id !== this.localPlayer?.id) return;
+
+      if(data.menuContext[0] === Primary_MenuType.PlotMenu && this.isVisible){
+        this.entity.visible.set(false);
+        this.isVisible = false;
+      }
+      else if(data.menuContext[0] !== Primary_MenuType.PlotMenu && !this.isVisible){
+        this.entity.visible.set(true);
+        this.isVisible = true;
+      }
+    });
   }
 
   //region start()
@@ -182,26 +201,53 @@ export class EXO_JETPACK extends Component<typeof EXO_JETPACK> {
     this.playerSpeedMap.set(player.id, player.locomotionSpeed.get());
     this.currentPlayer = player;
 
-    this.ascendInput = PlayerControls.connectLocalInput(PlayerInputAction.Jump, ButtonIcon.Rocket, this);
+    this.ascendInput = PlayerControls.connectLocalInput(
+      PlayerInputAction.Jump,
+      ButtonIcon.Rocket,
+      this,
+      {
+        customAssetIconId: "2249700125529310",
+      }
+    );
     this.ascendInput.registerCallback((action, pressed) => {
       this.handlePlayerAscent(action, pressed);
     });
 
-    this.descendInput = PlayerControls.connectLocalInput(PlayerInputAction.RightTertiary, ButtonIcon.Contract, this);
+    this.descendInput = PlayerControls.connectLocalInput(
+      PlayerInputAction.RightTertiary,
+      ButtonIcon.Rocket,
+      this,
+      {
+        customAssetIconId: "1521428222229407",
+      }
+    );
     this.descendInput.registerCallback((action, pressed) => {
       this.handlePlayerDescent(action, pressed);
     });
 
-    this.enableFly = PlayerControls.connectLocalInput(PlayerInputAction.RightSecondary, ButtonIcon.Expand, this);
+    this.enableFly = PlayerControls.connectLocalInput(
+      PlayerInputAction.RightSecondary,
+      ButtonIcon.Rocket,
+      this,
+      {
+        customAssetIconId: "716992844760566",
+      }
+    );
     this.enableFly.registerCallback((action, pressed) => {
       this.isFlyingLatchOpen = pressed;
     });
 
-    this.joystickInput = PlayerControls.connectLocalInput(PlayerInputAction.LeftYAxis, ButtonIcon.None, this);
+    this.joystickInput = PlayerControls.connectLocalInput(
+      PlayerInputAction.LeftYAxis,
+      ButtonIcon.None,
+      this
+    );
     this.joystickInput.registerCallback((action, pressed) => {});
 
     //for grounded check
-    this.updateSubscription = this.connectLocalBroadcastEvent(World.onUpdate, () => this.onWorldUpdate());
+    this.updateSubscription = this.connectLocalBroadcastEvent(World.onUpdate, () =>
+      this.onWorldUpdate()
+    );
   }
 
   //region handleAscent()

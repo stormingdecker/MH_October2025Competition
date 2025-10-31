@@ -1,5 +1,6 @@
 import { Component, Entity, Player, Vec3 } from "horizon/core";
 import { KitchenApplianceTag } from "KitchenManager";
+import { NPCAgentPool } from "NPCAgentPool";
 import { PlayerManager, PlayerMgrEvents } from "PlayerManager";
 import { PlayerPlotManager } from "PlayerPlotManager";
 import { sysEvents } from "sysEvents";
@@ -12,6 +13,8 @@ enum NUXStepType {
   Waypoint,
   Popup,
   Confirmation,
+  Notification,
+  Delay,
   Completion,
 }
 
@@ -20,7 +23,6 @@ enum WaypointTargetType {
   Entity, // Target a specific entity
   StationTag, // Target entities by kitchen station tag
   PlotTag, // Target entities by plot tag (chairs, tables, etc.)
-  NUXTrigger, // Target specific NUX trigger by name
   PlotEntity, // Target specific plot entities (fruit tree, merchant stall, etc.)
 }
 
@@ -36,6 +38,8 @@ interface NUXStep {
   };
   imageAssetId?: string;
   autoAdvance?: boolean; // For steps that advance automatically
+  showNotificationWithWaypoint?: boolean; // Show notification when setting waypoint
+  delayDuration?: number; // Duration in milliseconds for delay steps
 }
 
 enum NUXSteps {
@@ -48,8 +52,6 @@ enum NUXSteps {
 interface PlayerPlotData {
   playerPlotManager: PlayerPlotManager;
   plotBaseEntity: Entity; // The PerPlotManager entity for this player's plot
-  //kitchenManagerEntity: Entity;
-  //kitchenManager: KitchenManager;
 }
 
 /**
@@ -60,14 +62,15 @@ interface PlayerPlotData {
  * - Entity: Target a specific entity directly
  * - StationTag: Target kitchen stations (orderStation, prepStation, cookingStation, pickupStation)
  * - PlotTag: Target plot entities (chair, table, etc.)
- * - NUXTrigger: Target specific NUX trigger entities by name
  * - PlotEntity: Target plot-specific entities (FruitTree, MerchantStall)
  *
- * Usage examples:
- * - Default NUX: Automatically started when player joins
- * - Custom sequences: nuxManager.startCustomNUXForPlayer(player, plot, "kitchenTour")
- * - Individual steps: NUX_Manager.createStationWaypointStep("Title", "Message", KitchenApplianceTag.OrderStation)
- * - Plot entities: NUX_Manager.createPlotEntityWaypointStep("Visit Tree", "Go to fruit tree", "FruitTree")
+ * Supports multiple step types:
+ * - Popup: Modal popup with OK button
+ * - Confirmation: Yes/No confirmation dialog
+ * - Notification: Non-blocking notification banner
+ * - Delay: Silent pause between steps (useful between consecutive popups)
+ * - Waypoint: Sets waypoint arrow (optionally with notification)
+ * - Completion: Final step that auto-advances
  */
 class NUX_Manager extends Component<typeof NUX_Manager> {
   static propsDefinition = {};
@@ -87,81 +90,108 @@ class NUX_Manager extends Component<typeof NUX_Manager> {
     {
       type: NUXStepType.Popup,
       title: "This restaurant is yours to run & build!",
-      message: "Head inside to start serving customers!",
+      message: "Next we'll head inside and discover how you will serve your customers!",
       imageAssetId: undefined,
     },
     {
+      type: NUXStepType.Delay,
+      delayDuration: 1000,
+    },
+    {
+      type: NUXStepType.Popup,
+      title: "Find your order station.",
+      message: "Follow the arrows to explore your kitchen.",
+    },
+    {
       type: NUXStepType.Waypoint,
-      title: "Go to the Order Station",
-      message: "Follow the waypoint arrow to your order station!",
+      title: "",
+      message: "",
       waypointTargetData: {
         targetType: WaypointTargetType.StationTag,
         target: KitchenApplianceTag.OrderStation,
       },
+      showNotificationWithWaypoint: false,
     },
     {
       type: NUXStepType.Popup,
-      title: "Order Station Tutorial",
-      message: "This is where customers place their orders. Great job finding it!",
+      title: "Order Station",
+      message: "This is where you pick-up orders from your customers. Next, let's find the prep station!",
     },
     {
       type: NUXStepType.Waypoint,
-      title: "Go to the Prep Station",
-      message: "Now let's find where you prepare food!",
+      title: "",
+      message: "",
       waypointTargetData: {
         targetType: WaypointTargetType.StationTag,
         target: KitchenApplianceTag.PrepStation,
       },
+      showNotificationWithWaypoint: false,
     },
     {
       type: NUXStepType.Popup,
-      title: "Prep Station Tutorial",
-      message: "This is where you prepare ingredients for cooking. Well done!",
+      title: "Prep Station",
+      message: "This is where you prepare ingredients for cooking. Let's locate the pickup station!",
     },
     {
       type: NUXStepType.Waypoint,
-      title: "Find the Pickup Station",
-      message: "Finally, let's locate where finished orders are picked up!",
+      title: "",
+      message: "",
       waypointTargetData: {
         targetType: WaypointTargetType.StationTag,
         target: KitchenApplianceTag.PickUpStation,
       },
+      showNotificationWithWaypoint: false,
     },
     {
       type: NUXStepType.Popup,
-      title: "Pickup Station Tutorial",
-      message: "Perfect! This is where customers collect their finished orders.",
+      title: "Pickup Station",
+      message: "This is where you collect finished orders to deliver to customers.",
     },
     {
       type: NUXStepType.Waypoint,
-      title: "Visit the Fruit Tree",
-      message: "Let's explore outside! Go to the fruit tree to gather fresh ingredients.",
+      title: "",
+      message: "",
       waypointTargetData: {
         targetType: WaypointTargetType.PlotEntity,
         target: "FruitTree",
       },
+      showNotificationWithWaypoint: false,
     },
     {
       type: NUXStepType.Popup,
-      title: "Fruit Tree Tutorial",
-      message: "This is your fruit tree! You can harvest fresh fruits here for your recipes.",
+      title: "Fruit Tree",
+      message: "Your tree provides fresh fruit here for your recipes. Next, let's visit the merchant stall.",
     },
     {
       type: NUXStepType.Waypoint,
-      title: "Visit the Merchant Stall",
-      message: "Now let's check out the merchant stall for supplies and upgrades!",
+      title: "",
+      message: "",
       waypointTargetData: {
         targetType: WaypointTargetType.PlotEntity,
         target: "MerchantStall",
       },
+      showNotificationWithWaypoint: false,
     },
     {
       type: NUXStepType.Popup,
-      title: "Merchant Stall Tutorial",
-      message: "Great! Here you can buy ingredients, sell items, and get upgrades for your restaurant.",
+      title: "Merchant Stall",
+      message: "Here you can buy & sell items for your restaurant. Finally... the central island.",
     },
     {
-      type: NUXStepType.Confirmation,
+      type: NUXStepType.Delay,
+      delayDuration: 1000,
+    },
+    {
+      type: NUXStepType.Popup,
+      title: "The Central Island",
+      message: "On the other side of the bridge are the other player lots, as well as orchards that change daily!",
+    },
+    {
+      type: NUXStepType.Delay,
+      delayDuration: 1000,
+    },
+    {
+      type: NUXStepType.Popup,
       title: "Tutorial Complete",
       message: "Congratulations! You've learned about all the stations and locations. Ready to start cooking?",
     },
@@ -204,14 +234,10 @@ class NUX_Manager extends Component<typeof NUX_Manager> {
 
   private startNUXForPlayer(player: Player, playerPlot: Entity) {
     const plotManager = getMgrClass<PlayerPlotManager>(this, ManagerType.PlayerPlotManager, PlayerPlotManager);
-    //const kitchenManagerEntity = plotManager!.getPlayerKitchen(player);
-    //const kitchenManager = kitchenManagerEntity!.getComponents(KitchenManager)[0];
 
     this.playerPlotDataMap.set(player, {
       playerPlotManager: plotManager!,
       plotBaseEntity: playerPlot,
-      //kitchenManagerEntity: kitchenManagerEntity!,
-      //kitchenManager: kitchenManager!,
     });
 
     this.playerCurrentStepMap.set(player, 0);
@@ -247,6 +273,12 @@ class NUX_Manager extends Component<typeof NUX_Manager> {
       case NUXStepType.Confirmation:
         this.executeConfirmationStep(player, step);
         break;
+      case NUXStepType.Notification:
+        this.executeNotificationStep(player, step);
+        break;
+      case NUXStepType.Delay:
+        this.executeDelayStep(player, step);
+        break;
       case NUXStepType.Waypoint:
         this.executeWaypointStep(player, step);
         break;
@@ -257,11 +289,30 @@ class NUX_Manager extends Component<typeof NUX_Manager> {
   }
 
   private executePopupStep(player: Player, step: NUXStep) {
-    this.popupRequest(player, step.title || "Tutorial", step.message || "");
+    this.popupRequest(player, step.title || "", step.message || "");
   }
 
   private executeConfirmationStep(player: Player, step: NUXStep) {
-    this.confirmationRequest(player, step.message || "Continue?");
+    this.confirmationRequest(player, step.message || "Continue");
+  }
+
+  private executeNotificationStep(player: Player, step: NUXStep) {
+    this.notificationRequest(player, step.title || "", step.message || "", step.imageAssetId, "rgba(124, 0, 173, 1)");
+
+    // Wait 3 seconds before advancing
+    this.async.setTimeout(() => {
+      this.advanceToNextStep(player);
+    }, 3000);
+  }
+
+  private executeDelayStep(player: Player, step: NUXStep) {
+    const delayDuration = step.delayDuration || 1000; // Default 1 second delay
+    console.log(`Delay step for ${player.name.get()}: waiting ${delayDuration}ms`);
+
+    // Wait for the specified duration before advancing
+    this.async.setTimeout(() => {
+      this.advanceToNextStep(player);
+    }, delayDuration);
   }
 
   private executeWaypointStep(player: Player, step: NUXStep) {
@@ -272,6 +323,11 @@ class NUX_Manager extends Component<typeof NUX_Manager> {
       });
 
       console.log(`Setting waypoint for ${player.name.get()} to position: ${targetPosition.x}, ${targetPosition.y}, ${targetPosition.z}`);
+
+      // Show notification with waypoint if requested
+      if (step.showNotificationWithWaypoint) {
+        this.notificationRequest(player, step.title || "", step.message || "", step.imageAssetId, "rgba(255, 0, 221, 1)");
+      }
     } else {
       this.sendNetworkEvent(player, WaypointEvents.stopwaypointArrow, {});
       console.error(`Could not resolve waypoint target for player ${player.name.get()}, step: ${step.title}`);
@@ -283,10 +339,7 @@ class NUX_Manager extends Component<typeof NUX_Manager> {
   private resolveWaypointTarget(player: Player, step: NUXStep): Vec3 | null {
     // Handle backwards compatibility with old waypointTarget
     if (step.waypointTarget && !step.waypointTargetData) {
-      if (typeof step.waypointTarget === "string") {
-        // Try to find entity by name/tag
-        return this.findEntityPositionByName(player, step.waypointTarget);
-      } else if (step.waypointTarget instanceof Vec3) {
+      if (step.waypointTarget instanceof Vec3) {
         return step.waypointTarget;
       } else if (step.waypointTarget instanceof Entity) {
         return step.waypointTarget.position.get();
@@ -325,12 +378,6 @@ class NUX_Manager extends Component<typeof NUX_Manager> {
         case WaypointTargetType.PlotEntity:
           if (typeof targetData.target === "string") {
             return this.findPlotEntityByName(player, targetData.target);
-          }
-          break;
-
-        case WaypointTargetType.NUXTrigger:
-          if (typeof targetData.target === "string") {
-            return this.findEntityPositionByName(player, targetData.target);
           }
           break;
       }
@@ -432,17 +479,12 @@ class NUX_Manager extends Component<typeof NUX_Manager> {
     return null;
   }
 
-  private findEntityPositionByName(player: Player, entityName: string): Vec3 | null {
-    // This is a more complex search - you might need to implement based on your specific setup
-    // For now, return a default position
-    console.warn(`Entity name search not fully implemented: ${entityName}`);
-    return new Vec3(0, 0, 0);
-  }
-
   private executeCompletionStep(player: Player, step: NUXStep) {
     if (step.message) {
       console.log(`NUX completion message for ${player.name.get()}: ${step.message}`);
     }
+
+    NPCAgentPool.instance.allowClientsForPlayer(player);
 
     if (step.autoAdvance) {
       this.advanceToNextStep(player);
@@ -469,6 +511,15 @@ class NUX_Manager extends Component<typeof NUX_Manager> {
       message,
       player,
       imageAssetId,
+    });
+  }
+
+  private notificationRequest(player: Player, title: string, message: string, imageAssetId?: string, bkgColor?: string) {
+    this.sendNetworkEvent(this.oneHUD!, oneHudEvents.NotificationEvent, {
+      message: title ? `${title}: ${message}` : message,
+      players: [player],
+      imageAssetId: imageAssetId || null,
+      bkgColor: bkgColor || undefined,
     });
   }
 
@@ -502,6 +553,7 @@ class NUX_Manager extends Component<typeof NUX_Manager> {
         if (currentStepIndex === 0) {
           console.log(`Player ${player.name.get()} declined to start the NUX tutorial.`);
           this.cleanupPlayerData(player);
+          NPCAgentPool.instance.allowClientsForPlayer(player);
         } else {
           // For other confirmations, you might want to skip to next step or handle differently
           this.advanceToNextStep(player);
@@ -534,32 +586,6 @@ class NUX_Manager extends Component<typeof NUX_Manager> {
     });
 
     return stationPositions;
-  }
-
-  // Static helper method to create plot entity waypoint steps
-  public static createPlotEntityWaypointStep(title: string, message: string, entityName: "FruitTree" | "MerchantStall"): NUXStep {
-    return {
-      type: NUXStepType.Waypoint,
-      title,
-      message,
-      waypointTargetData: {
-        targetType: WaypointTargetType.PlotEntity,
-        target: entityName,
-      },
-    };
-  }
-
-  // Static helper method to create station waypoint steps
-  public static createStationWaypointStep(title: string, message: string, stationTag: string): NUXStep {
-    return {
-      type: NUXStepType.Waypoint,
-      title,
-      message,
-      waypointTargetData: {
-        targetType: WaypointTargetType.StationTag,
-        target: stationTag,
-      },
-    };
   }
 }
 Component.register(NUX_Manager);

@@ -22,6 +22,7 @@ export class InventoryManager
     showDebugs: { type: "boolean", default: false },
   };
 
+  public static instance : InventoryManager;
   private playerInventoryMap: Map<Player, PlayerInventory> = new Map();
   private oneHUD: Entity | undefined;
   private saveManager: SaveManager | undefined;
@@ -30,6 +31,7 @@ export class InventoryManager
 
   //region preStart()
   preStart(): void {
+    InventoryManager.instance = this;
     this.connectNetworkEvent(this.entity, simpleButtonEvent, (data) => {
       console.log("Simple Button Event Triggered");
     });
@@ -116,6 +118,15 @@ export class InventoryManager
               newValue: inventory.items[itemType].toString(),
             });
             break;
+          case InventoryType.apple:
+            const appleCount = inventory.items[InventoryType.apple];
+            this.world.leaderboards.setScoreForPlayer(
+              "MostApplesCollected",
+              player,
+              appleCount,
+              false
+            );
+            break;
           default:
             debugLog(
               this.props.showDebugs,
@@ -128,19 +139,21 @@ export class InventoryManager
         this.playerInventoryMap.set(player, inventory);
         this.saveManager?.savePlayerData(player);
 
-
         if (inventory.items[itemType] > 0 && !this.loadingPlayerInventory) {
           this.checkIfFirstPick(player, itemType, quantity > 0);
         }
-  
-        if (quantity > 0 && itemType !== InventoryType.currency && itemType !== InventoryType.diamond) {
+
+        if (
+          quantity > 0 &&
+          itemType !== InventoryType.currency &&
+          itemType !== InventoryType.diamond
+        ) {
           this.sendNetworkEvent(this.oneHUD!, oneHudEvents.UpdateInventoryUI, {
             player: player,
             inventoryType: itemType,
             newValue: inventory.items[itemType].toString(),
           });
         }
-
       } else {
         console.warn(`Item ${itemType} does not exist in the inventory.`);
       }

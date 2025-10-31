@@ -52,7 +52,8 @@ export const confirm = (
               ...confirmButton(
                 new Binding<string>("Cancel"),
                 new Binding<number>(30),
-                bndCancel_Scale
+                bndCancel_Scale,
+                "rgba(255, 244, 244, 1)"
               ),
             ],
             onPress: (player) => {
@@ -73,7 +74,8 @@ export const confirm = (
               ...confirmButton(
                 new Binding<string>("Confirm"),
                 new Binding<number>(30),
-                bndConfirm_Scale
+                bndConfirm_Scale,
+                "rgba(255, 232, 100, 1)"
               ),
             ],
             onPress: (player) => {
@@ -83,7 +85,7 @@ export const confirm = (
                 onConfirmBtnPressed(true, player);
               }, 100);
             },
-            onRelease: (player) => { },
+            onRelease: (player) => {},
             style: {
               width: "40%",
               height: "100%",
@@ -107,8 +109,8 @@ export const confirm = (
       layoutOrigin: [0.5, 0.5],
       left: "50%",
       top: "50%",
-      backgroundColor: "rgba(0, 132, 255, 1)", // Panel background
-      borderRadius: 20,
+      backgroundColor: "rgba(115, 186, 252, 1)", // Panel background
+      borderRadius: 25,
       borderColor: "rgba(255, 255, 255, 1)", // Panel border color
       borderWidth: 8,
       alignItems: "center",
@@ -127,10 +129,16 @@ export const notification = (
   bndAlertMsg: Binding<string>,
   animBnd_translateX: AnimatedBinding,
   panelWidth: number,
-  panelHeight: number
+  panelHeight: number,
+  bkgColor?: Binding<string>
 
   // onNotificationBtnPressed: (player: Player
 ) => {
+  // const backgndColor = new Binding<string>("rgba(255, 0, 0, 1)");
+  // if (bkgColor) {
+  //   backgndColor.set(bkgColor.derive(()=> bkgColor!.toString()));
+  // }
+
   return View({
     children: [
       Image({
@@ -140,7 +148,7 @@ export const notification = (
           width: 80,
           alignSelf: "center",
           margin: 10,
-          borderRadius: 40,
+          borderRadius: 20,
           // backgroundColor: 'rgba(229, 233, 0, 1)',
         },
       }),
@@ -162,7 +170,7 @@ export const notification = (
     ],
     style: {
       flexDirection: "row",
-      backgroundColor: "rgba(255, 0, 0, 1)",
+      backgroundColor: bkgColor?.derive((color) => color || "rgba(255, 0, 0, 1)"),
       layoutOrigin: [0.5, 0.5],
       left: "50%",
       top: "50%",
@@ -194,20 +202,20 @@ export const popup = (
         source: bndWatermark,
         style: {
           position: "absolute",
-          height: "100%",
-          width: "75%",
+          height: 200,
+          width: 200,
           opacity: 0.4,
           // layoutOrigin: [0.5, 0.5],
-          right: 0,
-          bottom: 5,
+          right: -10,
+          top: -10,
         },
       }),
       // UI Title
       Text({
         text: bndTitle,
         style: {
-          fontSize: 50,
-          lineHeight: 48,
+          fontSize: 32,
+          //lineHeight: 48,
           letterSpacing: 2,
           fontFamily: "Kallisto",
           color: "rgba(3, 3, 3, 1)",
@@ -403,7 +411,7 @@ export const progressBar = (
 
 //region prog task UI def
 export const progressionTask = (
-  showProgTask: boolean,
+  showProgTaskDisplay: Binding<string>,
   bnd_HeaderText: Binding<string>,
   bnd_Instructions: Binding<string>,
   bnd_ProgressAsString: Binding<string>,
@@ -525,7 +533,7 @@ export const progressionTask = (
         layoutOrigin: [0.5, 0.5],
         zIndex: screenPosition.z!,
         // borderRadius: 20,
-        display: showProgTask ? "flex" : "none",
+        display: showProgTaskDisplay,
         transform: [{ translateY: animBnd_translateY }, { scale: containerSize.z! }],
       },
     }),
@@ -564,7 +572,8 @@ export const popupButton = (
 export const confirmButton = (
   bndHeaderText: Binding<string>,
   bndFontSize: Binding<number>,
-  bndBtnScale: Binding<number>
+  bndBtnScale: Binding<number>,
+  bkgColor: string
 ) => {
   return [
     Text({
@@ -574,8 +583,8 @@ export const confirmButton = (
         width: "100%",
         height: "100%",
         alignSelf: "center",
-        backgroundColor: "rgba(255, 255, 255, 1)",
-        borderRadius: 20,
+        backgroundColor: bkgColor,
+        borderRadius: 30,
         color: "rgba(2, 2, 2, 1)",
         fontSize: bndFontSize,
         textAlign: "center",
@@ -687,7 +696,7 @@ export const buttonImg = (
       }, 100);
       onButtonPressed(instanceId, player);
     },
-    onRelease: (player) => { },
+    onRelease: (player) => {},
     style: {
       // backgroundColor: "rgba(0, 255, 60, 0.73)",
       width: size ? size : 75,
@@ -760,7 +769,7 @@ export const buttonImgWithText = (
       }, 100);
       onButtonPressed(instanceId, player);
     },
-    onRelease: (player) => { },
+    onRelease: (player) => {},
     style: {
       // backgroundColor: "rgba(0, 255, 60, 0.73)",
       // width: "100%",
@@ -845,7 +854,7 @@ export const btnImgBndText = (
       }, 100);
       onButtonPressed(instanceId, player);
     },
-    onRelease: (player) => { },
+    onRelease: (player) => {},
     style: {
       // backgroundColor: "rgba(0, 255, 60, 0.73)",
       width: "100%",
@@ -1083,7 +1092,6 @@ export const exitButton = (
   });
 };
 
-
 //region daily reward window
 export const dailyRewardWindow = (
   component: Component,
@@ -1106,7 +1114,6 @@ export const dailyRewardWindow = (
     textColor: "rgba(255, 255, 255, 1)",
     backgroundColor: "rgba(255, 41, 159, 1)",
     borderRadius: 50,
-
   };
   return [
     View({
@@ -1138,7 +1145,7 @@ export const dailyRewardWindow = (
           // Exit Button
           children: [
             // btnStringText(component, "✖", "exitDailyRewards", exitButtonStyle, onButtonPressed),
-            exitButton(component, "exitDailyRewards", exitButtonStyle, onButtonPressed)
+            exitButton(component, "exitDailyRewards", exitButtonStyle, onButtonPressed),
           ],
           style: {
             width: 50,
@@ -1192,7 +1199,7 @@ export const dailyRewardWindow = (
             position: "absolute",
             layoutOrigin: [0.5, 0.5],
             left: "50%",
-            top: "88%",
+            top: "86%",
             marginTop: 10,
             marginBottom: 10,
             borderColor: "rgba(255, 255, 255, 1)",
@@ -1388,10 +1395,9 @@ export const inventorySlotButton = (
   ifIsEmpty: boolean, //can be for locking or empty visual state
   onButtonPressed: (instanceID: string, player: Player) => void,
   backgroundColor?: string,
-  slotSize?: number,
+  slotSize?: number
 ) => {
   const scaleBinding = new Binding<number>(1);
-
 
   return Pressable({
     children: [
@@ -1452,7 +1458,7 @@ export const inventorySlotButton = (
       }, 100);
       onButtonPressed(instanceId, player);
     },
-    onRelease: (player) => { },
+    onRelease: (player) => {},
     style: {
       //backgroundColor: "rgba(106, 200, 212, 1)",
       borderWidth: 3,
@@ -1476,7 +1482,7 @@ export const inventoryMenuWindow = (
   onButtonPressed: (instanceID: string, player: Player) => void,
   childrenUINodeArray: Binding<UINode[]>,
   bnd_dailyRewardDisplay: Binding<string>,
-  bnd_windowHeaderText: Binding<string>,
+  bnd_windowHeaderText: Binding<string>
 ) => {
   const exitButtonStyle: UI_ButtonStyleGuide = {
     font: FONT_MAIN,
@@ -1517,14 +1523,11 @@ export const inventoryMenuWindow = (
             borderBottomLeftRadius: 0,
             borderBottomWidth: 8,
             borderColor: "rgba(255, 255, 255, 1)",
-
           },
         }),
         View({
           // Exit Button
-          children: [
-            exitButton(component, "exitInventory", exitButtonStyle, onButtonPressed),
-          ],
+          children: [exitButton(component, "exitInventory", exitButtonStyle, onButtonPressed)],
           style: {
             width: 50,
             height: 50,
@@ -1592,14 +1595,14 @@ export const inventoryMenuWindow = (
 export const inventoryDetailWindow = (
   component: Component,
   instanceId: Binding<string>,
+  itemName: Binding<string>,
   img: Binding<ImageSource>,
   detailText: Binding<string>,
-  bnd_detailDisplay: Binding<string>,
-
+  bnd_detailDisplay: Binding<string>
 ) => {
-  const windowWidth = 450;
+  const windowWidth = 400;
   const windowHeight = 200;
-  const textAreaWidth = 300;
+  const textAreaWidth = 250;
 
   const uiButtonStyle: UI_ButtonStyleGuide = {
     font: FONT_MAIN,
@@ -1613,7 +1616,8 @@ export const inventoryDetailWindow = (
   return [
     View({
       children: [
-        View({//Image
+        View({
+          //Image
           children: [
             Image({
               source: img,
@@ -1624,7 +1628,7 @@ export const inventoryDetailWindow = (
             }),
           ],
           style: {
-            backgroundColor: "rgba(200, 200, 200, 0.5)",
+            // backgroundColor: "rgba(200, 200, 200, 0.5)",
             width: 100,
             height: 100,
             layoutOrigin: [0, 0],
@@ -1633,10 +1637,11 @@ export const inventoryDetailWindow = (
             position: "absolute",
           },
         }),
-        View({//Title
+        View({
+          //Title
           children: [
             Text({
-              text: instanceId,
+              text: itemName,
               style: {
                 fontFamily: FONT_MAIN,
                 fontSize: 28,
@@ -1672,7 +1677,8 @@ export const inventoryDetailWindow = (
               },
             }),
           ],
-          style: {//detail text
+          style: {
+            //detail text
             // backgroundColor: "rgba(200, 200, 200, 0.5)",
             width: textAreaWidth,
             height: 90,
@@ -1687,11 +1693,13 @@ export const inventoryDetailWindow = (
         width: windowWidth,
         height: windowHeight,
         layoutOrigin: [0.5, 0.5],
-        left: "25%",
+        left: "27%",
         top: "38%",
         position: "absolute",
         borderRadius: 20,
-        backgroundColor: "rgba(255, 255, 255, 1)",
+        backgroundColor: "rgba(105, 219, 209, 1))",
+        borderColor: "rgba(255, 255, 255, 1)",
+        borderWidth: 8,
         overflow: "hidden",
         display: bnd_detailDisplay,
       },
@@ -1703,20 +1711,20 @@ export const inventoryDetailWindow = (
 export const merchantDetailWindow = (
   component: Component,
   instanceId: Binding<string>,
+  itemName: Binding<string>,
   img: Binding<ImageSource>,
   currentPrice: Binding<string>,
   onButtonPressed: (instanceID: string, player: Player) => void,
   bnd_detailDisplay: Binding<string>,
-  bnd_merchantBtnText: Binding<string>,
-
+  bnd_merchantBtnText: Binding<string>
 ) => {
-  const windowWidth = 600;
-  const windowHeight = 300;
-  const textAreaWidth = 320;
+  const windowWidth = 400;
+  const windowHeight = 200;
+  const textAreaWidth = 250;
 
   const uiButtonStyle: UI_ButtonStyleGuide = {
     font: FONT_MAIN,
-    fontSize: 40,
+    fontSize: 30,
     fontWeight: "bold",
     textColor: "rgba(255, 255, 255, 1)",
     backgroundColor: "rgba(41, 126, 255, 1)",
@@ -1726,7 +1734,8 @@ export const merchantDetailWindow = (
   return [
     View({
       children: [
-        View({//Image
+        View({
+          //Image
           children: [
             Image({
               source: img,
@@ -1737,20 +1746,21 @@ export const merchantDetailWindow = (
             }),
           ],
           style: {
-            backgroundColor: "rgba(200, 200, 200, 0.5)",
-            width: 150,
-            height: 150,
+            // backgroundColor: "rgba(200, 200, 200, 0.5)",
+            width: 100,
+            height: 100,
             layoutOrigin: [0, 0],
-            left: 30,
-            top: 30,
+            left: 15,
+            top: 15,
             position: "absolute",
           },
         }),
-        View({//Title
+        View({
+          //Title
           children: [
             Text({
               // text: instanceId,
-              text: instanceId,
+              text: itemName,
               style: {
                 fontFamily: FONT_MAIN,
                 fontSize: 28,
@@ -1762,7 +1772,7 @@ export const merchantDetailWindow = (
             }),
           ],
           style: {
-            backgroundColor: "rgba(200, 200, 200, 0.5)",
+            // backgroundColor: "rgba(200, 200, 200, 0.5)",
             width: textAreaWidth,
             height: 80,
             layoutOrigin: [0, 0],
@@ -1786,8 +1796,9 @@ export const merchantDetailWindow = (
               },
             }),
           ],
-          style: {//detail text
-            backgroundColor: "rgba(200, 200, 200, 0.5)",
+          style: {
+            //detail text
+            // backgroundColor: "rgba(200, 200, 200, 0.5)",
             width: textAreaWidth,
             height: 90,
             layoutOrigin: [0, 0],
@@ -1799,15 +1810,21 @@ export const merchantDetailWindow = (
         View({
           // Sell Button
           children: [
-            btnBndStringText(component, bnd_merchantBtnText, "merchantEvent", uiButtonStyle, onButtonPressed),
+            btnBndStringText(
+              component,
+              bnd_merchantBtnText,
+              "merchantEvent",
+              uiButtonStyle,
+              onButtonPressed
+            ),
           ],
           style: {
-            width: 175,
-            height: 70,
+            width: 100,
+            height: 50,
             position: "absolute",
             layoutOrigin: [0.5, 1],
             left: "50%",
-            top: windowHeight - 15,
+            top: windowHeight - 20,
             // zIndex: 12,
           },
         }),
@@ -1816,11 +1833,13 @@ export const merchantDetailWindow = (
         width: windowWidth,
         height: windowHeight,
         layoutOrigin: [0.5, 0.5],
-        left: "30%",
+        left: "27%",
         top: "38%",
         position: "absolute",
         borderRadius: 20,
-        backgroundColor: "rgba(255, 255, 255, 1)",
+             backgroundColor: "rgba(0, 255, 136, 1))",
+        borderColor: "rgba(255, 255, 255, 1)",
+        borderWidth: 8,
         overflow: "hidden",
         display: bnd_detailDisplay,
       },

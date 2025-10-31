@@ -20,6 +20,8 @@ export const oneHudEvents = {
     message: string;
     players: Player[];
     imageAssetId: string | null;
+    bkgColor?: string;
+    
   }>("NotificationEvent"),
 
   ConfirmationPanelRequest: new NetworkEvent<{

@@ -16,10 +16,12 @@ import {
 } from "horizon/core";
 
 import LocalCamera from "horizon/camera";
-import { assertAllNullablePropsSet, debugLog } from "sysHelper";
+import { assertAllNullablePropsSet, debugLog, getEntityListByTag, ManagerType } from "sysHelper";
 import { sysEvents } from "sysEvents";
 import { randomRotation, scaleVec3, subtractVec3, vecDistance } from "sysUtils";
 import { FishingState } from "sysFishing";
+import { InventoryManager } from "InventoryManager";
+import { InventoryType } from "sysTypes";
 
 class FishingRodController extends Component<typeof FishingRodController> {
   static propsDefinition = {
@@ -36,7 +38,7 @@ class FishingRodController extends Component<typeof FishingRodController> {
     sfxReadyToCast: { type: PropTypes.Entity },
   };
 
-  private showDebugs = false;
+  private showDebugs = true;
   private fishingState!: FishingState;
   private powerCounter = -1;
   private powerDirection = 1;
@@ -79,15 +81,11 @@ class FishingRodController extends Component<typeof FishingRodController> {
 
     //ATTACH TO PLAYER ON RELEASE
     let attachableEntity = this.entity.as(AttachableEntity);
-    this.connectCodeBlockEvent(
-      this.entity,
-      CodeBlockEvents.OnGrabEnd,
-      (player: Player) => {
-        attachableEntity?.attachToPlayer(player, AttachablePlayerAnchor.Torso);
-        this.enableBobber(false);
-        this.setFishingState(FishingState.ReadyToCast);
-      }
-    );
+    this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnGrabEnd, (player: Player) => {
+      attachableEntity?.attachToPlayer(player, AttachablePlayerAnchor.Torso);
+      this.enableBobber(false);
+      this.setFishingState(FishingState.ReadyToCast);
+    });
 
     this.connectCodeBlockEvent(
       //Casting button
@@ -98,45 +96,25 @@ class FishingRodController extends Component<typeof FishingRodController> {
       }
     );
 
-    this.connectCodeBlockEvent(
-      this.entity,
-      CodeBlockEvents.OnIndexTriggerUp,
-      (player) => {
-        this.onTriggerUp(player);
-      }
-    );
-    this.connectCodeBlockEvent(
-      this.entity,
-      CodeBlockEvents.OnButton1Down,
-      (player) => {
-        debugLog(this.showDebugs, "Button1 Down. Details: player: ${player},");
-        // if (this.fishingState === FishingState.Catching) {
-        //   this.setFishingState(FishingState.Reeling);
-        // }
-      }
-    );
-    this.connectCodeBlockEvent(
-      this.entity,
-      CodeBlockEvents.OnButton1Up,
-      (player) => {
-        debugLog(this.showDebugs, "Button1 Up. Details: player: ${player},");
-        this.setFishingState(FishingState.ReadyToCast);
-      }
-    );
-    this.connectCodeBlockEvent(
-      this.entity,
-      CodeBlockEvents.OnButton2Down,
-      (player) => {
-        debugLog(this.showDebugs, "Button2 Down. Details: player: ${player},");
-      }
-    );
-    this.connectCodeBlockEvent(
-      this.entity,
-      CodeBlockEvents.OnButton2Up,
-      (player) => {
-        debugLog(this.showDebugs, "Button2 Up. Details: player: ${player},");
-      }
-    );
+    this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnIndexTriggerUp, (player) => {
+      this.onTriggerUp(player);
+    });
+    this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnButton1Down, (player) => {
+      debugLog(this.showDebugs, "Button1 Down. Details: player: ${player},");
+      // if (this.fishingState === FishingState.Catching) {
+      //   this.setFishingState(FishingState.Reeling);
+      // }
+    });
+    this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnButton1Up, (player) => {
+      debugLog(this.showDebugs, "Button1 Up. Details: player: ${player},");
+      this.setFishingState(FishingState.ReadyToCast);
+    });
+    this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnButton2Down, (player) => {
+      debugLog(this.showDebugs, "Button2 Down. Details: player: ${player},");
+    });
+    this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnButton2Up, (player) => {
+      debugLog(this.showDebugs, "Button2 Up. Details: player: ${player},");
+    });
 
     this.connectLocalBroadcastEvent(sysEvents.tutorialEnabled, (data) => {
       this.enableTutorial();
@@ -206,16 +184,14 @@ class FishingRodController extends Component<typeof FishingRodController> {
     }
   }
 
+  //region setFishingState()
   setFishingState(state: FishingState) {
     if (this.fishingState === state) return;
     if (state === FishingState.Catching && this.bobberHasFish) {
       return;
     }
 
-    debugLog(
-      this.showDebugs,
-      `Fishing state changed to: ${FishingState[state]}`
-    );
+    debugLog(this.showDebugs, `Fishing state changed to: ${FishingState[state]}`);
 
     switch (state) {
       case FishingState.ReadyToCast:
@@ -249,6 +225,14 @@ class FishingRodController extends Component<typeof FishingRodController> {
         break;
       case FishingState.CollectingReward:
         this.fishingState = FishingState.CollectingReward;
+        const inventoryEntity = getEntityListByTag(ManagerType.InventoryManager, this.world)[0];
+        this.sendNetworkEvent(inventoryEntity!, sysEvents.UpdatePlayerInventory, {
+          player: this.entity.owner.get(),
+          item: InventoryType.fish,
+          quantity: 1,
+          sender: this.entity,
+        });
+        this.setFishingState(FishingState.ReadyToCast);
         break;
       default:
         break;
@@ -260,15 +244,11 @@ class FishingRodController extends Component<typeof FishingRodController> {
   }
 
   showReadyToCastVFX() {
-    this.props.readyToCastVFX!.position.set(
-      this.props.bobberDummy!.position.get()
-    );
+    this.props.readyToCastVFX!.position.set(this.props.bobberDummy!.position.get());
     this.props.readyToCastVFX!.as(ParticleGizmo).play();
   }
   playReadyToCastSFX() {
-    this.props.sfxReadyToCast!.position.set(
-      this.props.bobberDummy!.position.get()
-    );
+    this.props.sfxReadyToCast!.position.set(this.props.bobberDummy!.position.get());
     this.props.sfxReadyToCast!.as(AudioGizmo).play();
   }
 
@@ -363,6 +343,7 @@ class FishingRodController extends Component<typeof FishingRodController> {
     }
   }
 
+  //region reelInBobber()
   private reelInBobber() {
     const physicalEntity = this.props.bobber!.as(PhysicalEntity);
     //move bobber position closer to the player
@@ -395,4 +376,3 @@ class FishingRodController extends Component<typeof FishingRodController> {
 }
 
 Component.register(FishingRodController);
-

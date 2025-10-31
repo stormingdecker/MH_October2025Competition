@@ -37,7 +37,7 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
         return;
       }
       this.activePlayers.push(player);
-      this.playersWithChairsToAdd.add(player);
+      //this.playersWithChairsToAdd.add(player);
     });
 
     this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnPlayerExitWorld, (player) => {
@@ -97,6 +97,11 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
     this.registerAgent(this.props.merchantNPC2);
     this.registerAgent(this.props.merchantNPC3);
     this.registerAgent(this.props.merchantNPC4);
+  }
+
+  public allowClientsForPlayer(player: Player) {
+    debugLog(this.props.debugLogging, `NPCAgentPool: allowClientsForPlayer called for player ${player.name.get()}`);
+    this.playersWithChairsToAdd.add(player);
   }
 
   private spawnClient() {

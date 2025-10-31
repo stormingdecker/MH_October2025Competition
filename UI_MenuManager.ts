@@ -23,7 +23,7 @@ export enum Sub_PlotType {
   BuildMode = "BuildMode",
   FoodMenu = "FoodMenu",
   Staff = "StaffMenu",
-  Upgrades = "UpgradesMenu",
+  Upgrade = "UpgradeMenu",
   Shop = "ShopMenu",
   Paint = "PaintMenu",
 }

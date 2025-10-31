@@ -58,10 +58,10 @@ export const DEFAULT_INVENTORY: PlayerInventory = Object.freeze({
     [InventoryType.wood]: 0,
     [InventoryType.stone]: 0,
     [InventoryType.iron]: 0,
-    [InventoryType.currency]: 10000,
+    [InventoryType.currency]: 300,
     [InventoryType.diamond]: 0,
-    [InventoryType.apple]: 3,
-    [InventoryType.banana]: 2,
+    [InventoryType.apple]: 0,
+    [InventoryType.banana]: 0,
     [InventoryType.cherry]: 3,
     [InventoryType.lemon]: 0,
     [InventoryType.orange]: 0,
@@ -73,9 +73,9 @@ export const DEFAULT_INVENTORY: PlayerInventory = Object.freeze({
     [InventoryType.fish]: 0,
     [InventoryType.mushroom]: 0,
     //PIES
-    [InventoryType.applePie]: 1,
-    [InventoryType.bananaPie]: 2,
-    [InventoryType.cherryPie]: 3,
+    [InventoryType.applePie]: 0,
+    [InventoryType.bananaPie]: 0,
+    [InventoryType.cherryPie]: 0,
     [InventoryType.lemonPie]: 0,
     [InventoryType.orangePie]: 0,
     [InventoryType.peachPie]: 0,
@@ -103,6 +103,7 @@ export const DEFAULT_INVENTORY: PlayerInventory = Object.freeze({
 
 export interface FoodType {
   name: InventoryType;
+  itemName: string;
   sellPrice: number;
   imageAssetID: string;
   fruitAsset: Asset;
@@ -112,6 +113,7 @@ export interface FoodType {
 export const foodTypes: FoodType[] = [
   {
     name: InventoryType.apple,
+    itemName: "Apple",
     sellPrice: 2,
     imageAssetID: "691487033545708",
     fruitAsset: new Asset(BigInt("675554712276248")),
@@ -119,6 +121,7 @@ export const foodTypes: FoodType[] = [
   },
   {
     name: InventoryType.banana,
+    itemName: "Banana",
     sellPrice: 3,
     imageAssetID: "852004330659901",
     fruitAsset: new Asset(BigInt("802699452617022")),
@@ -126,6 +129,7 @@ export const foodTypes: FoodType[] = [
   },
   {
     name: InventoryType.cherry,
+    itemName: "Cherry",
     sellPrice: 4,
     imageAssetID: "1476794963553053",
     fruitAsset: new Asset(BigInt("1356200265862008")),
@@ -133,6 +137,7 @@ export const foodTypes: FoodType[] = [
   },
   {
     name: InventoryType.lemon,
+    itemName: "Lemon",
     sellPrice: 6,
     imageAssetID: "1359364569071057",
     fruitAsset: new Asset(BigInt("1875920139994203")),
@@ -140,6 +145,7 @@ export const foodTypes: FoodType[] = [
   },
   {
     name: InventoryType.orange,
+    itemName: "Orange",
     sellPrice: 7,
     imageAssetID: "1104571604993467",
     fruitAsset: new Asset(BigInt("2212810152541271")),
@@ -147,6 +153,7 @@ export const foodTypes: FoodType[] = [
   },
   {
     name: InventoryType.peach,
+    itemName: "Peach",
     sellPrice: 8,
     imageAssetID: "816546771311016",
     fruitAsset: new Asset(BigInt("1323540752643246")),
@@ -154,6 +161,7 @@ export const foodTypes: FoodType[] = [
   },
   {
     name: InventoryType.pear,
+    itemName: "Pear",
     sellPrice: 9,
     imageAssetID: "789424567330120",
     fruitAsset: new Asset(BigInt("1130401219084123")),
@@ -161,6 +169,7 @@ export const foodTypes: FoodType[] = [
   },
   {
     name: InventoryType.pineapple,
+    itemName: "Pineapple",
     sellPrice: 10,
     imageAssetID: "1334930264707944",
     fruitAsset: new Asset(BigInt("1564733044526612")),
@@ -168,6 +177,7 @@ export const foodTypes: FoodType[] = [
   },
   {
     name: InventoryType.pumpkin,
+    itemName: "Pumpkin",
     sellPrice: 11,
     imageAssetID: "1372473164313108",
     fruitAsset: new Asset(BigInt("1504866231016301")),
@@ -175,6 +185,7 @@ export const foodTypes: FoodType[] = [
   },
   {
     name: InventoryType.strawberry,
+    itemName: "Strawberry",
     sellPrice: 12,
     imageAssetID: "1132354152360694",
     fruitAsset: new Asset(BigInt("889998978504978")),
@@ -182,13 +193,15 @@ export const foodTypes: FoodType[] = [
   },
   {
     name: InventoryType.fish,
-    sellPrice: 5,
+    itemName: "Fish",
+    sellPrice: 10,
     imageAssetID: "665499189736006",
     fruitAsset: new Asset(BigInt("1171224774957435")),
     plantAsset: new Asset(BigInt("661703750123463")),
   },
   {
     name: InventoryType.mushroom,
+    itemName: "Mushroom",
     sellPrice: 4,
     imageAssetID: "2304203843419455",
     fruitAsset: new Asset(BigInt("1315217103137921")),
@@ -198,10 +211,12 @@ export const foodTypes: FoodType[] = [
 
 export interface PieType {
   name: InventoryType;
+  itemName: string;
   sellPrice: number;
   imageAssetID: string;
   pieAsset: Asset;
-  recipeType?: InventoryType;
+  recipeType: InventoryType;
+  recipeName: string;
   recipeBuyPrice: number;
   recipeImgAssetId: string;
 }
@@ -209,109 +224,133 @@ export interface PieType {
 export const pieTypes: PieType[] = [
   {
     name: InventoryType.applePie,
-    sellPrice: 12,
+    itemName: "Apple Pie",
+    sellPrice: 5,
     imageAssetID: "1131851799083205",
     pieAsset: new Asset(BigInt("3671897939771819")),
     recipeType: InventoryType.applePieRecipe,
+    recipeName: "Apple Pie Recipe",
     recipeBuyPrice: 50,
     recipeImgAssetId: "1355739242713510",
   },
   {
     name: InventoryType.bananaPie,
-    sellPrice: 13,
+    itemName: "Banana Pie",
+    sellPrice: 8,
     imageAssetID: "24777224291900726",
     pieAsset: new Asset(BigInt("3671897939771819")),
     recipeType: InventoryType.bananaPieRecipe,
+    recipeName: "Banana Pie Recipe",
     recipeBuyPrice: 55,
     recipeImgAssetId: "1894804171384531",
   },
   {
     name: InventoryType.cherryPie,
-    sellPrice: 14,
+    itemName: "Cherry Pie",
+    sellPrice: 10,
     imageAssetID: "1360557238890751",
     pieAsset: new Asset(BigInt("3671897939771819")),
     recipeType: InventoryType.cherryPieRecipe,
+    recipeName: "Cherry Pie Recipe",
     recipeBuyPrice: 60,
     recipeImgAssetId: "1365469885086980",
   },
   {
     name: InventoryType.lemonPie,
+    itemName: "Lemon Pie",
     sellPrice: 15,
     imageAssetID: "1835569427044199",
     pieAsset: new Asset(BigInt("3671897939771819")),
     recipeType: InventoryType.lemonPieRecipe,
+    recipeName: "Lemon Pie Recipe",
     recipeBuyPrice: 65,
     recipeImgAssetId: "1189729773018764",
   },
   {
     name: InventoryType.orangePie,
-    sellPrice: 16,
+    itemName: "Orange Pie",
+    sellPrice: 25,
     imageAssetID: "3867438846810153",
     pieAsset: new Asset(BigInt("3671897939771819")),
     recipeType: InventoryType.orangePieRecipe,
+    recipeName: "Orange Pie Recipe",
     recipeBuyPrice: 70,
     recipeImgAssetId: "1706549810042152",
   },
   {
     name: InventoryType.peachPie,
-    sellPrice: 17,
+    itemName: "Peach Pie",
+    sellPrice: 30,
     imageAssetID: "824444493321431",
     pieAsset: new Asset(BigInt("3671897939771819")),
     recipeType: InventoryType.peachPieRecipe,
+    recipeName: "Peach Pie Recipe",
     recipeBuyPrice: 75,
     recipeImgAssetId: "702402329548905",
   },
   {
     name: InventoryType.pearPie,
-    sellPrice: 18,
+    itemName: "Pear Pie",
+    sellPrice: 35,
     imageAssetID: "812857718126365",
     pieAsset: new Asset(BigInt("3671897939771819")),
     recipeType: InventoryType.pearPieRecipe,
+    recipeName: "Pear Pie Recipe",
     recipeBuyPrice: 80,
     recipeImgAssetId: "1543652050144020",
   },
   {
     name: InventoryType.pineapplePie,
-    sellPrice: 19,
+    itemName: "Pineapple Pie",
+    sellPrice: 40,
     imageAssetID: "1556998645656523",
     pieAsset: new Asset(BigInt("3671897939771819")),
     recipeType: InventoryType.pineapplePieRecipe,
+    recipeName: "Pineapple Pie Recipe",
     recipeBuyPrice: 85,
     recipeImgAssetId: "743943545329533",
   },
   {
     name: InventoryType.pumpkinPie,
-    sellPrice: 20,
+    itemName: "Pumpkin Pie",
+    sellPrice: 45,
     imageAssetID: "1545898633424184",
     pieAsset: new Asset(BigInt("3671897939771819")),
     recipeType: InventoryType.pumpkinPieRecipe,
+    recipeName: "Pumpkin Pie Recipe",
     recipeBuyPrice: 90,
     recipeImgAssetId: "810548225047530",
   },
   {
     name: InventoryType.strawberryPie,
-    sellPrice: 21,
+    itemName: "Strawberry Pie",
+    sellPrice: 50,
     imageAssetID: "827517083332469",
     pieAsset: new Asset(BigInt("3671897939771819")),
     recipeType: InventoryType.strawberryPieRecipe,
+    recipeName: "Strawberry Pie Recipe",
     recipeBuyPrice: 95,
     recipeImgAssetId: "848317887722987",
   },
   {
     name: InventoryType.fishPie,
-    sellPrice: 0,
+    itemName: "Fish Pie",
+    sellPrice: 25,
     imageAssetID: "835173265711705",
     pieAsset: new Asset(BigInt("3671897939771819")),
     recipeType: InventoryType.fishPieRecipe,
+    recipeName: "Fish Pie Recipe",
     recipeBuyPrice: 100,
     recipeImgAssetId: "1880824732816412",
   },
   {
     name: InventoryType.mushroomPie,
-    sellPrice: 0,
+    itemName: "Mushroom Pie",
+    sellPrice: 10,
     imageAssetID: "3809774089321748",
     pieAsset: new Asset(BigInt("3671897939771819")),
     recipeType: InventoryType.mushroomPieRecipe,
+    recipeName: "Mushroom Pie Recipe",
     recipeBuyPrice: 110,
     recipeImgAssetId: "835063715654402",
   },
@@ -353,14 +392,9 @@ export enum StatType {
   maxBoostSpeed = "maxBoostSpeed",
   maxFlightSpeed = "maxFlightSpeed",
   impactThreshold = "impactThreshold",
-  //gun
-  gunDamage = "gunDamage",
-  gunRange = "gunRange",
-  gunFireRate = "gunFireRate",
-  //targets
-  targetsHit = "targetsHit",
-  ringsHit = "ringsHit",
-  pigeonsHit = "pigeonsHit",
+  //food
+  mealsServed = "mealsServed",
+  applePiesServed = "applePiesServed",
 }
 
 export const DEFAULT_STATS: PlayerStats = Object.freeze({
@@ -389,14 +423,9 @@ export const DEFAULT_STATS: PlayerStats = Object.freeze({
     [StatType.maxBoostSpeed]: 7.0,
     [StatType.maxFlightSpeed]: 5.0,
     [StatType.impactThreshold]: 10.0,
-    //gun
-    [StatType.gunDamage]: 10,
-    [StatType.gunRange]: 50,
-    [StatType.gunFireRate]: 1.0,
-    //targets
-    [StatType.targetsHit]: 0,
-    [StatType.ringsHit]: 0,
-    [StatType.pigeonsHit]: 0,
+    //food
+    [StatType.mealsServed]: 0,
+    [StatType.applePiesServed]: 0,
   },
 });
 

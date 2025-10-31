@@ -1,5 +1,16 @@
 import { DailyRewardManager } from "DailyRewardManager";
-import { Asset, Component, Entity, EulerOrder, MeshEntity, Player, PropTypes, Quaternion, TextureAsset, Vec3 } from "horizon/core";
+import {
+  Asset,
+  Component,
+  Entity,
+  EulerOrder,
+  MeshEntity,
+  Player,
+  PropTypes,
+  Quaternion,
+  TextureAsset,
+  Vec3,
+} from "horizon/core";
 import { MoveableBase } from "MoveableBase";
 import { PerPlotProps } from "PerPlotManager";
 import { FilterType, PlayerManager, PlayerMgrEvents } from "PlayerManager";
@@ -25,11 +36,10 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     toggleBuildingInBuildMode: { type: PropTypes.Boolean, default: true },
     uRocketLifePlotPref: { type: PropTypes.Number, default: 4 },
     stormingdeckerPlotPref: { type: PropTypes.Number, default: 4 },
-    natashagubernovaPlotPref: { type: PropTypes.Number, default: 2 },
+    natashagubernovPlotPref: { type: PropTypes.Number, default: 2 },
   };
 
   private playerMgr: PlayerManager | undefined = undefined;
-
 
   private playerPlotMap: Map<Player, PlayerPlot> = new Map();
   private occupiedPlotsMap: Map<number, boolean> = new Map();
@@ -40,6 +50,7 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
   //track appliance tag types by player
   private player_TagTypeToEntityMap: Map<Player, Map<string, Entity[]>> = new Map();
   private player_PlotBaseMap: Map<Player, Entity> = new Map();
+  private player_PlotEntityCount: Map<Player, number[]> = new Map();
   private player_KitchenMap: Map<Player, Entity> = new Map();
 
   private perPlayerPlotManagerList: Entity[] = [];
@@ -62,15 +73,22 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     });
 
     this.connectNetworkEvent(this.entity, sysEvents.spawnPlayerPlotRequest, (data) => {
-      console.log(`Spawn Player Plot for ${data.player.name.get()} on plot base ${data.plotBaseID}`);
+      console.log(
+        `Spawn Player Plot for ${data.player.name.get()} on plot base ${data.plotBaseID}`
+      );
       //check if plot is already occupied
-      if (this.occupiedPlotsMap.has(data.plotBaseID) || this.occupiedPlotsMap.get(data.plotBaseID) === true) {
+      if (
+        this.occupiedPlotsMap.has(data.plotBaseID) ||
+        this.occupiedPlotsMap.get(data.plotBaseID) === true
+      ) {
         return;
       }
 
       //check if player already has a plot spawned
       if (this.player_InstanceIDToEntityMap.has(data.player)) {
-        console.warn(`Player ${data.player.name.get()} already has a plot spawned. Skipping spawn.`);
+        console.warn(
+          `Player ${data.player.name.get()} already has a plot spawned. Skipping spawn.`
+        );
         return;
       }
 
@@ -88,13 +106,26 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     });
 
     this.connectNetworkEvent(this.entity, sysEvents.spawnNewAssetEvent, (data) => {
-      console.log(`Spawn New Asset Event Received from ${data.player.name.get()} for asset ${data.assetId}`);
+      console.log(
+        `Spawn New Asset Event Received from ${data.player.name.get()} for asset ${data.assetId}`
+      );
       const plotBase = this.player_PlotBaseMap.get(data.player);
       if (!plotBase) {
-        console.error(`No plot base found for player ${data.player.name.get()}. Cannot spawn asset.`);
+        console.error(
+          `No plot base found for player ${data.player.name.get()}. Cannot spawn asset.`
+        );
         return;
       }
-      this.spawnItem(data.player, plotBase, "emptyInstanceID", data.assetId, new Vec3(0, 0, 0), Quaternion.zero, Vec3.one, true);
+      this.spawnItem(
+        data.player,
+        plotBase,
+        "emptyInstanceID",
+        data.assetId,
+        new Vec3(0, 0, 0),
+        Quaternion.zero,
+        Vec3.one,
+        true
+      );
       //future pos might be changed
     });
 
@@ -109,7 +140,9 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     });
 
     this.connectNetworkBroadcastEvent(sysEvents.buildModeEvent, (data) => {
-      console.log(`Build Mode Event Received for player ${data.player.name.get()}: ${data.inBuildMode}`);
+      console.log(
+        `Build Mode Event Received for player ${data.player.name.get()}: ${data.inBuildMode}`
+      );
       this.togglePlayerBuildingVisibility(data.player, data.inBuildMode);
       this.togglePlayerChairCollidability(data.player, data.inBuildMode);
     });
@@ -134,11 +167,9 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
 
   //region player join/leave
   onPlayerJoined(player: Player) {
-
     if (this.props.autoAssignPlotOnJoin) {
       this.assignPlayerToOpenPlot(player);
     }
-
   }
 
   onPlayerLeft(player: Player) {
@@ -166,9 +197,6 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
 
   //region auto assign plot()
   assignPlayerToOpenPlot(player: Player) {
-  //DAVE PRIORITY 
-  
-
     //get first unoccupied plot
     let assignedPlotIndex = -1;
     let prioritizedPlot = 2;
@@ -176,12 +204,10 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
 
     if (player.name.get() === "uRocketLife") {
       prioritizedPlot = this.props.uRocketLifePlotPref;
-    }
-    else if (player.name.get() === "stormingdecker") {
+    } else if (player.name.get() === "stormingdecker") {
       prioritizedPlot = this.props.stormingdeckerPlotPref;
-    }
-    else if (player.name.get() === "natashagubernova") {
-      prioritizedPlot = this.props.natashagubernovaPlotPref;
+    } else if (player.name.get() === "natashagubernov") {
+      prioritizedPlot = this.props.natashagubernovPlotPref;
     }
 
     if (!this.occupiedPlotsMap.has(prioritizedPlot)) {
@@ -200,7 +226,12 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
       return;
     }
 
-    debugLog(this.props.showDebugs, `Assigning plot ${this.perPlayerPlotManagerList[assignedPlotIndex].name.get()} to ${player.name.get()}`);
+    debugLog(
+      this.props.showDebugs,
+      `Assigning plot ${this.perPlayerPlotManagerList[
+        assignedPlotIndex
+      ].name.get()} to ${player.name.get()}`
+    );
     const playerPlotEntity = this.perPlayerPlotManagerList[assignedPlotIndex];
     this.sendNetworkEvent(playerPlotEntity, sysEvents.assignPlotOwner, { player: player });
     let raceConditionDelay = 200;
@@ -216,10 +247,6 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
         menuContext: [Primary_MenuType.PlotMenu],
       });
     }, raceConditionDelay);
-
-    //activate NUX for player at plot 
-    const nuxManager = getEntityListByTag(ManagerType.NUX_Manager, this.world)[0];
-    this.sendNetworkEvent(nuxManager!, sysEvents.startNUXForPlayer, { player: player, playerPlot: playerPlotEntity });
   }
 
   //region plot load/reset
@@ -258,9 +285,15 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     return this.player_KitchenMap.get(player);
   }
 
-  //region spawn player plot
+  //region spawn player plot/
   spawnPlayerPlot(player: Player, plotBase: Entity) {
     const buildings = this.playerPlotMap.get(player)?.buildings ?? [];
+    const buildingsCount = buildings.length;
+    this.player_PlotEntityCount.set(player, [0, buildingsCount]);
+    debugLog(
+      this.props.showDebugs,
+      `Spawning ${buildingsCount} buildings for player ${player.name.get()}`
+    );
     buildings.forEach(async (building) => {
       const assetId = fromBase36Safe(building.aID36);
       const posOffset = new Vec3(building.tform[0], building.tform[1], building.tform[2]);
@@ -273,14 +306,22 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
   }
 
   //region spawn item
-  async spawnItem(player: Player, plotBase: Entity, instanceId: string, assetID: string, position: Vec3, rotation: Quaternion, scale: Vec3, isNew: boolean = true) {
+  async spawnItem(
+    player: Player,
+    plotBase: Entity,
+    instanceId: string,
+    assetID: string,
+    position: Vec3,
+    rotation: Quaternion,
+    scale: Vec3,
+    isNew: boolean = true
+  ) {
     let assets: Entity[] | undefined;
 
     const assetToSpawn = new Asset(BigInt(assetID));
     if (!assetToSpawn) {
       console.error(`Asset with ID ${assetID} not found`);
     }
-
     let plotPos = plotBase.transform.position.get();
     let newSpawnOffset = new Vec3(0, 0, 0);
     if (isNew) {
@@ -297,10 +338,32 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     } else {
       curInstanceID = instanceId;
     }
-    debugLog(this.props.showDebugs, `Spawning asset ${assetID} for ${player.name.get()} with InstanceID ${curInstanceID}`);
+    debugLog(
+      this.props.showDebugs,
+      `Spawning asset ${assetID} for ${player.name.get()} with InstanceID ${curInstanceID}`
+    );
     assets = await this.world.spawnAsset(assetToSpawn, newpos, newrot, scale);
 
     if (assets && assets.length > 0) {
+      if (!isNew) {
+        let currentCount = this.player_PlotEntityCount.get(player);
+        if (currentCount) {
+          currentCount[0] += 1;
+
+          this.player_PlotEntityCount.set(player, currentCount);
+          if (currentCount[0] >= currentCount[1]) {
+            console.log(`All existing plot items for ${player.name.get()} have been spawned.`);
+            this.player_PlotEntityCount.delete(player);
+            //start NUX!
+            const playerPlotEntity = this.player_PlotBaseMap.get(player);
+            const nuxManager = getEntityListByTag(ManagerType.NUX_Manager, this.world)[0];
+            this.sendNetworkEvent(nuxManager!, sysEvents.startNUXForPlayer, {
+              player: player,
+              playerPlot: playerPlotEntity!,
+            });
+          }
+        }
+      }
       // playAudio(this, AudioLabel.success);
       // Set tags on the spawned entities
       for (const spawnedEntity of assets) {
@@ -316,29 +379,47 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
             aID36: toBase36Safe(assetID),
             tform: [position.x, position.y, position.z, 0, 0, 0, 1, 1, 1],
           });
-          debugLog(this.props.showDebugs, `New building added to plot data: ${JSON.stringify(newBuildings[newBuildings.length - 1])}`);
+          debugLog(
+            this.props.showDebugs,
+            `New building added to plot data: ${JSON.stringify(
+              newBuildings[newBuildings.length - 1]
+            )}`
+          );
           this.playerPlotMap.set(player, {
             buildings: newBuildings,
             wallpaper: plotData.wallpaper,
             wallpaper2: plotData.wallpaper2,
             floor: plotData.floor,
           });
-          debugLog(this.props.showDebugs, `Added new building to ${player.name.get()}'s plot data.`);
+          debugLog(
+            this.props.showDebugs,
+            `Added new building to ${player.name.get()}'s plot data.`
+          );
         }
 
         //region tag map
         if (spawnedEntity.tags.get().length > 0) {
           //ignore "item" and "moveable" tags
-          const filteredTags = spawnedEntity.tags.get().filter((tag) => tag !== "item" && tag !== "moveable");
+          const filteredTags = spawnedEntity.tags
+            .get()
+            .filter((tag) => tag !== "item" && tag !== "moveable");
           if (filteredTags.length > 0) {
-            debugLog(this.props.showDebugs, `Entity has tags ${filteredTags.join(", ")}. Adding to tag map for player ${player.name.get()}.`);
+            debugLog(
+              this.props.showDebugs,
+              `Entity has tags ${filteredTags.join(
+                ", "
+              )}. Adding to tag map for player ${player.name.get()}.`
+            );
             let tagMap = this.player_TagTypeToEntityMap.get(player) ?? new Map<string, Entity[]>();
             filteredTags.forEach((tag) => {
               let tagList = tagMap.get(tag) ?? [];
               tagList.push(spawnedEntity);
               tagMap.set(tag, tagList);
             });
-            debugLog(this.props.showDebugs, `Updated tag map for player ${player.name.get()}: ${Array.from(tagMap.entries())}`);
+            debugLog(
+              this.props.showDebugs,
+              `Updated tag map for player ${player.name.get()}: ${Array.from(tagMap.entries())}`
+            );
             //after processing all tags, set the player map
             this.player_TagTypeToEntityMap.set(player, tagMap);
           }
@@ -346,10 +427,9 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
           //force setting collidable for chairs to make selectable
           if (spawnedEntity.tags.get().includes(RestaurantItemTag.chair)) {
             spawnedEntity.getComponents<MoveableBase>(MoveableBase).forEach((moveable) => {
-              if (isNew){
+              if (isNew) {
                 moveable.collidableEnabled(true);
-              }
-              else{
+              } else {
                 moveable.collidableEnabled(false);
               }
             });
@@ -357,8 +437,10 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
         }
 
         //region player map gen
-        let InstanceIDToEntity = this.player_InstanceIDToEntityMap.get(player) ?? new Map<string, Entity>();
-        let EntityToInstanceID = this.player_EntityToInstanceIDMap.get(player) ?? new Map<Entity, string>();
+        let InstanceIDToEntity =
+          this.player_InstanceIDToEntityMap.get(player) ?? new Map<string, Entity>();
+        let EntityToInstanceID =
+          this.player_EntityToInstanceIDMap.get(player) ?? new Map<Entity, string>();
 
         InstanceIDToEntity.set(curInstanceID, spawnedEntity);
         EntityToInstanceID.set(spawnedEntity, curInstanceID);
@@ -387,6 +469,8 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
           player: player,
           selected: assets[0],
         });
+      } else {
+        //add to a count that will determine how many items have been spawned for this plot
       }
     }
   }
@@ -548,7 +632,10 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
   //region texture to entity tag
   private applyTextureToPlotEntityByTag(player: Player, textureAssetId: string, tag: string) {
     const wallpaperMoveableBase = this.getPlayerItemsByTag(player, tag);
-    debugLog(this.props.showDebugs,`Found ${wallpaperMoveableBase.length} wallpaper items for player ${player.name.get()}`);
+    debugLog(
+      this.props.showDebugs,
+      `Found ${wallpaperMoveableBase.length} wallpaper items for player ${player.name.get()}`
+    );
     wallpaperMoveableBase.forEach((entity) => {
       const MoveableBaseComp = entity.getComponents<MoveableBase>(MoveableBase)[0];
       let entityTextureTarget = undefined;
@@ -556,7 +643,7 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
         entityTextureTarget = MoveableBaseComp.getOptionalPrimaryTexture();
       } else if (tag === "wallpaper2") {
         entityTextureTarget = MoveableBaseComp.getOptionalSecondaryTexture();
-      } 
+      }
       if (!entityTextureTarget) {
         console.warn(`No wallpaper entity found on MoveableBase for ${entity.name.get()}`);
         return;

@@ -14,9 +14,14 @@ import { DEFAULT_STATS, PlayerStats, StatType } from "sysTypes";
 import { getMgrClass } from "sysUtils";
 import { simpleButtonEvent } from "UI_SimpleButtonEvent";
 
-const PIGEONS_LEADERBOARD = "PigeonsHit";
-const TARGETS_LEADERBOARD = "TargetsHit";
-const RINGS_LEADERBOARD = "RingsHit";
+
+const MOST_APPLEPIES_SERVED = "MostApplepiesServed";
+const MOST_APPLES_COLLECTED = "MostApplesCollected";
+const MOST_CUSTOMERS_SERVED = "MostCustomersServed";
+const MOST_FURNITURE_BUILT = "MostFurnitureBuilt";
+const MOST_ITEMS_SOLD = "MostItemsSold";
+const MOST_RECIPES_UNLOCKED = "MostRecipesUnlocked";
+const HIGHEST_DAILY_STREAK = "HighestDailyStreak";
 
 export class StatsManager extends Component<typeof StatsManager> {
   static propsDefinition = {
@@ -25,10 +30,14 @@ export class StatsManager extends Component<typeof StatsManager> {
     enableLeaderboards: { type: PropTypes.Boolean, default: true },
   };
 
+  public static instance : StatsManager;
+
   private playerStatsMap: Map<Player, PlayerStats> = new Map();
 
   //region preStart()
   preStart() {
+    StatsManager.instance = this;
+
     this.connectNetworkEvent(this.entity, simpleButtonEvent, (data) => {
       console.log("Simple Button Event Triggered");
     });
@@ -122,18 +131,6 @@ export class StatsManager extends Component<typeof StatsManager> {
         case StatType.level:
           // this.oneHud?.setNumUpValue(player, "level", playerStats.type.level.toString());
           break;
-        case StatType.targetsHit:
-          this.updatePlayerStat(player, StatType.xp, 5); //award 10 XP per target hit
-          this.setWorldLeaderboard(TARGETS_LEADERBOARD, player, playerStats.type.targetsHit);
-          break;
-        case StatType.ringsHit:
-          this.updatePlayerStat(player, StatType.xp, 15);
-          this.setWorldLeaderboard(RINGS_LEADERBOARD, player, playerStats.type.ringsHit);
-          break;
-          case StatType.pigeonsHit:
-          this.updatePlayerStat(player, StatType.xp, 3);
-          this.setWorldLeaderboard(PIGEONS_LEADERBOARD, player, playerStats.type.pigeonsHit);
-          break;
         case StatType.stamina:
           break;
         case StatType.mana:
@@ -148,6 +145,13 @@ export class StatsManager extends Component<typeof StatsManager> {
           break;
         case StatType.jumpPower:
           break;
+          case StatType.applePiesServed:
+            this.setWorldLeaderboard(MOST_APPLEPIES_SERVED, player, playerStats.type.applePiesServed, false);
+            break;
+          case StatType.dailyStreak:
+            this.setWorldLeaderboard(HIGHEST_DAILY_STREAK, player, playerStats.type.dailyStreak, false);
+          break;
+
       }
       this.playerStatsMap.set(player, playerStats!);
     }
@@ -213,11 +217,11 @@ export class StatsManager extends Component<typeof StatsManager> {
     return xpForLevel;
   }
 
-  setWorldLeaderboard(LeaderboardName: string, player: Player, score: number ) {
+  setWorldLeaderboard(LeaderboardName: string, player: Player, score: number, overwrite: boolean = true) {
     if (!this.props.enableLeaderboards) return;
     console.log(`Setting leaderboard ${LeaderboardName} for ${player.name.get()} to ${score}`);
     //check if leaderboard exists
-    this.world.leaderboards.setScoreForPlayer(LeaderboardName, player, score, true);
+    this.world.leaderboards.setScoreForPlayer(LeaderboardName, player, score, overwrite);
   }
 }
 Component.register(StatsManager);
