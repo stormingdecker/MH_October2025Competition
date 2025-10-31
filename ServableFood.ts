@@ -61,7 +61,7 @@ export class ServableFood extends Component<typeof ServableFood> {
       const tablePosition = tableEntity.position.get();
       targetPosition = targetPosition.mul(0.25).add(tablePosition.mul(0.75));
     }
-    this.entity.position.set(targetPosition.add(new Vec3(0, 1.05, 0)));
+    this.entity.position.set(targetPosition.add(new Vec3(0, 1.15, 0)));
     this.entity.rotation.set(Quaternion.zero);
     this.entity.simulated.set(false);
 

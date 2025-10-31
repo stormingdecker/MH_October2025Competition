@@ -12,6 +12,7 @@ export const oneHudEvents = {
     player: Player;
     title: string;
     message: string;
+    imageAssetId?: string | undefined;
   }>("PopupRequest"),
   PopupResponse: new NetworkEvent<{ player: Player }>("PopupResponse"),
 

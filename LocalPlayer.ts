@@ -53,7 +53,9 @@ class LocalPlayer extends hz.Component<typeof LocalPlayer> {
     //region OnStartFocus
     this.connectNetworkEvent(this.owningPlayer, sysEvents.OnStartFocusMode, (data) => {
       this.activeFinteractionTarget = data.requester;
-      this.owningPlayer.enterFocusedInteractionMode();
+      this.owningPlayer.enterFocusedInteractionMode(
+        {disableFocusExitButton: true}
+      );
       // this.curInteractionMode = data.interactionMode;
     });
     //endregion

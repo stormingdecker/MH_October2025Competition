@@ -243,7 +243,7 @@ export class NPCAgentPool extends Component<typeof NPCAgentPool> {
       chair.assignedToNPC.onOrderServed(player, servableFoodEntity);
     } else {
       // Get rid of food plate if served after NPC has abandoned chair
-      this.world.deleteAsset(servableFoodEntity, true);
+      chair.kitchenManager!.despawnFoodPlate(servableFoodEntity);
     }
   }
 

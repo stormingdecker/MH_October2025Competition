@@ -69,6 +69,10 @@ export const enum inventoryWindowType {
   Buy,
 }
 
+export const PieBackgroundColor = "rgba(149, 217, 221, 1)";
+export const FruitBackgroundColor = "rgba(255, 189, 89, 1)";
+export const RecipeBackgroundColor = "rgba(255, 121, 121, 1)";
+
 export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   //region propsDefs
   static propsDefinition = {
@@ -125,7 +129,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     diamondImgAsset: { type: PropTypes.Asset },
     currencyPlusImg: { type: PropTypes.Asset },
     currencyScreenPosition: { type: PropTypes.Vec3, default: new Vec3(50, 70, 11) },
-    currencyContainerSize: { type: PropTypes.Vec3, default: new Vec3(75, 75, 0) },
+    currencyContainerSize: { type: PropTypes.Vec3, default: new Vec3(75, 75, 75) }, //width, height, icon scale
     //task progress popup
     PROGRESSION_TASK_HEADER: { type: PropTypes.String, default: "Progression Task" },
     progTaskEnabled: { type: PropTypes.Boolean, default: false },
@@ -235,6 +239,11 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
 
   //inventory detail window
   private bnd_inventoryDetailDisplay = new Binding<string>("none");
+  private bnd_inventoryItemImg = new Binding<ImageSource>(
+    convertAssetIDToImageSource(DefaultBlankImgAssetID)
+  );
+  private bnd_inventoryItemName = new Binding<string>("");
+  private bnd_inventoryDetailText = new Binding<string>("0");
 
   //merchant detail window
   private bnd_merchantItemImg = new Binding<ImageSource>(
@@ -364,7 +373,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
                 "inventoryBtn",
                 convertAssetIDToImageSource(inventoryImgAssetId),
                 this.onButtonPressed.bind(this),
-                150
+                100
               )
             ),
           ],
@@ -414,7 +423,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
             alignItems: "center",
             position: "absolute",
             layoutOrigin: [0, 1],
-            // transform: [{ scale: this.props.currencyContainerSize }],
+            transform: [{ scale: this.props.currencyContainerSize.z }],
           },
         }),
         //popup window
@@ -497,7 +506,9 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         ...this.toNodes(
           inventoryDetailWindow(
             this,
-            this.onButtonPressed.bind(this),
+            this.bnd_inventoryItemName,
+            this.bnd_inventoryItemImg,
+            this.bnd_inventoryDetailText,
             this.bnd_inventoryDetailDisplay
           )
         ),
@@ -519,7 +530,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
             Image({
               source: this.itemImgSource,
               style: {
-                height: 100,
+                height: 75,
                 aspectRatio: 1,
                 position: "absolute",
                 top: "50%",
@@ -579,7 +590,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       //   this.hideProgTask([data.player]);
       //   this.progTaskIsHidden = true;
       // }
-      this.triggerAnimation(data.player, "1973296496791704"); //money
+      this.triggerAnimation(data.player, "1973296496791704", InventoryType.currency); //money
     });
 
     // progress subscriptions
@@ -608,7 +619,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     // popup subscriptions
     this.connectNetworkEvent(this.entity, oneHudEvents.PopupRequest, (data) => {
       this.popupRequestResponseMap.set(data.player, data.requester);
-      this.showPopup(data.player, data.title, data.message);
+      this.showPopup(data.player, data.title, data.message, data.imageAssetId);
     });
 
     // confirmation subscriptions
@@ -674,7 +685,8 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       const playerInventory = this.inventoryMgr?.getPlayerInventory(player);
 
       if (isSubMenu && menuContext[1] === Sub_PlotType.FoodMenu) {
-        this.setupFoodMenuContainer([player], this.imageSetMap.get("FoodMenu")!);
+        // this.setupFoodMenuContainer([player], this.imageSetMap.get("FoodMenu")!);
+        this.createFoodMenuUINodeArray([player]);
         this.bnd_foodMenuDisplay.set("flex", [player]);
       } else {
         this.bnd_foodMenuDisplay.set("none", [player]);
@@ -711,7 +723,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
           inventoryMenuType === inventoryWindowType.Sell
         ) {
           const recipients = player ? [player] : undefined;
-          const newUIInventoryNodeArray = this.createInventoryMenuUINodeArray();
+          const newUIInventoryNodeArray = this.createInventoryMenuUINodeArray(player);
           this.inventory_childrenUINodeArray.set(newUIInventoryNodeArray, recipients);
 
           let playerItemCount = 0;
@@ -737,7 +749,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
           });
         } else {
           const recipients = player ? [player] : undefined;
-          const newUIInventoryNodeArray = this.createBuyMenuUINodeArray();
+          const newUIInventoryNodeArray = this.createBuyMenuUINodeArray([player]);
           this.inventory_childrenUINodeArray.set(newUIInventoryNodeArray, recipients);
 
           let playerItemCount = 0;
@@ -764,6 +776,44 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         menuContext[1] === Sub_InventoryType.Fruit && //FUTURE NOTE: May need to expand beyond just fruit
         isDetailMenu
       ) {
+        let itemId = menuContext[2]; //ex: "apple" or "applePie"
+        console.log(`Inventory Menu Type is ${inventoryMenuType}`);
+        this.bnd_inventoryItemName.set(itemId, [player]);
+        this.bnd_inventoryDetailText.set("More item detail goes here", [player]);
+        const fruitItem = foodTypes.find((fruit) => fruit.name === itemId);
+        const pieItem = pieTypes.find((pie) => pie.name === itemId);
+        const isFruit = fruitItem !== undefined;
+
+        const itemAssetId = fruitItem?.imageAssetID ?? pieItem?.imageAssetID;
+        if (!itemAssetId) {
+          console.error(`No image asset id found for item ID ${itemId}`);
+        }
+        const itemImgSource =
+          convertAssetIDToImageSource(itemAssetId!) ??
+          convertAssetIDToImageSource(DefaultBlankImgAssetID);
+
+        this.bnd_inventoryItemImg.set(itemImgSource, [player]);
+
+        //FUTURE NOTE: Needs to pull detail info from sysTypes later
+        // const fruitToSell = menuContext[2];
+        // let price = 0;
+        // if (isFruit) {
+        //   foodTypes.forEach((fruit) => {
+        //     if (fruit.name === fruitToSell) {
+        //       //find fruit in database
+        //       price = fruit.sellPrice;
+        //     }
+        //   });
+        // } else {
+        //   pieTypes.forEach((pie) => {
+        //     if (pie.name === fruitToSell) {
+        //       //find pie in database
+        //       price = pie.sellPrice;
+        //     }
+        //   });
+        // }
+        // this.bnd_merchantItemPrice.set(price.toString(), [player]);
+
         this.bnd_inventoryDetailDisplay.set("flex", [player]);
       } else {
         this.bnd_inventoryDetailDisplay.set("none", [player]);
@@ -866,7 +916,14 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     });
   }
 
-  private triggerAnimation(player: Player, imageAssetId: string) {
+  private triggerAnimation(player: Player, imageAssetId: string, inventoryType?: string) {
+    let screenX = 0.08;
+    let screenY = 0.28;
+    if (inventoryType && inventoryType === InventoryType.currency) {
+      screenX = 0.1;
+      screenY = 0.88;
+    }
+
     const imgSource = convertAssetIDToImageSource(imageAssetId);
     this.itemImgSource.set(imgSource, [player]);
     this.itemImgDisplay.set("flex", [player]);
@@ -875,8 +932,8 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     this.itemImgPosX.set(0.5, undefined, [player]);
     this.itemImgPosY.set(0.5, undefined, [player]);
 
-    const animationX = Animation.timing(0.1, { duration: 500, easing: Easing.ease }); // Move to 90% right
-    const animationY = Animation.timing(0.88, { duration: 500, easing: Easing.ease }); // Move to 10% top
+    const animationX = Animation.timing(screenX, { duration: 500, easing: Easing.ease }); // Move to 90% right
+    const animationY = Animation.timing(screenY, { duration: 500, easing: Easing.ease }); // Move to 10% top
 
     // Set the new values for the animated bindings to start the animation.
     this.itemImgPosX.set(animationX, undefined, [player]);
@@ -949,7 +1006,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     }
     const recipients = players.length > 0 ? players : undefined;
 
-    const newUINodeArray = this.convertImageSetToUINodeArray(imageSet!);
+    const newUINodeArray = this.convertImageSetToUINodeArray(players[0], imageSet!);
     this.dailyReward_childrenUINodeArray.set(newUINodeArray, recipients);
     // Assuming you want to do something with newUINodeArray here
   }
@@ -959,9 +1016,13 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
       console.warn("No food menu child nodes to setup.");
       return;
     }
+
     const recipients = players.length > 0 ? players : undefined;
     const imageSetType = "FoodMenu";
-    const newUINodeArray = this.convertImageSetToUINodeArray(this.imageSetMap.get(imageSetType)!);
+    const newUINodeArray = this.convertImageSetToUINodeArray(
+      players[0],
+      this.imageSetMap.get(imageSetType)!
+    );
     this.foodMenu_childrenUINodeArray.set(newUINodeArray, recipients);
     // Assuming you want to do something with newUINodeArray here
   }
@@ -1056,7 +1117,11 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
           const rewardAmount = 10 + dailyStreak * 5; //example: base 10 currency + 5 per streak day
 
           this.async.setTimeout(() => {
-            this.triggerAnimation(player, this.props.currencyImgAsset!.id?.toString());
+            this.triggerAnimation(
+              player,
+              this.props.currencyImgAsset!.id?.toString(),
+              InventoryType.currency
+            );
             // this.triggerAnimation(player, "1973296496791704");
           }, 1700);
 
@@ -1163,6 +1228,10 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
             return;
           }
 
+          const recipients = player ? [player] : undefined;
+          const newUIInventoryNodeArray = this.createBuyMenuUINodeArray([player]);
+          this.inventory_childrenUINodeArray.set(newUIInventoryNodeArray, recipients);
+
           let playerItemCount = 0;
           pieTypes.forEach((pie) => {
             console.log(`Updating inventory count for ${pie.recipeType}`);
@@ -1177,7 +1246,6 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
             }
             bnd_itemCount.set(playerItemCount.toString(), [player]);
           });
-
 
           //END OF BUY LOGIC
         } else if (inventoryMenuType === inventoryWindowType.Sell) {
@@ -1333,10 +1401,19 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   }
 
   //region showPopup()
-  public showPopup(player: Player, title: string, message: string): void {
+  public showPopup(
+    player: Player,
+    title: string,
+    message: string,
+    imageAssetId: string | undefined
+  ): void {
     this.bnd_popupTitle.set(title, [player]);
     this.bnd_popupContent.set(message, [player]);
     this.bnd_popupDisplay.set("flex", [player]);
+    if (imageAssetId) {
+      const imgSrc = convertAssetIDToImageSource(imageAssetId);
+      this.bnd_popupWatermark.set(imgSrc, [player]);
+    }
     const startVal = -900;
     this.animBnd_popupPosY.set(startVal);
     const defaultSequence = Animation.sequence(
@@ -1585,27 +1662,56 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         animBndScale = this.animBnd_diamondScale;
         break;
       default:
-        console.warn(`Unknown type: ${inventoryType}`);
-        return; // Exit the function if the type is unknown
+        // console.warn(`Unknown type: ${inventoryType}`);
+        // return; // Exit the function if the type is unknown
+        break;
     }
 
-    if (bindingValue && animBndScale) {
-      bindingValue.set(newValue, [player]);
+    if (inventoryType === InventoryType.currency || inventoryType === InventoryType.diamond) {
+      if (bindingValue && animBndScale) {
+        bindingValue.set(newValue, [player]);
 
-      animBndScale.set(2, undefined, [player]);
-      animBndScale.set(
-        Animation.timing(1, {
-          duration: 100,
-          easing: Easing.inOut(Easing.elastic(1)),
-        }),
-        undefined,
-        [player]
-      );
+        animBndScale.set(2, undefined, [player]);
+        animBndScale.set(
+          Animation.timing(1, {
+            duration: 100,
+            easing: Easing.inOut(Easing.elastic(1)),
+          }),
+          undefined,
+          [player]
+        );
+      }
+    }
+
+    let imageAssetId = "";
+    const matchingFood = foodTypes.find(
+      (food) => food.name.toString() === inventoryType.toString()
+    );
+    if (matchingFood) {
+      imageAssetId = matchingFood.imageAssetID.toString();
+    }
+    const matchingPie = pieTypes.find(
+      (pie) =>
+        pie.name.toString() === inventoryType.toString() ||
+        pie.recipeType?.toString() === inventoryType.toString()
+    );
+    if (matchingPie) {
+      imageAssetId = matchingPie.imageAssetID.toString();
+    }
+    const matchingRecipe = pieTypes.find(
+      (pie) => pie.recipeType?.toString() === inventoryType.toString()
+    );
+    if (matchingRecipe) {
+      imageAssetId = matchingRecipe.recipeImgAssetId.toString();
+    }
+
+    if (imageAssetId !== "") {
+      this.triggerAnimation(player, imageAssetId, inventoryType);
     }
   }
 
   //region Asset[] to UINode[]
-  private convertImageSetToUINodeArray(imageSetProps: ImageSetProps): UINode[] {
+  private convertImageSetToUINodeArray(player: Player, imageSetProps: ImageSetProps): UINode[] {
     try {
       const newUIArray: UINode[] = [];
       const txtOffset = new Vec3(50, 0, 120); //(x%,y%, width%)
@@ -1631,7 +1737,45 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
     }
   }
 
-  private createBuyMenuUINodeArray(): UINode[] {
+  private createFoodMenuUINodeArray(players: Player[]): UINode[] {
+    const availableRecipes = this.getAvailableRecipes(players[0]);
+
+    const newUIFoodMenuArray: UINode[] = [];
+    const txtOffset = new Vec3(0, 0, 120); //(x%,y%, width%)
+
+    pieTypes.forEach((pie) => {
+      let bnd_itemCount = this.inventoryCountBindings.get(pie.recipeType!);
+      if (!bnd_itemCount) {
+        bnd_itemCount = new Binding<string>("0");
+        this.inventoryCountBindings.set(pie.recipeType!, bnd_itemCount);
+      }
+      let isLocked = true;
+      availableRecipes.forEach((recipe) => {
+        if (recipe === pie.recipeType) {
+          isLocked = false;
+        }
+      });
+      newUIFoodMenuArray.push(
+        inventorySlotButton(
+          this,
+          "RecipeType_" + pie.name,
+          convertAssetIDToImageSource(pie.recipeImgAssetId),
+          bnd_itemCount,
+          txtOffset,
+          isLocked,
+          this.onButtonPressed.bind(this),
+          RecipeBackgroundColor,
+          70
+        )
+      );
+    });
+
+    return newUIFoodMenuArray;
+  }
+
+  private createBuyMenuUINodeArray(players: Player[]): UINode[] {
+    const availableRecipes = this.getAvailableRecipes(players[0]);
+
     const newUIBuyMenuArray: UINode[] = [];
     const txtOffset = new Vec3(0, 0, 120); //(x%,y%, width%)
 
@@ -1641,6 +1785,14 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         bnd_itemCount = new Binding<string>("0");
         this.inventoryCountBindings.set(pie.recipeType!, bnd_itemCount);
       }
+      //which recipes are available
+      let ifIsLocked = true;
+      availableRecipes.forEach((recipe) => {
+        if (recipe === pie.recipeType) {
+          ifIsLocked = false;
+        }
+      });
+
       newUIBuyMenuArray.push(
         inventorySlotButton(
           this,
@@ -1648,7 +1800,9 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
           convertAssetIDToImageSource(pie.recipeImgAssetId),
           bnd_itemCount,
           txtOffset,
+          ifIsLocked,
           this.onButtonPressed.bind(this),
+          RecipeBackgroundColor,
           70
         )
       );
@@ -1658,9 +1812,12 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
   }
 
   //region Create Inventory
-  private createInventoryMenuUINodeArray(): UINode[] {
+  private createInventoryMenuUINodeArray(player: Player): UINode[] {
+    const playerInventory = this.inventoryMgr?.getPlayerInventory(player);
     const newUIInventoryArray: UINode[] = [];
     const txtOffset = new Vec3(0, 0, 120); //(x%,y%, width%)
+
+    let ifIsEmpty = true;
 
     foodTypes.forEach((fruit) => {
       let bnd_itemCount = this.inventoryCountBindings.get(fruit.name);
@@ -1668,6 +1825,15 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         bnd_itemCount = new Binding<string>("0");
         this.inventoryCountBindings.set(fruit.name, bnd_itemCount);
       }
+
+      if (
+        playerInventory &&
+        playerInventory.items[fruit.name] &&
+        playerInventory.items[fruit.name] > 0
+      ) {
+        ifIsEmpty = false;
+      }
+
       newUIInventoryArray.push(
         inventorySlotButton(
           this,
@@ -1675,7 +1841,9 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
           convertAssetIDToImageSource(fruit.imageAssetID),
           bnd_itemCount,
           txtOffset,
+          ifIsEmpty,
           this.onButtonPressed.bind(this),
+          FruitBackgroundColor,
           70
         )
       );
@@ -1687,6 +1855,15 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         bnd_itemCount = new Binding<string>("0");
         this.inventoryCountBindings.set(pie.name, bnd_itemCount);
       }
+
+      if (
+        playerInventory &&
+        playerInventory.items[pie.name] &&
+        playerInventory.items[pie.name] > 0
+      ) {
+        ifIsEmpty = false;
+      }
+
       newUIInventoryArray.push(
         inventorySlotButton(
           this,
@@ -1694,13 +1871,33 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
           convertAssetIDToImageSource(pie.imageAssetID),
           bnd_itemCount,
           txtOffset,
+          ifIsEmpty,
           this.onButtonPressed.bind(this),
+          PieBackgroundColor,
           70
         )
       );
     });
 
     return newUIInventoryArray;
+  }
+
+  //region getAvailableRecipes()
+  public getAvailableRecipes(player: Player): InventoryType[] {
+    const playerInventory = this.inventoryMgr?.getPlayerInventory(player);
+    if (!playerInventory) {
+      console.error("No inventory found for active player.");
+      return [];
+    }
+    //cycle through recipe catalog and return all recipes the player owns
+    const availableRecipes: InventoryType[] = [];
+    pieTypes.forEach((pieType) => {
+      const recipeType = validate(this, pieType.recipeType);
+      if (playerInventory.items[recipeType!] && playerInventory.items[recipeType!] > 0) {
+        availableRecipes.push(recipeType!);
+      }
+    });
+    return availableRecipes;
   }
 }
 UIComponent.register(UI_OneHUD);

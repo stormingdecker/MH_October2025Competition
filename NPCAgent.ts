@@ -12,7 +12,7 @@ export enum NPCMovementSpeedID {
   DebugSuperFast,
 }
 
-export const NPCMovementSpeed: number[] = [1, 2, 4.5, 10];
+export const NPCMovementSpeed: number[] = [1, 3, 4.5, 10];
 
 export enum NPCAnimationID {
   None,
@@ -291,7 +291,7 @@ export class NPCAgent extends Component<typeof NPCAgent> {
     return waypoints !== undefined && waypoints.length > 0;
   }
 
-  public async moveToPositionUsingNavMesh(targetPosition: Vec3, movementSpeedID: NPCMovementSpeedID) {
+  public async moveToPositionUsingNavMesh(targetPosition: Vec3, movementSpeedID: NPCMovementSpeedID, giveUpAfterSeconds: number = 0) {
     debugLog(this.props.debugLogging, `Moving to position using NavMesh: ${targetPosition}`);
     const currentPosition = this.npcPlayer!.position.get();
     const waypoints = NavMeshController.getWaypointsBetween(currentPosition, targetPosition);
@@ -299,7 +299,12 @@ export class NPCAgent extends Component<typeof NPCAgent> {
       console.error("No waypoints found, cannot move using NavMesh");
       return;
     }
-
+    if (giveUpAfterSeconds > 0) {
+      this.async.setTimeout(() => {
+        debugLog(this.props.debugLogging, `Giving up on moving to position: ${targetPosition}`);
+        this.npcPlayer?.stopMovement();
+      }, giveUpAfterSeconds * 1000);
+    }
     await this.npcPlayer?.moveToPositions(waypoints, { movementSpeed: NPCMovementSpeed[movementSpeedID] });
   }
 

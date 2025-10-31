@@ -1,17 +1,17 @@
-import * as hz from 'horizon/core';
-import { WaypointEvents } from 'WaypointManager';
+import * as hz from "horizon/core";
 
 /**
  * WaypointArrows.ts
  *
  * Summary:
  * Manage the arrows movement and visibility
- *
- * Works with:
- * - WaypointTrigger Detect the player entering a waypoint trigger.
- * - WaypointManager Manage waypoint arrows and their interactions.
  */
 
+export const WaypointEvents = {
+  updateTargetPosition: new hz.NetworkEvent<{ newPosition: hz.Vec3 }>("updateTargetPosition"),
+  stopwaypointArrow: new hz.NetworkEvent<{}>("stopWaypointArrow"),
+  onTargetReached: new hz.NetworkEvent<{ player: hz.Player }>("onTargetReached"),
+};
 
 class WaypointArrows extends hz.Component<typeof WaypointArrows> {
   static propsDefinition = {
@@ -55,10 +55,10 @@ class WaypointArrows extends hz.Component<typeof WaypointArrows> {
     }
   }
 
-/**
- * Subscribe to relevant events for the waypoint arrows. Update the target position and
- * stop the arrow update when necessary.
- */
+  /**
+   * Subscribe to relevant events for the waypoint arrows. Update the target position and
+   * stop the arrow update when necessary.
+   */
   private subscribeEvents() {
     this.connectNetworkEvent(this.owner, WaypointEvents.updateTargetPosition, (data) => {
       this.onUpdateTarget(data.newPosition);
@@ -91,7 +91,7 @@ class WaypointArrows extends hz.Component<typeof WaypointArrows> {
   private startWaypointArrowUpdate() {
     this.updateIntervalId = this.async.setInterval(() => {
       this.arrowUpdate();
-    }, 10); // Update every 0.1 seconds  
+    }, 10); // Update every 0.1 seconds
   }
 
   /**
@@ -111,11 +111,21 @@ class WaypointArrows extends hz.Component<typeof WaypointArrows> {
     const playerPos = this.owner.position.get();
     const targetPos = this.targetPosition;
 
+    const distance = targetPos.sub(playerPos).magnitude();
     const direction = targetPos.sub(playerPos).normalize();
     const horizontalDir = new hz.Vec3(direction.x, 0, direction.z);
 
     const rotation = hz.Quaternion.lookRotation(horizontalDir, hz.Vec3.up);
     this.waypointArrow.rotation.set(rotation);
+
+    if (distance <= 1.5) {
+      this.sendNetworkBroadcastEvent(WaypointEvents.onTargetReached, {
+        player: this.owner,
+      });
+      this.toggleVisibility(false);
+      this.isVisible = false;
+      this.stopWaypointArrowUpdate();
+    }
   }
 
   /**

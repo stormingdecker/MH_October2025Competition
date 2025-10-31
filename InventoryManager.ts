@@ -3,7 +3,7 @@ import { IInventoryManager } from "Interfaces";
 import { SaveManager } from "SaveManager";
 import { sysEvents } from "sysEvents";
 import { debugLog, getEntityListByTag, ManagerType } from "sysHelper";
-import { DEFAULT_INVENTORY, InventoryType, PlayerInventory } from "sysTypes";
+import { DEFAULT_INVENTORY, foodTypes, InventoryType, pieTypes, PlayerInventory } from "sysTypes";
 import { getMgrClass } from "sysUtils";
 import { oneHudEvents } from "UI_OneHUDEvents";
 // import { oneHudEvents } from "UI_OneHUD";
@@ -26,7 +26,7 @@ export class InventoryManager
   private oneHUD: Entity | undefined;
   private saveManager: SaveManager | undefined;
   private playerFirstPickPopupMap: Map<Player, InventoryFirstPickMap> = new Map(); //every time the player picks an item for the first time per session
-  private loadingPlayerInventory =false;
+  private loadingPlayerInventory = false;
 
   //region preStart()
   preStart(): void {
@@ -68,7 +68,6 @@ export class InventoryManager
     this.playerFirstPickPopupMap.delete(player);
     this.playerInventoryMap.delete(player);
   }
-
 
   public broadcastPlayerInventory(player: Player) {
     const inventory = this.getPlayerInventory(player);
@@ -128,20 +127,38 @@ export class InventoryManager
         }
         this.playerInventoryMap.set(player, inventory);
         this.saveManager?.savePlayerData(player);
+
+
+        if (inventory.items[itemType] > 0 && !this.loadingPlayerInventory) {
+          this.checkIfFirstPick(player, itemType, quantity > 0);
+        }
+  
+        if (quantity > 0 && itemType !== InventoryType.currency && itemType !== InventoryType.diamond) {
+          this.sendNetworkEvent(this.oneHUD!, oneHudEvents.UpdateInventoryUI, {
+            player: player,
+            inventoryType: itemType,
+            newValue: inventory.items[itemType].toString(),
+          });
+        }
+
       } else {
         console.warn(`Item ${itemType} does not exist in the inventory.`);
-      }
-
-      if (inventory.items[itemType] > 0 && !this.loadingPlayerInventory) {
-        this.checkIfFirstPick(player, itemType);
       }
     } else {
       console.warn(`No inventory found for player ${player.name.get()}.`);
     }
   }
 
-  private checkIfFirstPick(player: Player, itemType: InventoryType) {
-    if (itemType === InventoryType.currency || itemType === InventoryType.diamond) {
+  private checkIfFirstPick(
+    player: Player,
+    itemType: InventoryType,
+    didQuantityIncrease: boolean = true
+  ) {
+    if (
+      !didQuantityIncrease ||
+      itemType === InventoryType.currency ||
+      itemType === InventoryType.diamond
+    ) {
       return; //skip currency and diamond
     }
     if (!this.playerFirstPickPopupMap.has(player)) {
@@ -154,12 +171,34 @@ export class InventoryManager
         this.props.showDebugs,
         `Player ${player.name.get()} picked ${itemType} for the first time this session.`
       );
+      const imageAssetId = this.tryGetItemImageAssetId(itemType);
       this.sendNetworkEvent(this.oneHUD!, oneHudEvents.PopupRequest, {
         requester: this.entity,
         player: player,
         title: "New Item Acquired!",
         message: `You have acquired your first ${itemType}! Check your inventory to see your new item.`,
+        imageAssetId: imageAssetId,
       });
+    }
+  }
+
+  private tryGetItemImageAssetId(itemType: InventoryType): string | undefined {
+    console.log("Trying to get image asset ID for item type:", itemType);
+    const fruitItem = foodTypes.find((fruit) => fruit.name === itemType);
+    const pieItem = pieTypes.find((pie) => pie.name === itemType);
+    const recipeItem = pieTypes.find((pie) => pie.recipeType === itemType);
+    if (fruitItem) {
+      console.log("Found fruit item:", fruitItem);
+      return fruitItem.imageAssetID;
+    } else if (pieItem) {
+      console.log("Found pie item:", pieItem);
+      return pieItem.imageAssetID;
+    } else if (recipeItem) {
+      console.log("Found recipe item:", recipeItem);
+      return recipeItem.recipeImgAssetId;
+    } else {
+      console.warn(`No image asset found for item type: ${itemType}`);
+      return undefined;
     }
   }
 }

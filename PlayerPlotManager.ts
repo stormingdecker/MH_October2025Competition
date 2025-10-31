@@ -21,11 +21,15 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     enabled: { type: PropTypes.Boolean, default: true },
     showDebugs: { type: PropTypes.Boolean, default: false },
     autoAssignPlotOnJoin: { type: PropTypes.Boolean, default: true },
-    prioritizePlot: { type: PropTypes.Number, default: 4 },
+    // prioritizePlot: { type: PropTypes.Number, default: 4 },
     toggleBuildingInBuildMode: { type: PropTypes.Boolean, default: true },
+    uRocketLifePlotPref: { type: PropTypes.Number, default: 4 },
+    stormingdeckerPlotPref: { type: PropTypes.Number, default: 4 },
+    natashagubernovaPlotPref: { type: PropTypes.Number, default: 2 },
   };
 
   private playerMgr: PlayerManager | undefined = undefined;
+
 
   private playerPlotMap: Map<Player, PlayerPlot> = new Map();
   private occupiedPlotsMap: Map<number, boolean> = new Map();
@@ -162,10 +166,26 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
 
   //region auto assign plot()
   assignPlayerToOpenPlot(player: Player) {
+  //DAVE PRIORITY 
+  
+
     //get first unoccupied plot
     let assignedPlotIndex = -1;
-    if (!this.occupiedPlotsMap.has(this.props.prioritizePlot)) {
-      assignedPlotIndex = this.props.prioritizePlot;
+    let prioritizedPlot = 2;
+    // let prioritizedPlot = this.props.prioritizePlot;
+
+    if (player.name.get() === "uRocketLife") {
+      prioritizedPlot = this.props.uRocketLifePlotPref;
+    }
+    else if (player.name.get() === "stormingdecker") {
+      prioritizedPlot = this.props.stormingdeckerPlotPref;
+    }
+    else if (player.name.get() === "natashagubernova") {
+      prioritizedPlot = this.props.natashagubernovaPlotPref;
+    }
+
+    if (!this.occupiedPlotsMap.has(prioritizedPlot)) {
+      assignedPlotIndex = prioritizedPlot;
     } else {
       for (let i = 0; i < this.perPlayerPlotManagerList.length; i++) {
         if (!this.occupiedPlotsMap.get(i)) {
@@ -181,7 +201,8 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
     }
 
     debugLog(this.props.showDebugs, `Assigning plot ${this.perPlayerPlotManagerList[assignedPlotIndex].name.get()} to ${player.name.get()}`);
-    this.sendNetworkEvent(this.perPlayerPlotManagerList[assignedPlotIndex], sysEvents.assignPlotOwner, { player: player });
+    const playerPlotEntity = this.perPlayerPlotManagerList[assignedPlotIndex];
+    this.sendNetworkEvent(playerPlotEntity, sysEvents.assignPlotOwner, { player: player });
     let raceConditionDelay = 200;
     this.async.setTimeout(() => {
       let plot = this.plotPropsList[assignedPlotIndex];
@@ -195,6 +216,10 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
         menuContext: [Primary_MenuType.PlotMenu],
       });
     }, raceConditionDelay);
+
+    //activate NUX for player at plot 
+    const nuxManager = getEntityListByTag(ManagerType.NUX_Manager, this.world)[0];
+    this.sendNetworkEvent(nuxManager!, sysEvents.startNUXForPlayer, { player: player, playerPlot: playerPlotEntity });
   }
 
   //region plot load/reset
@@ -321,7 +346,12 @@ export class PlayerPlotManager extends Component<typeof PlayerPlotManager> {
           //force setting collidable for chairs to make selectable
           if (spawnedEntity.tags.get().includes(RestaurantItemTag.chair)) {
             spawnedEntity.getComponents<MoveableBase>(MoveableBase).forEach((moveable) => {
-              moveable.collidableEnabled(true);
+              if (isNew){
+                moveable.collidableEnabled(true);
+              }
+              else{
+                moveable.collidableEnabled(false);
+              }
             });
           }
         }

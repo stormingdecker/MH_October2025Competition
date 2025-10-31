@@ -17,6 +17,7 @@ export const PlayerMgrEvents = {
 };
 
 export class PlayerManager extends Component<typeof PlayerManager> {
+  public static instance : PlayerManager;
   private managerRegistry: ManagerRegistry = new Map<string, Entity>();
   static propsDefinition = {
     showDebugs: { type: PropTypes.Boolean, default: false },
@@ -27,6 +28,7 @@ export class PlayerManager extends Component<typeof PlayerManager> {
 
   //region PreStart
   preStart() {
+    PlayerManager.instance = this;
     this.managerRegistry = buildManagerRegistry(this.world);
 
     this.connectCodeBlockEvent(this.entity, CodeBlockEvents.OnPlayerEnterWorld, this.onPlayerEnterWorld.bind(this));

@@ -74,6 +74,9 @@ export const sysEvents = {
   changeTaggedEntityTextureEvent: new NetworkEvent<{ player: Player; textureAssetId: string; tag: string }>("changeTaggedEntityTextureEvent"),
   playerInPlotBuildingEvent: new NetworkEvent<{ player: Player; inBuilding: boolean }>("playerInPlotBuildingEvent"),
 
+  //region NUX Events
+  startNUXForPlayer: new NetworkEvent<{ player: Player; playerPlot: Entity }>("startNUXForPlayer"),
+
   //region Menu Events
   //bottom menu
   updateMenuContext: new NetworkEvent<{ player: Player; menuContext: string[] }>("updateMenuContext"),

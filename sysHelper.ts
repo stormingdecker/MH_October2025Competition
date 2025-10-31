@@ -123,6 +123,7 @@ export enum ManagerType {
   UI_OneHUD = "UI_OneHUD",
   DailyRewardManager = "DailyRewardManager",
   UI_MenuManager = "UI_MenuManager",
+  NUX_Manager = "NUX_Manager",
 }
 
 /**

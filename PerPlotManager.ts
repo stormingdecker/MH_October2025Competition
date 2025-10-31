@@ -1,17 +1,6 @@
 import { DailyRewardManager } from "DailyRewardManager";
-import {
-  Asset,
-  CodeBlockEvents,
-  Component,
-  Entity,
-  EulerOrder,
-  Player,
-  PropTypes,
-  Quaternion,
-  SpawnPointGizmo,
-  TriggerGizmo,
-  Vec3,
-} from "horizon/core";
+import { Asset, CodeBlockEvents, Component, Entity, EulerOrder, Player, PropTypes, Quaternion, SpawnPointGizmo, TriggerGizmo, Vec3 } from "horizon/core";
+import { MerchantStall } from "MerchantStall";
 import { PlayerPlotManager } from "PlayerPlotManager";
 import { StatsManager } from "StatsManager";
 import { sysEvents } from "sysEvents";
@@ -41,6 +30,9 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
     KitchenManager: { type: PropTypes.Entity },
     SpawnPoint: { type: PropTypes.Entity },
     dailyRewardEntity: { type: PropTypes.Entity },
+    vfxBang: { type: PropTypes.Entity },
+    MerchantStall: { type: PropTypes.Entity },
+    FruitTree: { type: PropTypes.Entity },
   };
 
   dailyRewardManager: DailyRewardManager | undefined = undefined;
@@ -60,26 +52,10 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
 
     this.spawnpointGizmo = this.props.SpawnPoint?.as(SpawnPointGizmo);
 
-    this.connectCodeBlockEvent(
-      this.props.PlotTrigger!,
-      CodeBlockEvents.OnPlayerEnterTrigger,
-      this.OnPlayerEnterTrigger.bind(this)
-    );
-    this.connectCodeBlockEvent(
-      this.props.PlotTrigger!,
-      CodeBlockEvents.OnPlayerExitTrigger,
-      this.OnPlayerExitTrigger.bind(this)
-    );
-    this.connectCodeBlockEvent(
-      this.props.BuildTrigger!,
-      CodeBlockEvents.OnPlayerEnterTrigger,
-      this.OnPlayerEnterBuildTrigger.bind(this)
-    );
-    this.connectCodeBlockEvent(
-      this.props.BuildTrigger!,
-      CodeBlockEvents.OnPlayerExitTrigger,
-      this.OnPlayerExitBuildTrigger.bind(this)
-    );
+    this.connectCodeBlockEvent(this.props.PlotTrigger!, CodeBlockEvents.OnPlayerEnterTrigger, this.OnPlayerEnterTrigger.bind(this));
+    this.connectCodeBlockEvent(this.props.PlotTrigger!, CodeBlockEvents.OnPlayerExitTrigger, this.OnPlayerExitTrigger.bind(this));
+    this.connectCodeBlockEvent(this.props.BuildTrigger!, CodeBlockEvents.OnPlayerEnterTrigger, this.OnPlayerEnterBuildTrigger.bind(this));
+    this.connectCodeBlockEvent(this.props.BuildTrigger!, CodeBlockEvents.OnPlayerExitTrigger, this.OnPlayerExitBuildTrigger.bind(this));
 
     this.connectNetworkEvent(this.entity, sysEvents.assignPlotOwner, (data) => {
       const player = data.player;
@@ -100,8 +76,7 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
         if (this.dailyRewardClaimed === false) {
           this.props.dailyRewardEntity!.visible.set(true);
 
-          const claimed =
-            this.dailyRewardManager?.hasClaimedDailyReward(player, Date.now()) ?? false;
+          const claimed = this.dailyRewardManager?.hasClaimedDailyReward(player, Date.now()) ?? false;
           this.dailyRewardClaimed = claimed;
           const show = !claimed;
           this.props.dailyRewardEntity!.visible.set(show);
@@ -111,11 +86,7 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
 
         //daily reward logic
         //determine if daily reward claimed
-        const dailyRewardManager = getMgrClass<DailyRewardManager>(
-          this,
-          ManagerType.DailyRewardManager,
-          DailyRewardManager
-        );
+        const dailyRewardManager = getMgrClass<DailyRewardManager>(this, ManagerType.DailyRewardManager, DailyRewardManager);
         if (!dailyRewardManager?.hasClaimedDailyReward(player, Date.now())) {
           // Player has not claimed daily reward
           const spawnPoint = this.props.SpawnPoint;
@@ -148,18 +119,10 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
   //region start()
   start() {
     if (!this.props.enabled) return;
-    this.plotMgr = getMgrClass<PlayerPlotManager>(
-      this,
-      ManagerType.PlayerPlotManager,
-      PlayerPlotManager
-    );
+    this.plotMgr = getMgrClass<PlayerPlotManager>(this, ManagerType.PlayerPlotManager, PlayerPlotManager);
     validate<PlayerPlotManager>(this, this.plotMgr);
 
-    this.dailyRewardManager = getMgrClass<DailyRewardManager>(
-      this,
-      ManagerType.DailyRewardManager,
-      DailyRewardManager
-    );
+    this.dailyRewardManager = getMgrClass<DailyRewardManager>(this, ManagerType.DailyRewardManager, DailyRewardManager);
 
     this.plotProps = {
       perPlotManager: this.entity,
@@ -224,6 +187,22 @@ class PerPlotManager extends Component<typeof PerPlotManager> {
     //   player: player,
     //   menuContext: [],
     // });
+  }
+
+  public getVFXBangEntity(): Entity {
+    return this.props.vfxBang!;
+  }
+
+  public getDailyRewardEntity(): Entity {
+    return this.props.dailyRewardEntity!;
+  }
+
+  public getMerchantStallEntity(): Entity {
+    return this.props.MerchantStall!;
+  }
+
+  public getFruitTreeEntity(): Entity {
+    return this.props.FruitTree!;
   }
 }
 Component.register(PerPlotManager);

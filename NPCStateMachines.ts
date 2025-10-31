@@ -109,7 +109,7 @@ enum NPCStates_Client {
   Initializing,
   TeleportUnderground,
   QueuedInPool,
-  TeleportToPlayerPlot,
+  TeleportToStartPosition,
   WalkToSeat,
   Sit,
   OrderFood,
@@ -120,6 +120,7 @@ enum NPCStates_Client {
 
 const CURRENCY_REWARD_PER_ORDER = 100;
 const MAXIMUM_WAIT_TIME_FOR_ORDER_SECONDS = 120;
+const WALK_TIMEOUT_SECONDS = 30;
 const ALLOW_CLIENT_SPEAK = false;
 
 export class NPCStateMachine_Client extends NPCStateMachine {
@@ -141,7 +142,7 @@ export class NPCStateMachine_Client extends NPCStateMachine {
   public override activateClient(chair: NPCChair) {
     this.chair = chair;
     if (this.currentState === NPCStates_Client.QueuedInPool) {
-      this.setCurrentState(NPCStates_Client.TeleportToPlayerPlot);
+      this.setCurrentState(NPCStates_Client.TeleportToStartPosition);
     }
   }
 
@@ -163,9 +164,9 @@ export class NPCStateMachine_Client extends NPCStateMachine {
       case NPCStates_Client.QueuedInPool: {
         break;
       }
-      case NPCStates_Client.TeleportToPlayerPlot: {
-        debugLog(this.debugLogging, `Client NPC teleporting to player plot base: ${this.chair!.plotBaseEntity.name.get()}`);
-        this.parentAgent!.teleportToPosition(this.chair!.plotBaseEntity.position.get().add(new Vec3(0, 0.5, 0)));
+      case NPCStates_Client.TeleportToStartPosition: {
+        debugLog(this.debugLogging, `Client NPC teleporting to start position`);
+        this.parentAgent!.teleportToPosition(this.parentAgent!.getStartPosition());
         this.setCurrentState(NPCStates_Client.WalkToSeat);
         break;
       }
@@ -176,10 +177,10 @@ export class NPCStateMachine_Client extends NPCStateMachine {
         const isPathPossibleAlongNavMesh = this.parentAgent!.isPathPossibleAlongNavMesh(seatPosition);
         if (isPathPossibleAlongNavMesh) {
           debugLog(this.debugLogging, `Client NPC walking to chair using NavMesh`);
-          await this.parentAgent!.moveToPositionUsingNavMesh(seatPosition, NPCMovementSpeedID.Walk);
+          await this.parentAgent!.moveToPositionUsingNavMesh(seatPosition, NPCMovementSpeedID.Walk, WALK_TIMEOUT_SECONDS);
         } else {
           debugLog(this.debugLogging, `Client NPC walking to chair using direct movement`);
-          await this.parentAgent!.moveToPosition(seatPosition, NPCMovementSpeedID.Walk, 10);
+          await this.parentAgent!.moveToPosition(seatPosition, NPCMovementSpeedID.Walk, WALK_TIMEOUT_SECONDS);
         }
         this.parentAgent!.teleportToPosition(seatPosition);
         if (this.parentAgent!.getIsForcedReturnHome()) {
@@ -245,11 +246,11 @@ export class NPCStateMachine_Client extends NPCStateMachine {
         break;
       }
       case NPCStates_Client.Eat: {
-        if (this.getStateDurationSeconds() >= 1) {
+        if (this.getStateDurationSeconds() >= 2) {
           const platePosition = this.servedFoodEntity!.position.get();
-          await this.parentAgent!.world.deleteAsset(this.servedFoodEntity!, true);
+          await this.chair!.kitchenManager!.despawnFoodPlate(this.servedFoodEntity!);
           this.servedFoodEntity = undefined;
-          GrabbableMoney.spawnMoney(this.parentAgent!.world, platePosition.add(new Vec3(0, -0.05, 0)), CURRENCY_REWARD_PER_ORDER);
+          GrabbableMoney.spawnMoney(this.parentAgent!.world, platePosition.add(new Vec3(0, -0.1, 0)), CURRENCY_REWARD_PER_ORDER);
           this.setCurrentState(NPCStates_Client.ReturningHome);
         }
         break;
@@ -269,10 +270,10 @@ export class NPCStateMachine_Client extends NPCStateMachine {
         const isPathPossibleAlongNavMesh = this.parentAgent!.isPathPossibleAlongNavMesh(plotBasePosition);
         if (isPathPossibleAlongNavMesh) {
           debugLog(this.debugLogging, `Client NPC walking to spawnpoint using NavMesh`);
-          await this.parentAgent!.moveToPositionUsingNavMesh(plotBasePosition, NPCMovementSpeedID.Walk);
+          await this.parentAgent!.moveToPositionUsingNavMesh(plotBasePosition, NPCMovementSpeedID.Walk, WALK_TIMEOUT_SECONDS);
         } else {
           debugLog(this.debugLogging, `Client NPC walking to spawnpoint using direct movement`);
-          await this.parentAgent!.moveToPosition(plotBasePosition, NPCMovementSpeedID.Walk, 10);
+          await this.parentAgent!.moveToPosition(plotBasePosition, NPCMovementSpeedID.Walk, WALK_TIMEOUT_SECONDS);
         }
         this.setCurrentState(NPCStates_Client.TeleportUnderground);
         break;

@@ -153,7 +153,7 @@ class RaycastItemPlacement extends Component<typeof RaycastItemPlacement> {
 
         LocalCamera.setCameraModeAttach(this.props.camAttachTarget!, {});
 
-        this.playerOwner?.enterFocusedInteractionMode();
+        this.playerOwner?.enterFocusedInteractionMode({disableFocusExitButton: true});
         this.subscribedToFintEvents = true;
         this.inFocusMode = true;
         playAudio(this, AudioLabel.open);
