@@ -790,7 +790,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         let itemId = menuContext[2]; //ex: "apple" or "applePie"
         console.log(`Inventory Menu Type is ${inventoryMenuType}`);
         this.bnd_inventoryItemInstanceId.set(itemId, [player]);
-      
+
         this.bnd_inventoryDetailText.set("More item detail goes here", [player]);
         const fruitItem = foodTypes.find((fruit) => fruit.name === itemId);
         const pieItem = pieTypes.find((pie) => pie.name === itemId);
@@ -811,9 +811,7 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
         if (isFruit) {
           this.bnd_inventoryItemName.set(fruitItem!.itemName, [player]);
         } else {
-          pieTypes.forEach((pie) => {
-            this.bnd_inventoryItemName.set(pie.itemName, [player]);
-          });
+          this.bnd_inventoryItemName.set(pieItem!.itemName, [player]);
         }
         // this.bnd_merchantItemPrice.set(price.toString(), [player]);
 
@@ -835,6 +833,12 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
           const fruitItem = foodTypes.find((fruit) => fruit.name === itemId);
           const pieItem = pieTypes.find((pie) => pie.name === itemId);
           const isFruit = fruitItem !== undefined;
+
+          if (isFruit) {
+            this.bnd_merchantItemName.set(fruitItem!.itemName, [player]);
+          } else {
+            this.bnd_merchantItemName.set(pieItem!.itemName, [player]);
+          }
 
           const itemAssetId = fruitItem?.imageAssetID ?? pieItem?.imageAssetID;
           if (!itemAssetId) {
@@ -873,6 +877,8 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
           // const fruitItem = fruitTypes.find((fruit) => fruit.name === itemId);
           const pieItem = pieTypes.find((pie) => pie.recipeType === itemId);
           // const isFruit = fruitItem !== undefined;
+
+          this.bnd_merchantItemName.set(pieItem!.recipeName, [player]);
 
           const itemAssetId = pieItem?.recipeImgAssetId;
           if (!itemAssetId) {
@@ -1461,7 +1467,12 @@ export class UI_OneHUD extends UIComponent<typeof UI_OneHUD> {
 
   //region showNotification()
   //Populate notification with required message and optional player & imageAssetId
-  public showNotification(message: string, players: Player[], imageAssetId: string | null, bkgColor?: string) {
+  public showNotification(
+    message: string,
+    players: Player[],
+    imageAssetId: string | null,
+    bkgColor?: string
+  ) {
     const asset = imageAssetId ? new Asset(BigInt(imageAssetId)) : this.props.notificationImg!;
     const imgSrc = ImageSource.fromTextureAsset(asset);
     let recipients = players.length > 0 ? players : undefined;
